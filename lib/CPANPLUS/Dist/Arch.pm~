@@ -1,0 +1,483 @@
+package CPANPLUS::Dist::Arch;
+
+use warnings;
+use strict;
+use English '-no_match_vars';
+
+use base 'CPANPLUS::Dist::Base';
+
+use CPANPLUS::Error;
+use Module::CoreList;
+use File::Path       qw<mkpath>;
+use File::Copy       qw<copy>;
+use File::stat       qw<stat>;
+use IPC::Cmd         qw<run can_run>;
+
+use Data::Dumper;
+
+our $VERSION = '0.1';
+
+####
+#### GLOBAL CLASS CONSTANTS
+####
+
+sub MKPKGCONF_FQN() { '/etc/makepkg.conf'      }
+sub CPANURL()       { 'http://search.cpan.org' }
+
+my ($PKGBUILD, $PKGDEST, $PACKAGER, $LICENSE);
+
+sub BEGIN
+{
+	# Set defaults
+	$PKGBUILD = sprintf "$ENV{HOME}/.cpanplus/%vd/pacman/build", $PERL_VERSION;
+	$PKGDEST  = sprintf "$ENV{HOME}/.cpanplus/%vd/pacman/pkg",   $PERL_VERSION;
+	$PACKAGER = 'Anonymous';
+
+	# Read makepkg.conf to see if there are system-wide settings
+	open my $mkpkgconf, '<', MKPKGCONF_FQN
+	or die 'Could not open '.MKPKGCONF_FQN.', you do have makepkg, right?';
+	while (<$mkpkgconf>) {
+		if(/^PKGDEST=(.*)\s*$/)     { $PKGDEST  = $1; }
+		elsif(/^PACKAGER=(.*)\s*$/) { $PACKAGER = $1; }
+	}
+	close $mkpkgconf;
+}
+
+
+####
+#### PUBLIC CLASS METHODS
+####
+
+##
+## my $bool = format_available( $self )
+##
+## Return true if we have the tools needed to make a pacman package.
+## Return false if we don't think so.
+##
+#
+
+sub format_available
+{
+	my @progs = qw{ makepkg pacman };
+	foreach my $prog (@progs) {
+		unless( can_run $prog ) {
+			error "CPANPLUS::Dist::Arch needs $prog to work properly";
+			return 0;
+		}
+	}
+	return 1;
+}
+
+##
+## my $bool = init( $self )
+##
+## Initializes the object internals to get things started
+## Return true if ok, false on error.
+##
+#
+
+sub init
+{
+	my $self = shift;
+
+	$self->status->mk_accessors( qw/ pkgname pkgver pkgbase pkgdesc pkgdir pkgurl
+																	 pkgsize pkgarch / );
+	return 1;
+}
+
+##
+## my $bool = prepare( $self, %options )
+##
+## Prepares the files and directories we will need to build a package
+## inside.  Also prepares any data we need on a per-object basis.
+##
+## Return true if ok, false on error.  Sets $self->status->prepare to
+## true or false on success or failure.
+##
+#
+
+sub prepare
+{
+	my ($self, %opts) = (shift, @_);
+
+	my $status   = $self->status;				 # Private hash
+	my $module   = $self->parent;				 # CPANPLUS::Module
+	my $intern   = $module->parent;				 # CPANPLUS::Internals
+	my $conf     = $intern->configure_object;	 # CPANPLUS::Configure
+	my $distcpan = $module->status->dist_cpan;	 # CPANPLUS::Dist::MM or
+	                                             # CPANPLUS::Dist::Build
+
+	$self->_prepare_status;
+
+	# Create a directory for the new package
+	for my $dir ($status->pkgbase, $PKGDEST) {
+		if ( -e $dir ) {
+			my $error;
+			error "$dir exists but is not a directory!",$error=1 unless( -d _ );
+			error "$dir exists but is read-only!",      $error=1 unless( -w _ );
+			return $status->prepared(0) if($error);
+		}
+		elsif( ! mkpath $dir ) {
+			error "failed to create directory '$dir': $!";
+			return $status->prepared(0);
+		}
+		elsif($opts{'verbose'}) { msg "Created $dir" }
+	}
+
+#	return $status->prepared(1);
+	return $self->SUPER::prepare(@_);
+}
+
+##
+## my $bool = create( $self, %options );
+##
+#
+
+sub create
+{
+	my ($self, %opts) = (shift, @_);
+
+	my $status   = $self->status;				 # Private hash
+	my $module   = $self->parent;				 # CPANPLUS::Module
+	my $intern   = $module->parent;				 # CPANPLUS::Internals
+	my $conf     = $intern->configure_object;	 # CPANPLUS::Configure
+	my $distcpan = $module->status->dist_cpan;	 # CPANPLUS::Dist::MM or
+	                                             # CPANPLUS::Dist::Build
+	my @ok_args = qw{ format verbose target force prereq_build };
+	my %resolve_args;
+	@resolve_args{@ok_args} = @opts{@ok_args};
+	$self->_resolve_prereqs( %resolve_args,
+							 'format' => ref $self,
+							 'target' => 'install',
+							 'prereqs' => $module->status->prereqs );
+
+ 	my $pkgfile =
+	"${\$status->pkgname}-".
+	"${\$status->pkgver}-1-".
+	"${\$status->pkgarch}.pkg.tar.gz";
+
+	my $fqn_srcfile = $status->pkgbase . '/' . $module->package;
+	my $fqn_pkgfile = $status->pkgbase . "/$pkgfile";
+
+	$self->_create_pkgbuild(skiptest => $opts{skiptest}) or return 0;
+	unless( ( -e $fqn_srcfile && -r _ ) ||
+					link $module->_status->fetch, $fqn_srcfile ) {
+		error "Failed to create link to ${\$module->_status->fetch}: $!";
+		return 0;
+	}
+	chdir $status->pkgbase or die "chdir: $!";
+	my $makecmd = 'makepkg -m';
+	$makecmd .= ' -f' if($opts{'force'});
+	$makecmd .= '>/dev/null' unless($opts{'verbose'});
+	system $makecmd;
+
+	if($?) {
+		if($? & 127) { error "makepkg failed with signal ", $? & 127, "\n"; }
+		else { error sprintf "makepkg returned abnormal status: %d\n", $?>>8; }
+		return 0;
+	}
+
+	unless( rename $fqn_pkgfile, $PKGDEST."/$pkgfile" ) {
+		error "failed to move $pkgfile to $PKGDEST: $!";
+		return 0;
+	}
+
+	$status->dist( $PKGDEST."/$pkgfile" );
+	return $self->SUPER::create(@_);
+}
+
+sub install
+{
+	my ($self, %opts) = (shift, $@);
+
+	my $status   = $self->status;					 # Private hash
+	my $module   = $self->parent;					 # CPANPLUS::Module
+	my $intern   = $module->parent;					 # CPANPLUS::Internals
+	my $conf     = $intern->configure_object;		 # CPANPLUS::Configure
+
+	my $sudocmd = $conf->get_program('sudo');
+	if( $> ) {
+		if( $sudocmd ) { system "sudo pacman -U ${\$status->dist}"; }
+		else {
+			error <<'END';
+In order to install packages as a non-root user (highly recommended)
+you must have a sudo-like command specified in your CPANPLUS
+configuration.
+END
+			return 0;
+		}
+	}
+	else { system "pacman -U ${\$status->dist}"; }
+
+	if($?) {
+		if($? & 127) { error "pacman failed with signal ", $? & 127, "\n"; }
+		else { error sprintf "pacman returned abnormal status: %d\n", $?>>8; }
+		return 0;
+	}
+
+	return $status->installed(1);
+}
+
+
+####
+#### PRIVATE CLASS METHODS
+####
+
+
+## my $pkgname = pkg_name( $self, $cpanname );
+##
+## Converts a distribution name ($cpanname, ex: Acme::Drunk) to an
+## Archlinux perl package name ($pkgname, ex: perl-acme-drunk)
+##
+#
+
+sub _pkg_name
+{
+	my ($self, $cpanname) = @_;
+	$cpanname = lc $cpanname;
+	$cpanname =~ tr/:/-/s;
+	'perl-'.$cpanname;
+}
+
+## $pkgdesc = _prepare_pkgdesc( $self );
+##
+## Tries to find a module's "abstract" short description for use as a
+## package description.  We search through the META.yml file and then
+## the README file.
+##
+## Returns the package description, but also sets the
+## $self->status>pkgdesc accessor to the found package description
+## first.
+##
+#
+
+sub _prepare_pkgdesc
+{
+	my ($self) = @_;
+	my ($status, $module, $pkgdesc) = ($self->status, $self->parent);
+
+	# First, try to find the short description in the META.yml file.
+	my $metayml;
+	unless( open $metayml, '<', $module->status->extract .'/META.yml' ) {
+	  error "Could not open META.yml to get pkgdesc: $!";
+	  goto CHECKREADME;
+	}
+
+	while ( <$metayml> ) {
+	  if (/^abstract:\s*(.+)/) {
+		$pkgdesc = $1;
+		$pkgdesc = $1 if ($pkgdesc =~ /^'(.*)'$/);
+		goto FOUNDDESC;
+	  }
+	}
+	close $metayml;
+
+	# Next, try to find it in in the README file
+ CHECKREADME:
+	open my $readme, '<', $module->status->extract . '/README' or
+	error( "Could not open README to get pkgdesc: $!" ), return undef;
+
+	my $modname = $module->name;
+	while ( <$readme> ) {
+		if ( /^NAME/ ... /^[A-Z]+/ &&
+				 / ^\s* ${modname} [\s-] (.+) /ox ) {
+			$pkgdesc = $1;
+			goto FOUNDDESC;
+		}
+	}
+	close $readme;
+
+	return undef;
+
+ FOUNDDESC:
+#	print "[###DEBUG###] pkgdesc=$pkgdesc\n";
+	return $self->status->pkgdesc($pkgdesc);
+}
+
+## _prepare_status ( );
+##
+## Prepares all the package-specific accessors in our $self->status
+## accessor object (of the class Object::Accessor).
+##
+## Accessors assigned to:
+##  pkgname pkgver pkgbase pkgdir pkgarch
+##
+## Accessors assigned elsewhere:
+##  pkgdesc
+##
+#
+
+sub _prepare_status
+{
+	my $self     = shift;
+	my $status   = $self->status;								 # Private hash
+	my $module   = $self->parent;								 # CPANPLUS::Module
+
+	my ($pkgver, $pkgname) = ( $module->version,
+														 $self->_pkg_name($module->name) );
+
+	my $pkgbase = "$PKGBUILD/$pkgname";
+	my $pkgdir  = "$pkgbase/pkg";
+	my $pkgarch = `uname -m`;
+	chomp $pkgarch;
+
+	foreach(( $pkgname, $pkgver, $pkgbase, $pkgdir, $pkgarch )) {
+		die "A package variable is invalid" unless(defined $_);
+	}
+
+	$status->pkgname( $pkgname );
+	$status->pkgver ( $pkgver  );
+	$status->pkgbase( $pkgbase );
+	$status->pkgdir ( $pkgdir  );
+	$status->pkgarch( $pkgarch );
+
+	$self->_prepare_pkgdesc;
+
+	return $status;
+}
+
+
+sub _create_dist_url
+{
+	my $self   = shift;
+	my $module = $self->parent;
+
+	my $modname  = $module->name;
+	my $authorid = lc $module->author->cpanid;
+	$modname =~ tr/:/-/s;
+	return "http://search.cpan.org/~$authorid/$modname";
+}
+
+## $dloadurl = _create_src_url( $self )
+##
+## Generates the standard cpan download link for the source tarball.
+##
+#
+
+sub _create_src_url
+{
+	my ($self) = @_;
+	my $module = $self->parent;
+
+	my $path   = $module->path;
+	my $file   = $module->package;
+	CPANURL."/$path/$file";
+}
+
+
+## _create_pkgbuild( $self );
+##
+## Creates a PKGBUILD file in the package's build directory.
+##
+## You must first call prepare on the SUPER class in order to populate
+## the pre-requisites.
+##
+## Various status->pkg... accessors must be inialized before this
+## function is called because it inserts many of them into the
+## PKGBUILD.
+##
+## If the 'skiptest' configuration variable is set (such as by the
+## command-line), then the 'make test' command in the PKGBUILD is
+## commented out.
+##
+#
+
+sub _create_pkgbuild
+{
+	my $self = shift;
+	my %opts = @_;
+	my ($status, $module) = ($self->status, $self->parent);
+	my $conf = $module->parent->configure_object;
+
+	my $url     = $self->_create_dist_url;
+
+	# Quote our package desc for bash
+	my $pkgdesc = $status->pkgdesc;
+	$pkgdesc =~ s{"}{\\"};
+
+	# Convert CPAN prerequisites into package dependencies
+	my $depends = '';
+	my @pkgdeps;
+	my $prereqs = $module->status->prereqs;
+	for my $modname (keys %$prereqs) {
+		# Sometimes a perl version is given as a prerequisite
+		# XXX Seems filtered out of prereqs() hash beforehand.
+		if( $modname eq 'perl' ) {
+			push @pkgdeps, "perl>=$prereqs->{$modname}";
+			next;
+		}
+		next if( exists $Module::CoreList::version{0+$]}->{$modname} );
+
+		my $pkgdep = $self->_pkg_name($modname);
+		if($prereqs->{$modname}) {
+			$pkgdep .= ">=$prereqs->{$modname}";
+		}
+		push @pkgdeps, "'$pkgdep'";
+	}
+	$depends = join ' ', @pkgdeps;
+	$depends = "($depends)";
+
+	my $fqpath = $status->pkgbase . '/PKGBUILD';
+
+	open my $pkgbuild, '>', $fqpath or die "open PKGBUILD: $!";
+	print $pkgbuild <<"EOF";
+# Contributor: $PACKAGER
+# Generator  : CPANPLUS::Dist::Arch $VERSION
+pkgname='${\$status->pkgname}'
+pkgver='${\$status->pkgver}'
+pkgrel='1'
+pkgdesc="$pkgdesc"
+arch=('i686' 'x86_64')
+license=('PerlArtistic' 'GPL')
+options=('!emptydirs')
+depends=$depends
+url='$url'
+source='${\$module->package}'
+
+build() {
+EOF
+
+	my $extdir = $module->package;
+	$extdir =~ s/\.${\$module->package_extension}$//;
+	my $intype = $module->status->installer_type;
+
+	if ( $intype eq 'CPANPLUS::Dist::MM' ) {
+		print $pkgbuild <<"EOF";
+  ( cd "\${srcdir}/$extdir" 
+    perl Makefile.PL INSTALLDIRS=vendor &&
+    make &&
+EOF
+		# Comment out the 'make test' command if --skiptest is given on
+		# the command line.
+ 		print $pkgbuild "#" if ($conf->get_conf('skiptest'));
+
+		print $pkgbuild <<"EOF";
+    PERL_MM_USE_DEFAULT=1 make test &&
+    make DESTDIR="\${pkgdir}/" install
+  ) || return 1;
+EOF
+	} # end MakeMaker type
+	elsif ( $intype eq 'CPANPLUS::Dist::Build' ) {
+		print $pkgbuild <<"EOF";
+  ( cd "\${srcdir}/$extdir"
+    perl Build.pl --installdirs vendor --destdir \$pkgdir
+  ) || return 1;
+EOF
+	} # end Build type
+	else {
+	  error "Unknown installer type  '$intype'";
+		return 0;
+	}
+
+	print $pkgbuild <<'EOF';
+  find "$pkgdir" -name .packlist -delete
+  find "$pkgdir" -name perllocal.pod -delete
+}
+
+EOF
+
+	close $pkgbuild;
+	return 1;
+}
+
+1;
