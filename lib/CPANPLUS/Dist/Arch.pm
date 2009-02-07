@@ -15,12 +15,10 @@ use IPC::Cmd         qw(run can_run);
 use Readonly;
 use Carp             qw(croak carp);
 
-use Data::Dumper;
-
 our $VERSION = '0.2';
 
 ####
-#### CLASS CONSTANTS AND GLOBALS
+#### CLASS CONSTANTS
 ####
 
 Readonly my $MKPKGCONF_FQN => '/etc/makepkg.conf';
@@ -33,6 +31,7 @@ you must have a sudo-like command specified in your CPANPLUS
 configuration.
 END_MSG
 
+# Crude templates for our PKGBUILD script:
 Readonly my $MMAKER_FMT    => <<'END_BUILD';
   ( cd "${srcdir}/%s" 
     perl Makefile.PL INSTALLDIRS=vendor &&
@@ -48,9 +47,13 @@ Readonly my $BUILD_FMT     => <<'END_BUILD';
   ) || return 1;
 END_BUILD
 
+####
+#### CLASS GLOBALS (I should probably move these to a private hash)
+####
+
 our ($PKGBUILD, $PKGDEST, $PACKAGER, $LICENSE);
 
-sub BEGIN
+READ_CONF:
 {
 	# Set defaults
 	$PKGBUILD = sprintf "$ENV{HOME}/.cpanplus/%vd/pacman/build", $PERL_VERSION;
@@ -58,9 +61,10 @@ sub BEGIN
 	$PACKAGER = 'Anonymous';
 
 	# Read makepkg.conf to see if there are system-wide settings
-	if ( ! open my $mkpkgconf, '<', $MKPKGCONF_FQN ) {
+    my $mkpkgconf;
+	if ( ! open $mkpkgconf, '<', $MKPKGCONF_FQN ) {
         carp "Could not read $MKPKGCONF_FQN: $!";
-        return;
+        last READ_CONF;
     }
 
     my %cfg_vars = ( 'PKGDEST'  => \$PKGDEST,
@@ -74,21 +78,17 @@ sub BEGIN
         }
 	}
 	close $mkpkgconf;
-
-    return;
 }
 
-
 ####
-#### CPANPLUS::Dist::Base Methods
+#### CPANPLUS::Dist::Base Interface
 ####
 
-##
-## my $bool = format_available( $self )
-##
-## Return true if we have the tools needed to make a pacman package.
-## Return false if we don't think so.
-##
+#
+# my $bool = format_available( $self )
+#
+# Return true if we have the tools needed to make a pacman package.
+# Return false if we don't think so.
 #
 
 sub format_available
@@ -103,12 +103,11 @@ sub format_available
 	return 1;
 }
 
-##
-## my $bool = init( $self )
-##
-## Initializes the object internals to get things started
-## Return true if ok, false on error.
-##
+#
+# my $bool = init( $self )
+#
+# Initializes the object internals to get things started
+# Return true if ok, false on error.
 #
 
 sub init
@@ -120,15 +119,14 @@ sub init
 	return 1;
 }
 
-##
-## my $bool = prepare( $self, %options )
-##
-## Prepares the files and directories we will need to build a package
-## inside.  Also prepares any data we need on a per-object basis.
-##
-## Return true if ok, false on error.  Sets $self->status->prepare to
-## true or false on success or failure.
-##
+#
+# my $bool = prepare( $self, %options )
+#
+# Prepares the files and directories we will need to build a package
+# inside.  Also prepares any data we need on a per-object basis.
+#
+# Return true if ok, false on error.  Sets $self->status->prepare to
+# true or false on success or failure.
 #
 
 sub prepare
@@ -152,10 +150,10 @@ sub prepare
 			die "$dir exists but is not a directory!" if ( ! -d _ );
 			die "$dir exists but is read-only!"       if ( ! -w _ );
 		}
-
-		mkpath $dir or die "failed to create directory '$dir': $!";
-
-		if ( $opts{'verbose'} ) { msg "Created directory $dir" }
+        else {
+            mkpath $dir or die "failed to create directory '$dir': $!";
+            if ( $opts{'verbose'} ) { msg "Created directory $dir" }
+        }
 	}
 
 	return $self->SUPER::prepare(@_);
@@ -194,7 +192,7 @@ sub create
 	my $pkgfile_fqp = $status->pkgbase . "/$pkgfile";
 
     # Prepare our 'makepkg' package building directory...
-	$self->_create_pkgbuild(skiptest => $opts{skiptest}) or return 0;
+	$self->_create_pkgbuild( skiptest => $opts{skiptest} );;
 	if ( ! -e $srcfile_fqp ) {
         my $tarball_fqp = $module->_status->fetch;
         link $tarball_fqp, $srcfile_fqp
@@ -261,19 +259,33 @@ sub install
 ####
 
 
+
+# sub _pkg_name
+# {
+# 	my ($self, $cpanname) = @_;
+# 	$cpanname = lc $cpanname;
+# 	$cpanname =~ tr/:/-/s;
+# 	return 'perl-'.$cpanname;
+# }
+
 #--- INSTANCE METHOD ---
-# Usage   : my $pkgname = $arch->_pkg_name($cpanname);
-# Purpose : Converts a module name to an Archlinux perl package name.
+# Usage   : my $pkgname = $self->_convert_pkgname($module_object);
+# Purpose : Converts a module's dist[ribution tarball] name to an
+#           Archlinux style perl package name.
 # Params  : $cpanname - The cpan module name (ex: Acme::Drunk).
 # Returns : The Archlinux perl package name (ex: perl-acme-drunk).
 #-----------------------
 
-sub _pkg_name
+sub _convert_pkgname
 {
-	my ($self, $cpanname) = @_;
-	$cpanname = lc $cpanname;
-	$cpanname =~ tr/:/-/s;
-	return 'perl-'.$cpanname;
+    my ($self, $module) = @_;
+
+    my $distext  = $module->package_extension;
+    my $distname = $module->package;
+    $distname = lc $distname;
+    $distname =~ s/ - [\d.]+ [.] $distext $ //xms;
+
+    return "perl-$distname";
 }
 
 #--- INSTANCE METHOD ---
@@ -285,6 +297,9 @@ sub _pkg_name
 # Returns  : The package description
 # Comments : We search through the META.yml file and then the README file.
 #-----------------------
+
+#TODO# This is REALLY funky.  Need to redo this and get rid of goto's
+#TODO# This should also look in the module source code's pod.
 
 sub _prepare_pkgdesc
 {
@@ -302,6 +317,7 @@ sub _prepare_pkgdesc
 	  if (/^abstract:\s*(.+)/) {
 		$pkgdesc = $1;
 		$pkgdesc = $1 if ($pkgdesc =~ /^'(.*)'$/);
+        close $metayml;
 		goto FOUNDDESC;
 	  }
 	}
@@ -315,8 +331,9 @@ sub _prepare_pkgdesc
 	my $modname = $module->name;
 	while ( <$readme> ) {
 		if ( /^NAME/ ... /^[A-Z]+/ &&
-				 / ^\s* ${modname} [\s-] (.+) /ox ) {
+             / ^\s* ${modname} [\s-]+ (.+) $ /oxms ) {
 			$pkgdesc = $1;
+            close $readme;
 			goto FOUNDDESC;
 		}
 	}
@@ -330,7 +347,7 @@ sub _prepare_pkgdesc
 }
 
 #--- INSTANCE METHOD ---
-# Usage    : $self->_prepare_status ( );
+# Usage    : $self->_prepare_status();
 # Purpose  : Prepares all the package-specific accessors in our $self->status
 #            accessor object (of the class Object::Accessor).
 # Postcond : Accessors assigned to: pkgname pkgver pkgbase pkgdir pkgarch
@@ -340,26 +357,26 @@ sub _prepare_pkgdesc
 sub _prepare_status
 {
 	my $self     = shift;
-	my $status   = $self->status;	# Private hash
-	my $module   = $self->parent;	# CPANPLUS::Module
+	my $status   = $self->status; # Private hash
+	my $module   = $self->parent; # CPANPLUS::Module
 
 	my ($pkgver, $pkgname) = ( $module->version,
-                               $self->_pkg_name($module->name) );
+                               $self->_convert_pkgname($module) );
 
 	my $pkgbase = "$PKGBUILD/$pkgname";
 	my $pkgdir  = "$pkgbase/pkg";
 	my $pkgarch = `uname -m`;
 	chomp $pkgarch;
 
-	foreach(( $pkgname, $pkgver, $pkgbase, $pkgdir, $pkgarch )) {
-		die "A package variable is invalid" unless(defined $_);
+	foreach ( $pkgname, $pkgver, $pkgbase, $pkgdir, $pkgarch ) {
+		die "A package variable is invalid" unless defined;
 	}
 
-	$status->pkgname( $pkgname );
-	$status->pkgver ( $pkgver  );
-	$status->pkgbase( $pkgbase );
-	$status->pkgdir ( $pkgdir  );
-	$status->pkgarch( $pkgarch );
+	$status->pkgname($pkgname);
+	$status->pkgver ($pkgver );
+	$status->pkgbase($pkgbase);
+	$status->pkgdir ($pkgdir );
+	$status->pkgarch($pkgarch);
 
 	$self->_prepare_pkgdesc;
 
@@ -372,7 +389,7 @@ sub _prepare_status
 # Returns  : URL to the author's dist page on CPAN.
 #-----------------------
 
-sub _create_dist_url
+sub _convert_dist_url
 {
 	my $self   = shift;
 	my $module = $self->parent;
@@ -389,7 +406,7 @@ sub _create_dist_url
 # Returns  : URL to the distribution's tarball.
 #-----------------------
 
-sub _create_src_url
+sub _convert_src_url
 {
 	my ($self) = @_;
 	my $module = $self->parent;
@@ -405,13 +422,14 @@ sub _create_src_url
 # Returns  : String to be appended after 'depends=' in PKGBUILD file.
 #-----------------------
 
-sub _create_pkgbuild_deps
+sub _convert_pkgbuild_deps
 {
     my ($self) = @_;
 
-	my @pkgdeps;
+	my %pkgdeps;
 
     my $module  = $self->parent;
+    my $backend = $module->parent;
 	my $prereqs = $module->status->prereqs;
 
 	for my $modname (keys %{$prereqs}) {
@@ -419,22 +437,26 @@ sub _create_pkgbuild_deps
 
 		# Sometimes a perl version is given as a prerequisite
 		# XXX Seems filtered out of prereqs() hash beforehand..?
-		if( $modname eq 'perl' ) {
-			push @pkgdeps, "perl>=$depver";
+		if ( $modname eq 'perl' ) {
+            $pkgdeps{perl} = $depver;
 			next;
 		}
 
         # Ignore modules included with perl...
-		next if exists $Module::CoreList::version{$PERL_VERSION}->{$modname} ;
+		next if exists $Module::CoreList::version{0+$]}->{$modname} ;
 
-		my $pkgdep = $self->_pkg_name($modname);
-		if ($depver) {
-			$pkgdep .= ">=$depver";
-		}
-		push @pkgdeps, qq{'$pkgdep'};
+        # Use a module's _distribution_ name (tarball filename) instead
+        # of just the module name because this corresponds easier to a
+        # pacman package file.  Many modules can be in one package, too...
+
+        my $modobj = $backend->parse_module( module => $modname );
+        my $pkgname = $self->_convert_pkgname($modobj);
+
+        $pkgdeps{$pkgname} = $depver;
 	}
 
-	return join ' ', @pkgdeps;
+	return join ' ', map { defined $pkgdeps{$_} ? qq{'${_}>=$pkgdeps{$_}'} : qq{'$_'} }
+        sort keys %pkgdeps;
 }
 
 #--- INSTANCE METHOD ---
@@ -457,9 +479,9 @@ sub _create_pkgbuild
     my $module  = $self->parent;
 	my $conf    = $module->parent->configure_object;
 
-	my $disturl = $self->_create_dist_url;
-    my $srcurl  = $self->_create_src_url;
-    my $pkgdeps = $self->_create_pkgbuild_deps;
+	my $disturl = $self->_convert_dist_url;
+    my $srcurl  = $self->_convert_src_url;
+    my $pkgdeps = $self->_convert_pkgbuild_deps;
 
 	my $pkgdesc = $status->pkgdesc;
 	my $fqpath  = $status->pkgbase . '/PKGBUILD';
@@ -478,7 +500,7 @@ pkgdesc="$pkgdesc"
 arch=('i686' 'x86_64')
 license=('PerlArtistic' 'GPL')
 options=('!emptydirs')
-depends=($depends)
+depends=($pkgdeps)
 url='$disturl'
 source='$srcurl'
 
@@ -511,7 +533,7 @@ END_PKGBUILD
 END_BASH
 
 	open my $pkgbuild, '>', $fqpath or die "failed to write PKGBUILD: $!";
-    print $pkgbuild, $pkgbuild_start, $pkgbuild_buildsub;
+    print $pkgbuild $pkgbuild_start, $pkgbuild_buildsub;
 	close $pkgbuild;
 
 	return;
