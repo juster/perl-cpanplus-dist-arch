@@ -1,16 +1,13 @@
 CPANPLUS-Dist-Arch
 
-The README is used to introduce the module and provide instructions on
-how to install the module, any machine dependencies it may have (for
-example C compilers and installed libraries) and any other information
-that should be provided before the module is installed.
+This module is a wrapper used by CPANPLUS to install perl modules
+using the Archlinux pacman package manager.  This makes perl modules
+easier to remove, upgrade, etc.
 
-A README file is required for CPAN modules since CPAN extracts the README
-file from a module distribution so that people browsing the archive
-can use it to get an idea of the module's uses. It is usually a good idea
-to provide version information here so that people can decide whether
-fixes for the module are worth downloading.
-
+You will need to have pacman installed, of course, to create package
+and to install these new packages.  Pacman is included with Archlinux
+but can even be used on other Linux distributions.
+(see http://wiki.archlinux.org/index.php/Pacman)
 
 INSTALLATION
 
@@ -45,7 +42,7 @@ You can also look for information at:
 
 COPYRIGHT AND LICENCE
 
-Copyright (C) 2008 Justin Davis
+Copyright (C) 2009 Justin Davis
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
