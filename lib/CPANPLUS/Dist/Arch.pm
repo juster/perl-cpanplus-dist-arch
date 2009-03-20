@@ -520,7 +520,7 @@ sub _convert_pkgbuild_deps
 
     # Default to requiring the current perl version used to create
     # the module if there is no explicit perl version required...
-    $pkgdeps{perl} ||= sprintf "%v", $PERL_VERSION;
+    $pkgdeps{perl} ||= (sprintf '%vd', $PERL_VERSION);
 
 	return join ' ',
         map { $pkgdeps{$_} ? qq{'${_}>=$pkgdeps{$_}'} : qq{'$_'} }
@@ -785,9 +785,22 @@ This even includes CPANPLUS itself!
 
 There are some limitations in the way CPANPLUS and pacman works
 together that I am not sure can be fixed automatically.  Instead you
-will need a human to intervene.
+might need a human to intervene.
+
+I'm not sure if these are bugs, but they are close.
 
 =over 4
+
+=item All module packages are installed explicitly
+
+This has to do with how Pacman categorizes automatically installed
+dependencies implicitly installed package.  Explicitly installed
+packages are packages installed by the user, by request.
+
+So, logically, all pre-requisite perl modules should be installed
+implicitly but right now everything is installed explicitly.
+
+If this is a big problem, tell me and I will try to fix it.
 
 =item Pacman says a required dependency I SAW INSTALLED is missing
 
@@ -881,7 +894,7 @@ Sometimes patches or other fiddling are needed.
 
 =head2 Compilation fails
 
-Use the source, Luke!
+Use the source, Luke!  See next item, too.
 
 =head2 Tests fail
 
@@ -905,7 +918,7 @@ and submit your changes on the AUR! :)
 =item Writing System-wide Config File
 
 I had this error message at the end of building XML::LibXML.  It tries
-to create a system-wide config vaarable:
+to create a system-wide config variable:
 
 Cannot write to
 /usr/share/perl5/vendor_perl/XML/SAX/ParserDetails.ini: Permission
@@ -921,7 +934,8 @@ Base's default actions in order to create our packages.
 
 These methods are called by the CPANPLUS::Backend object that controls
 building new packages (ie, via the cpanp or cpan2dist commands).  You
-should not call these methods directly.
+should not call these methods directly, unless you know what you are
+doing.
 
 (This is mostly here to appease Test::POD::Coverage)
 
