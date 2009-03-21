@@ -1,0 +1,30 @@
+---
+name: CPANPLUS-Dist-Arch
+version: v0.01
+author:
+  - 'Justin Davis <jrcd83@gmail.com>'
+abstract: CPANPLUS backend for building Archlinux pacman packages
+license: perl
+resources:
+  license: http://dev.perl.org/licenses/
+requires:
+  CPANPLUS: 0
+  Carp: 0
+  Digest::MD5: 0
+  File::Copy: 0
+  File::Path: 0
+  File::stat: 0
+  IPC::Cmd: 0
+  Module::CoreList: 0
+  Readonly: 0
+  version: 0
+build_requires:
+  Test::More: 0
+provides:
+  CPANPLUS::Dist::Arch:
+    file: lib/CPANPLUS/Dist/Arch.pm
+    version: v0.01
+generated_by: Module::Build version 0.280801
+meta-spec:
+  url: http://module-build.sourceforge.net/META-spec-v1.2.html
+  version: 1.2
