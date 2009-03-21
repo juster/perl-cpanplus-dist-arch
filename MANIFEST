@@ -6,5 +6,5 @@ lib/CPANPLUS/Dist/Arch.pm
 t/00-load.t
 t/pod-coverage.t
 t/pod.t
-Makefile.PL
 META.yml
+Makefile.PL

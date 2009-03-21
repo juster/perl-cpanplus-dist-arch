@@ -1,0 +1,349 @@
+=pod
+
+=head1 NAME
+
+CPANPLUS::Dist::Arch - CPANPLUS backend for building Archlinux pacman packages
+
+=head1 VERSION
+
+Version 0.01 -- First Public Release
+
+=head1 SYNOPSIS
+
+This module is not meant to be used directly.  Instead you should use
+it through the cpanp shell or the cpan2dist utility that is included
+with CPANPLUS.
+
+  $ cpan2dist --format CPANPLUS::Dist::Arch DBIx::Class
+
+This lengthly command line can be shortened by specifying
+CPANPLUS::Dist::Arch as the default 'Dist' type to use in CPANPLUS's
+configuration, like so:
+
+  $ cpanp
+
+  ... CPANPLUS's startup output here ...
+
+  CPAN Terminal> s conf dist_type CPANPLUS::Dist::Arch
+
+  Key 'dist_type' was set to 'CPANPLUS::Dist::Arch'
+  CPAN Terminal> s save
+
+  Configuration successfully saved to CPANPLUS::Config::User
+      (/home/<yournamehere>/.cpanplus/lib/CPANPLUS/Config/User.pm)
+  CPAN Terminal> q
+
+  Exiting CPANPLUS shell
+
+Now you do not have to use the explicit --format flag:
+
+  $ cpan2dist DBIx::Class
+
+After C<dist_type> is set, CPANPLUS will automatically package
+anything you install using C<cpanp>.  Score!  You could then package
+and install the DBIx::Class module like so:
+
+  $ cpanp i DBIx::Class
+
+=head1 WHERES THE PACKAGE?
+
+Packages are stored under the user's home directory, (the HOME
+environment variable) under the .cpanplus directory.  Two seperate
+directories are created for building packages and for storing the
+resulting package file.
+
+=over
+
+=item Build Directory
+
+C<~/.cpanplus/5.10.0/pacman/build>
+
+=item Package Directory
+
+C<~/.cpanplus/5.10.0/pacman/pkg>
+
+=back
+
+Where 5.10.0 represents the version of perl you used to build the
+package.
+
+=head1 COMMAND LINE OPTIONS
+
+There are many command line options to cpan2dist and cpanp.  You can
+find these by typing C<cpan2dist --help> or C<cpanp --help> on the
+command line or reading the man page with C<man cpan2dist> or C<man
+cpanp>.  A small number of these options are recognized by
+CPANPLUS::Dist::Arch.
+
+=over
+
+=item --verbose
+
+This classic option allows for more verbose messages.  Otherwise you
+get next to no output.  Useful for debugging and neurosis.
+
+=item --skiptest
+
+This will I<comment out> the tests in PKGBUILD files that are generated.
+I actually think testing is a good idea and would not recommend this
+unless you know what you are doing.
+
+  WARNING: This affects all pre-requisite module/packages that are
+           built and installed; not just the module you specify.
+
+=back
+
+=head1 LIMITATIONS
+
+There are some limitations in the way CPANPLUS and pacman works
+together that I am not sure can be fixed automatically.  Instead you
+might need a human to intervene.  I called these limitations because
+they aren't exactly bugs.  More specific bugs with exact error messages
+are in the L</BUGS> section.
+
+=over 4
+
+=item A module is installed, but pacman says it isn't
+
+CPAN[PLUS] considers a module installed if it can be C<use>d.  That
+is, if it is in @INC somewhere on your system.
+
+Pacman considers a module installed if it has been packaged and
+installed with pacman.
+
+So if you installed some modules in the past without packaging them
+first, they don't exist as far as pacman is concerned.  Usually, you
+can just reinstall them using this module because CPANPLUS::Dist::Arch
+installs modules under the C<vendor_perl/> directories, such as
+C</usr/share/perl5/vendor_perl/...>, and CPAN installs under the
+C<site_perl/> directories, such as C</usr/share/perl5/site_perl/...>.
+
+Installing with this module will appease C<pacman>, but you may want
+to manually delete the previously installed modules to prevent
+version mismatch problems.
+
+=item Pacman says a required dependency I installed package for is missing
+
+Pacman is much more strict with its 'package' versions than CPAN is.
+pacman may rarely complain about you not having the required
+version when you obviously just installed them from CPAN!
+
+This is because CPAN module versions are wacky and can be just about
+anything, while pacman's versioning is much more methodical.
+CPANPLUS::Dist::Arch simply extract's CPAN's version and inserts it
+into the PKGBUILD for pacman's version.  You may have to go in and
+edit the PKGBUILD manually to translate the version from CPAN to pacman.
+
+(TODO: example here, I forgot what did this)
+
+=item Pre-requisites are always installed
+
+CPANPLUS by default installs the pre-requisite modules before the
+module you requested.  This module does the same only it creates an
+Arch package and installs it with pacman instead.
+
+You should be able to run pacman under sudo for this to work properly.
+Or you could run cpan2dist as root, but I wouldn't recommend it.
+
+=item All module packages are installed explicitly
+
+This has to do with how Pacman categorizes automatically installed
+dependencies implicitly installed package.  Explicitly installed
+packages are packages installed by the user, by request.
+
+So, logically, all pre-requisite perl modules should be installed
+implicitly but right now everything is installed explicitly.
+
+If this is a big problem, tell me and I will try to fix it.
+
+=item Package descriptions are sometimes missing
+
+Right now this module searches in the META.xml and README file for a
+package description.  The description may also be inside the module in
+POD documentation.  Needless to say because there is no centralized
+location for perl module descriptions, they can be iffy and hard to
+find.
+
+Again, you may have to edit the PKGBUILD if you really, really, care.
+Until I add more complex handling, anyways.
+
+=back
+
+=head1 INTERFACE METHODS
+
+See L<CPANPLUS::Dist::Base>'s documentation for a description of the
+purpose of these functions.  All of these "interface" methods override
+Base's default actions in order to create our packages.
+
+These methods are called by the CPANPLUS::Backend object that controls
+building new packages (ie, via the cpanp or cpan2dist commands).  You
+should not call these methods directly, unless you know what you are
+doing.  (This is mostly here to appease Test::POD::Coverage)
+
+=head2 format_available
+
+  Purpose  : Checks if we have makepkg and pacman installed
+  Returns  : 1 - if we have the tools needed to make a pacman package.
+             0 - if we don't think so.
+
+=head2 init
+
+  Purpose  : Initializes our object internals to get things started
+  Returns  : 1 always
+
+=head2 prepare
+
+  Purpose  : Prepares the files and directories we will need to build a
+             package.  Also prepares any data we expect to have later,
+             on a per-object basis.
+  Return   : 1 if ok, 0 on error.
+  Postcond : Sets $self->status->prepare to 1 or 0 on success or
+             failure.
+
+=head2 create
+
+  Purpose  : Creates the pacman package using the 'makepkg' command.
+
+=head2 install
+
+  Purpose  : Installs the package file (.pkg.tar.gz) using sudo and
+             pacman.
+  Comments : Called automatically on pre-requisite packages and if you
+             specify the --install flag
+
+=head1 BUILD ERRORS
+
+Naturally, there are sometimes problems when trying to fool a module
+into thinking that you are installing it on the root (/) filesystem.
+Or just problems in general with compiling any software targeted
+to a broad range of systems!
+
+The solution is to look for a custom-made package online using pacman
+or checking the AUR.  If this fails, well, hack the package yourself!
+Sometimes patches or other fiddling are needed.
+
+As a last resort, you could ask nicely on the Archlinux forums for
+someone to make you a custom PKGBUILD.
+
+=head1 BUGS
+
+Please report any bugs or feature requests to C<bug-cpanplus-dist-arch
+at rt.cpan.org>, or through the web interface at
+L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=CPANPLUS-Dist-Arch>.
+I will be notified, and then you'll automatically be notified of
+progress on your bug as I make changes.
+
+=head2 Known Bugs
+
+=over 4
+
+=item Dist creation of '...' skipped, build time exceeded: 300 seconds
+
+If compiling a module takes a long time, this message will pop up.
+Interestingly, though, the module keeps compiling in the background...?
+
+This is something CPANPLUS does automatically.  If you had been trying
+to install the module, the install step will be aborted.  The package
+will still be created in the usual directory, so you can install it
+manually.
+
+I haven't been able to track this down yet... I think it has only happened
+with cpan2dist so far.  It happened when building L<PDL>, by the way.
+
+=back
+
+=head1 TODO
+
+=over 4
+
+=item * Extract license information from META.yml, maybe use a YAML module.
+
+=back
+
+=head1 SUPPORT
+
+You can find documentation for this module with the perldoc command.
+
+    perldoc CPANPLUS::Dist::Arch
+
+If you are confused why the build process failed, CPANPLUS keeps logs
+of every build in C<~/.cpanplus/install_logs/>.
+
+You can also look for information at:
+
+=over 4
+
+=item * Archlinux Forums
+
+L<http://bbs.archlinux.org>
+
+=item * RT: CPAN's request tracker
+
+L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=CPANPLUS-Dist-Arch>
+
+=item * AnnoCPAN: Annotated CPAN documentation
+
+L<http://annocpan.org/dist/CPANPLUS-Dist-Arch>
+
+=item * CPAN Ratings
+
+L<http://cpanratings.perl.org/d/CPANPLUS-Dist-Arch>
+
+=item * Search CPAN
+
+L<http://search.cpan.org/dist/CPANPLUS-Dist-Arch/>
+
+=back
+
+=head1 ACKNOWLEDGEMENTS
+
+This module was inspired by the perl-cpanplus-pacman package and
+CPANPLUS::Dist::Pacman by Firmicus which is available at
+L<http://aur.archlinux.org/>.
+
+This mostly started from CPANPLUS::Dist::RPM which is
+L<on Google Code|http://code.google.com/p/cpanplus-dist-rpm/>.  This was a very
+helpful starting point to try to understand the internals of CPANPLUS.
+
+Notice the helpful variable comments at the beginning of methods?
+Stolen!
+
+=head1 SEE ALSO
+
+=over
+
+=item * AUR (Archlinux User Repository)
+
+L<http://aur.archlinux.org>
+
+=item * Archlinux Perl Package Guidelines
+
+L<http://wiki.archlinux.org/index.php/Perl_Package_Guidelines>
+
+=item * pacman
+
+L<http://wiki.archlinux.org/index.php/Pacman>
+
+=item * makepkg
+
+L<http://wiki.archlinux.org/index.php/Makepkg>
+
+=item * CPANPLUS
+
+L<http://search.cpan.org/dist/CPANPLUS/>
+
+=back
+
+=head1 AUTHOR
+
+Justin Davis, C<< <jrcd83 at gmail.com> >>, juster on
+L<http://bbs.archlinux.org>
+
+=head1 COPYRIGHT & LICENSE
+
+Copyright 2009 Justin Davis, all rights reserved.
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+
+=cut

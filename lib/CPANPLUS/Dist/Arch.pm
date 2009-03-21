@@ -5,18 +5,18 @@ use strict;
 
 use base 'CPANPLUS::Dist::Base';
 
-use CPANPLUS::Error  qw(error msg);
-use Module::CoreList qw();
-use Digest::MD5      qw();
-use File::Path       qw(mkpath);
-use File::Copy       qw(copy);
-use File::stat       qw(stat);
-use IPC::Cmd         qw(run can_run);
-use English          qw(-no_match_vars);
-use Carp             qw(carp);
-use Readonly;
+use File::Spec::Functions  qw(catfile catdir);
+use Module::CoreList       qw();
+use CPANPLUS::Error        qw(error msg);
+use Digest::MD5            qw();
+use File::Path             qw(mkpath);
+use File::Copy             qw(copy);
+use File::stat             qw(stat);
+use IPC::Cmd               qw(run can_run);
+use Readonly               qw(Readonly);
+use English                qw(-no_match_vars);
 
-use version; our $VERSION = qv('0.01');
+our $VERSION = '0.02';
 
 ####
 #### CLASS CONSTANTS
@@ -46,22 +46,20 @@ END_OVERRIDES
 =for Mini-Template Format
     The template format is very simple, to insert a template variable
     use [% var_name %] this will insert the template variable's value.
-=
-    The print_template() sub will die with:
-    'Template variable ... was not provided'
-    if the variable given by var_name is not defined.
-=
+ 
+    The print_template() sub will throw: 'Template variable ... was
+    not provided' if the variable given by var_name is not defined.
+ 
     [% IF var_name %] ... [% FI %] will remove the ... stuff if the
     variable named var_name is not set to a true value.
-=
-    WARNING: IF blocks cannot be nested!  This would be nice but I
-             might as well use a templating module rather than code it.
-=
+ 
+    WARNING: IF blocks cannot be nested!
+ 
     This template format is potentially very buggy so be careful!  I
     did not want to require a templating module since I needed
     something really simple.  Basically, because I don't need loops.
-=
-    See Also: The _print_template method below.
+ 
+    See the _print_template method below.
 
 =cut
 
@@ -109,25 +107,19 @@ build() {
 END_TEMPL
 
 ####
-#### CLASS GLOBALS (I should probably move these to a private hash)
+#### CLASS GLOBALS
 ####
 
-our ($PKGBUILD, $PKGDEST, $PACKAGER, $LICENSE);
+our ($PKGDEST, $PACKAGER);
 
-$PKGBUILD = sprintf "$ENV{HOME}/.cpanplus/%vd/pacman/build", $PERL_VERSION;
-$PKGDEST  = sprintf "$ENV{HOME}/.cpanplus/%vd/pacman/pkg",   $PERL_VERSION;
 $PACKAGER = 'Anonymous';
-
-#TODO# This should probably be in a begin block, but depends on the readonly
-###### constants above, so... I dunno.  It hasn't broken yet so I don't
-###### bother with it. :)
 
 READ_CONF:
 {
 	# Read makepkg.conf to see if there are system-wide settings
     my $mkpkgconf;
 	if ( ! open $mkpkgconf, '<', $MKPKGCONF_FQP ) {
-        carp "Could not read $MKPKGCONF_FQP: $!";
+        error "Could not read $MKPKGCONF_FQP: $!";
         last READ_CONF;
     }
 
@@ -141,7 +133,7 @@ READ_CONF:
             ${$cfg_vars{$1}} = $2;
         }
 	}
-	close $mkpkgconf or carp "close on makepkg.conf: $!";
+	close $mkpkgconf or error "close on makepkg.conf: $!";
 }
 
 ####
@@ -152,7 +144,7 @@ sub format_available
 {
 	for my $prog ( qw/ makepkg pacman / ) {
 		if ( ! can_run($prog) ) {
-			error "CPANPLUS::Dist::Arch needs $prog to work properly";
+			error "CPANPLUS::Dist::Arch needs to run $prog, to work properly";
 			return 0;
 		}
 	}
@@ -163,8 +155,9 @@ sub init
 {
 	my $self = shift;
 
-	$self->status->mk_accessors( qw{ pkgname pkgver pkgbase pkgdesc
-                                     pkgdir  pkgurl pkgsize pkgarch } );
+	$self->status->mk_accessors( qw{ pkgname  pkgver  pkgbase pkgdesc
+                                     pkgurl  pkgsize pkgarch
+                                     builddir destdir } );
 	return 1;
 }
 
@@ -184,7 +177,7 @@ sub prepare
     $status->prepared(0);
 
 	# Create a directory for the new package
-	for my $dir ( $status->pkgbase, $PKGDEST ) {
+	for my $dir ( $status->pkgbase, $status->destdir ) {
 		if ( -e $dir ) {
 			die "$dir exists but is not a directory!" if ( ! -d _ );
 			die "$dir exists but is read-only!"       if ( ! -w _ );
@@ -253,12 +246,13 @@ sub create
 		return 0;
 	}
 
-	if ( ! rename $pkgfile_fqp, "$PKGDEST/$pkgfile" ) {
-		error "failed to move $pkgfile to $PKGDEST: $!";
+    my $destfile_fqp = catfile( $status->destdir, $pkgfile );
+	if ( ! rename $pkgfile_fqp, $destfile_fqp ) {
+		error "failed to move $pkgfile to $destfile_fqp: $!";
 		return 0;
 	}
 
-	$status->dist("$PKGDEST/$pkgfile");
+	$status->dist($destfile_fqp);
 
 	return $self->SUPER::create(@_);
 }
@@ -304,7 +298,7 @@ sub install
 # Usage   : my $pkgname = $self->_convert_pkgname($module_object);
 # Purpose : Converts a module's dist[ribution tarball] name to an
 #           Archlinux style perl package name.
-# Params  : $cpanname - The cpan distribution name (ex: Acme-Drunk).
+# Params  : $nodule_object - A CPANPLUS::Module object.
 # Returns : The Archlinux perl package name (ex: perl-acme-drunk).
 #---------------------
 
@@ -334,11 +328,10 @@ sub _convert_pkgname
 #            use as a package description.
 # Postcond : Sets the $self->status->pkgdesc accessor to the found
 #            package description.
-# Returns  : The package description
+# Returns  : The package short description.
 # Comments : We search through the META.yml file and then the README file.
 #---------------------
 
-#TODO# This is REALLY funky.  Need to redo this and get rid of goto's
 #TODO# This should also look in the module source code's POD.
 
 sub _prepare_pkgdesc
@@ -351,7 +344,7 @@ sub _prepare_pkgdesc
     {
         my $metayml;
         unless ( open $metayml, '<', $module->status->extract().'/META.yml' ) {
-            error "Could not open META.yml to get pkgdesc: $!";
+            #error "Could not open META.yml to get pkgdesc: $!";
             last METAYML;
         }
 
@@ -360,15 +353,16 @@ sub _prepare_pkgdesc
             if ( ($pkgdesc) = /^abstract:\s*(.+)/) {
                 $pkgdesc = $1 if ( $pkgdesc =~ /\A'(.*)'\z/ );
                 close $metayml;
-                goto FOUNDDESC;
+                return $self->status->pkgdesc($pkgdesc);
             }
         }
         close $metayml;
     }
 
 	# Next, try to find it in in the README file
-	open my $readme, '<', $module->status->extract . '/README' or
-	error( "Could not open README to get pkgdesc: $!" ), return undef;
+	open my $readme, '<', $module->status->extract . '/README'
+        or return $self->status->pkgdesc(q{});
+#	error( "Could not open README to get pkgdesc: $!" ), return undef;
 
 	my $modname = $module->name;
 	while ( <$readme> ) {
@@ -376,23 +370,19 @@ sub _prepare_pkgdesc
 		if ( (/^NAME/ ... /^[A-Z]+/) &&
              (($pkgdesc) = / ^ \s* ${modname} [\s\-]+ (.+) $ /oxms) ) {
             close $readme;
-			goto FOUNDDESC;
+            return $self->status->pkgdesc($pkgdesc);
 		}
 	}
 	close $readme;
 
 	return $self->status->pkgdesc(q{});
-
- FOUNDDESC:
-#	print "[###DEBUG###] pkgdesc=$pkgdesc\n";
-	return $self->status->pkgdesc($pkgdesc);
 }
 
 #---INSTANCE METHOD---
 # Usage    : $self->_prepare_status()
 # Purpose  : Prepares all the package-specific accessors in our $self->status
 #            accessor object (of the class Object::Accessor).
-# Postcond : Accessors assigned to: pkgname pkgver pkgbase pkgdir pkgarch
+# Postcond : Accessors assigned to: pkgname pkgver pkgbase pkgarch
 # Returns  : The object's status accessor.
 #---------------------
 
@@ -401,23 +391,28 @@ sub _prepare_status
 	my $self     = shift;
 	my $status   = $self->status; # Private hash
 	my $module   = $self->parent; # CPANPLUS::Module
+    my $conf     = $module->parent->configure_object;
+
+    my $our_base = catdir( $conf->get_conf('base'),
+                           ( sprintf "%vd", $PERL_VERSION ),
+                           'pacman' );
+
+    $status->destdir( $PKGDEST || catdir( $our_base, 'pkg' ) );
 
 	my ($pkgver, $pkgname) = ( $module->version,
                                $self->_convert_pkgname($module) );
 
-	my $pkgbase = "$PKGBUILD/$pkgname";
-	my $pkgdir  = "$pkgbase/pkg";
+	my $pkgbase = catdir( $our_base, 'build', $pkgname );
 	my $pkgarch = `uname -m`;
 	chomp $pkgarch;
 
-	foreach ( $pkgname, $pkgver, $pkgbase, $pkgdir, $pkgarch ) {
+	foreach ( $pkgname, $pkgver, $pkgbase, $pkgarch ) {
 		die "A package variable is invalid" unless defined;
 	}
 
 	$status->pkgname($pkgname);
 	$status->pkgver ($pkgver );
 	$status->pkgbase($pkgbase);
-	$status->pkgdir ($pkgdir );
 	$status->pkgarch($pkgarch);
 
 	$self->_prepare_pkgdesc();
@@ -428,7 +423,7 @@ sub _prepare_status
 #---INSTANCE METHOD---
 # Usage    : my $pkgurl = $self->_get_disturl
 # Purpose  : Creates a nice, version agnostic homepage URL for the distribution.
-# Returns  : URL to the author's dist page on CPAN.
+# Returns  : URL to the distribution's web page on CPAN.
 #---------------------
 
 sub _get_disturl
@@ -437,15 +432,14 @@ sub _get_disturl
 	my $module = $self->parent;
 
 	my $distname  = $module->name;
-#	my $authorid = lc $module->author->cpanid;
-	$distname =~ tr/:/-/s;
-	return "http://search.cpan.org/dist/$distname";
+	$distname     =~ tr/:/-/s;
+	return join '/', $CPANURL, 'dist', $distname;
 }
 
 #---INSTANCE METHOD---
 # Usage    : my $srcurl = $self->_get_srcurl()
 # Purpose  : Generates the standard cpan download link for the source tarball.
-# Returns  : URL to the distribution's tarball.
+# Returns  : URL to the distribution's tarball on CPAN.
 #---------------------
 
 sub _get_srcurl
@@ -453,9 +447,7 @@ sub _get_srcurl
 	my ($self) = @_;
 	my $module = $self->parent;
 
-	my $path   = $module->path;
-	my $file   = $module->package;
-	return join '/', ($CPANURL, $path, $file);
+	return join '/', $CPANURL, $module->path, $module->package;
 }
 
 #---INSTANCE METHOD---
@@ -483,12 +475,13 @@ sub _calc_tarballmd5
 }
 
 #---INSTANCE METHOD---
-# Usage    : my $deps_str = $self->_create_pkgbuild_deps()
+# Usage    : my $deps_str = $self->_convert_cpan_deps()
 # Purpose  : Convert CPAN prerequisites into pacman package dependencies
-# Returns  : String to be appended after 'depends=' in PKGBUILD file.
+# Returns  : String to be appended after 'depends=' in PKGBUILD file,
+#            without parenthesis.
 #---------------------
 
-sub _convert_pkgbuild_deps
+sub _convert_cpan_deps
 {
     my ($self) = @_;
 
@@ -508,26 +501,26 @@ sub _convert_pkgbuild_deps
 			next;
 		}
 
-        # Ignore modules included with perl...
+        # Ignore modules included with this version of perl...
 		next if exists $Module::CoreList::version{0+$]}->{$modname} ;
 
         # Use a module's _distribution_ name (tarball filename) instead
         # of just the module name because this corresponds easier to a
         # pacman package file...
 
-        my $modobj = $backend->parse_module( module => $modname );
+        my $modobj  = $backend->parse_module( module => $modname );
         my $pkgname = $self->_convert_pkgname($modobj);
 
         $pkgdeps{$pkgname} = $depver;
 	}
 
-    # Default to requiring the current perl version used to create
+    # Default to requiring the current perl version used to compile
     # the module if there is no explicit perl version required...
-    $pkgdeps{perl} ||= (sprintf '%vd', $PERL_VERSION);
+    $pkgdeps{perl} ||= sprintf '%vd', $PERL_VERSION;
 
-	return join ' ',
-        map { $pkgdeps{$_} ? qq{'${_}>=$pkgdeps{$_}'} : qq{'$_'} }
-            sort keys %pkgdeps;
+	return ( join ' ',
+             map { $pkgdeps{$_} ? qq{'${_}>=$pkgdeps{$_}'} : qq{'$_'} }
+             sort keys %pkgdeps );
 }
 
 #---INSTANCE METHOD---
@@ -550,11 +543,10 @@ sub _create_pkgbuild
     my $module  = $self->parent;
 	my $conf    = $module->parent->configure_object;
 
-
-    my $pkgdeps = $self->_convert_pkgbuild_deps;
+    my $pkgdeps = $self->_convert_cpan_deps;
 
 	my $pkgdesc = $status->pkgdesc;
-	my $fqpath  = $status->pkgbase . '/PKGBUILD';
+	my $fqpath  = catfile( $status->pkgbase, 'PKGBUILD' );
 
 	my $extdir  = $module->package;
     $extdir     =~ s/ [.] ${\$module->package_extension} $ //xms;
@@ -569,9 +561,9 @@ sub _create_pkgbuild
                        pkgdesc   => $pkgdesc,
                        pkgdeps   => $pkgdeps,
 
-                       disturl   => $self->_get_disturl,
-                       srcurl    => $self->_get_srcurl,
-                       md5sum    => $self->_calc_tarballmd5,
+                       disturl   => $self->_get_disturl(),
+                       srcurl    => $self->_get_srcurl(),
+                       md5sum    => $self->_calc_tarballmd5(),
 
                        distdir   => $extdir,
 
@@ -580,46 +572,42 @@ sub _create_pkgbuild
                       };
 
 	my $dist_type = $module->status->installer_type;
-    if ( $dist_type eq 'CPANPLUS::Dist::MM' ) {
-        $templ_vars->{'is_makemaker'}    = 1;
-        $templ_vars->{'is_modulebuild'}  = 0;
-    }
-    elsif ( $dist_type eq 'CPANPLUS::Dist::Build' ) {
-        $templ_vars->{'is_makemaker'}    = 0;
-        $templ_vars->{'is_modulebuild'}  = 1;
-    }
-	else {
-        die "unknown Perl module installer type: '$dist_type'";
-	}
+    @{$templ_vars}{'is_makemaker', 'is_modulebuild'} =
+        ( $dist_type eq 'CPANPLUS::Dist::MM'    ? (1, 0) :
+          $dist_type eq 'CPANPLUS::Dist::Build' ? (0, 1) :
+          die "unknown Perl module installer type: '$dist_type'" );
 
-	open my $pkgbuild, '>', $fqpath or die "failed to write PKGBUILD: $!";
-    $self->_print_template( $PKGBUILD_TEMPL, $templ_vars, $pkgbuild );
-	close $pkgbuild;
+    my $pkgbuild_text = $self->_process_template( $PKGBUILD_TEMPL,
+                                                  $templ_vars );
+
+	open my $pkgbuild_file, '>', $fqpath
+        or die "failed to write PKGBUILD: $!";
+    print $pkgbuild_file $pkgbuild_text;
+	close $pkgbuild_file
+        or die "failed to write PKGBUILD: $!";
 
 	return;
 }
 
 #---INSTANCE METHOD---
-# Usage    : $self->_print_template( $templ, $templ_vars, $file_handle );
-# Purpose  : Fills in a template with supplied variables and writes the result to
-#            a given file handle.
+# Usage    : $self->_process_template( $templ, $templ_vars );
+# Purpose  : Processes IF blocks and fills in a template with supplied variables.
 # Params   : templ       - A scalar variable containing the template
 #            templ_vars  - A hashref of template variables that you can refer to
 #                          in the template to insert the variable's value.
-#            file_handle - A file handle to print the finished template.
 # Throws   : 'Template variable %s was not provided' is thrown if a template
 #            variable is used in $templ but not provided in $templ_vars, or
 #            it is undefined.
-# Returns  : The string that is written to the file handle
+# Returns  : String of the template with all variables filled inserted.
 #---------------------
 
-sub _print_template
+sub _process_template
 {
-    die "Invalid arguments to _template_out" if @_ != 4;
-    my ($self, $templ, $templ_vars, $out_file) = @_;
+    die "Invalid arguments to _template_out" if @_ != 3;
+    my ($self, $templ, $templ_vars) = @_;
 
-    die 'templ_var must be a hashref'
-        if ( ! eval { ref $templ_vars eq 'HASH' } );
+    die 'templ_var parameter must be a hashref'
+        if ( ref $templ_vars ne 'HASH' );
 
     $templ =~ s{ \[% \s* IF \s+ (\w+) \s* %\] \n? # opening IF
                  (.+?)                            # enclosed text
@@ -632,372 +620,7 @@ sub _print_template
                    : die "Template variable $1 was not provided" )
                }xmseg;
 
-    print $out_file $templ if ( $out_file );
     return $templ;
 }
 
 1; # End of CPANPLUS::Dist::Arch
-
-__END__
-
-=head1 NAME
-
-CPANPLUS::Dist::Arch - CPANPLUS backend for building Archlinux pacman packages
-
-=head1 VERSION
-
-Version 0.01 -- First Public Release
-
-=head1 SYNOPSIS
-
-This module is not meant to be used directly.  Instead you should use
-it through the cpanp shell or the cpan2dist utility that is included
-with CPANPLUS.
-
-  $ cpan2dist --format CPANPLUS::Dist::Arch DBIx::Class
-
-This lengthly command line can be shortened by specifying
-CPANPLUS::Dist::Arch as the default 'Dist' type to use in CPANPLUS's
-configuration.
-
-  $ cpanp
-
-  ... CPANPLUS's startup output here ...
-
-  CPAN Terminal> s conf dist_type CPANPLUS::Dist::Arch
-
-  Key 'dist_type' was set to 'CPANPLUS::Dist::Arch'
-  CPAN Terminal> s save
-
-  Configuration successfully saved to CPANPLUS::Config::User
-      (/home/justin/.cpanplus/lib/CPANPLUS/Config/User.pm)
-  CPAN Terminal> q
-
-  Exiting CPANPLUS shell
-
-  $ cpan2dist DBIx::Class
-
-  $ cpan2dist --install DBIx::Class
-
-Now there is also the added advantage that CPANPLUS will automatically
-package anything you install using cpanp.  Score!
-
-  $ cpanp i DBIx::Class
-
-  $ cpanp i DBIx::Class
-
-Or you can edit the User.pm file mentioned above manually (replacing
-my name with yours, of course!).  See also L<CPANPLUS::Config> for more
-configuration options.
-
-=head1 WHERES THE PACKAGE?
-
-Packages are stored under the user's home directory, (the HOME
-environment variable) under the .cpanplus directory.  Two seperate
-directories are created for building packages and for storing the
-resulting package file.
-
-=over
-
-=item Build Directory
-
-C<$HOME/.cpanplus/5.10.0/pacman/build>
-
-=item Package Directory
-
-C<$HOME/.cpanplus/5.10.0/pacman/pkg>
-
-=back
-
-Where 5.10.0 represents the version of perl you used to build the
-package.
-
-=head1 COMMAND LINE OPTIONS
-
-There are many command line options to cpan2dist and cpanp.  You can
-find these by typing C<cpan2dist --help> or C<cpanp --help> on the
-command line or reading the man page with C<man cpan2dist> or C<man
-cpanp>.  A small number of these options are recognized by
-CPANPLUS::Dist::Arch.
-
-=over
-
-=item --verbose
-
-This classic option allows for more verbose messages.  Otherwise you
-get next to no output.  Useful for debugging and neurosis.
-
-=item --skiptest
-
-This will I<comment out> the tests in PKGBUILD files that are generated.
-I actually think testing is a good idea and would not recommend this
-unless you know what you are doing.
-
-  WARNING: This affects all pre-requisite module/packages that are
-           built and installed; not just the module you specify.
-
-=back
-
-=head1 HOW THINGS [DON'T?] WORK
-
-This module is just a simple wrapper around (well, I<inside> really)
-CPANPLUS.  CPANPLUS handles all the downloading and pre-requisite
-calculations itself and then calls this module to build, package up
-the module with L<makepkg(8)>, and usually install it with L<pacman(8)>.
-
-CPAN doesn't know anything about pacman packages, and pacman doesn't
-give a damn if CPAN thinks something is installed.  They both keep
-their own list of what's installed and what isn't.  Well, at least
-pacman keeps a list!
-
-Skip down the MORAL OF THE STORY if you don't want to read a list
-of how things work:
-
-  1. CPANPLUS downloads the distribution (.tar.gz) file, extracts it
-     and finds which modules this distribution depends on.
-
-  2. If the dependency cannot be found in @INC, find the
-     distribution that owns that module, and go to Step 1 for all
-     missing dependencies
-
-  3. CPANPLUS calls CPANPLUS::Dist::Arch to start installing the
-     dist.
-
-  4. CPANPLUS::Dist::Arch runs the makepkg program to build the
-     package
-
-  5. CPANPLUS::Dist::Arch runs the pacman program to install the
-     package.  Pacman checks if the _package_ for each dependency
-     is installed.
-
-Obviously, dependencies are checked twice.  This can be a problem if
-you have a module installed, but it does not have a package!
-
-=head2 MORAL TO THE STORY
-
-It's all or nothing.  Install I<every Perl module> (other than those
-included in the core) as pacman packages or pacman will probably
-complain there is a missing dependency, even though CPAN will
-cheerfully point out there isn't any problem.
-
-=head1 LIMITATIONS
-
-There are some limitations in the way CPANPLUS and pacman works
-together that I am not sure can be fixed automatically.  Instead you
-might need a human to intervene.
-
-I'm not sure if these are bugs, but they are close.
-
-=over 4
-
-=item All module packages are installed explicitly
-
-This has to do with how Pacman categorizes automatically installed
-dependencies implicitly installed package.  Explicitly installed
-packages are packages installed by the user, by request.
-
-So, logically, all pre-requisite perl modules should be installed
-implicitly but right now everything is installed explicitly.
-
-If this is a big problem, tell me and I will try to fix it.
-
-=item Pacman says a required dependency I SAW INSTALLED is missing
-
-Pacman is much more strict with its 'package' versions than CPAN is.
-pacman may rarely complain about you not having the required
-version when you obviously just installed them from CPAN!
-
-This is because CPAN module versions are wacky and can be just about
-anything, while pacman's versioning is much more methodical.
-CPANPLUS::Dist::Arch simply extract's CPAN's version and inserts it
-into the PKGBUILD for pacman's version.  You may have to go in and
-edit the PKGBUILD manually to translate the version from CPAN to pacman.
-
-(TODO: example here, I forgot what did this)
-
-=item Package descriptions are sometimes missing
-
-Right now this module searches in the META.xml and README file for a
-package description.  The description may also be inside the module in
-POD documentation.  Needless to say because there is no centralized
-location for perl module descriptions, they can be iffy and hard to
-find.
-
-Again, you may have to edit the PKGBUILD if you really, really, care.
-Until I add more complex handling, anyways.
-
-=item Pre-requisites are always installed
-
-CPANPLUS by default installs the pre-requisite modules before the
-module you requested.  This module does the same only it creates an
-Arch package and installs it with pacman instead.
-
-You should be able to run pacman under sudo for this to work properly.
-Or you could run cpan2dist as root, but I wouldn't recommend it.
-
-=back
-
-=head1 SUPPORT
-
-You can find documentation for this module with the perldoc command.
-
-    perldoc CPANPLUS::Dist::Arch
-
-
-You can also look for information at:
-
-=over 4
-
-=item * RT: CPAN's request tracker
-
-L<http://rt.cpan.org/NoAuth/Bugs.html?Dist=CPANPLUS-Dist-Arch>
-
-=item * AnnoCPAN: Annotated CPAN documentation
-
-L<http://annocpan.org/dist/CPANPLUS-Dist-Arch>
-
-=item * CPAN Ratings
-
-L<http://cpanratings.perl.org/d/CPANPLUS-Dist-Arch>
-
-=item * Search CPAN
-
-L<http://search.cpan.org/dist/CPANPLUS-Dist-Arch/>
-
-=back
-
-=head1 ERROR MESSAGES
-
-=head2 Dist creation of '...' skipped, build time exceeded: 300 seconds
-
-If compiling a module takes a long time, this message will pop up.
-Interestingly, though, the module keeps compiling in the background...?
-
-This is something CPANPLUS does automatically.  If you had specified the
---install flag, the install step will be aborted.  The package will still
-be created in the usual directory, so you can install it manually.
-
-I haven't been able to track this down yet... I think it has only happened
-with cpan2dist so far.
-
-=head1 BUILD ERRORS
-
-Naturally, there are sometimes problems when trying to fool a module
-into thinking that you are installing it on the root (/) filesystem.
-Or just problems in general with compiling any software targeted
-to a broad range of systems!
-
-The solution is to look for a custom-made package online using pacman
-or checking the AUR.  If this fails, well, hack the package yourself!
-Sometimes patches or other fiddling are needed.
-
-=head2 Compilation fails
-
-Use the source, Luke!  See next item, too.
-
-=head2 Tests fail
-
-Perl modules come with tests to make sure that the module built
-correctly and will run in the same way that the module maker expects
-it to.  Occassionaly these tests will fail (whether you use CPANPLUS,
-CPAN, or this module) due to differences in your system and the
-developer's system, or who knows why!
-
-The hackish unrecommended way to fix this is to use the --skiptest
-option to C<cpanp -i> or C<cpan2dist>.
-
-The recommended way to fix this is to get down to the root of the
-problem and maybe write a patch, modify the generated PKGBUILD file,
-and submit your changes on the AUR! :)
-
-=head2 Examples
-
-=over 4
-
-=item Writing System-wide Config File
-
-I had this error message at the end of building XML::LibXML.  It tries
-to create a system-wide config variable:
-
-Cannot write to
-/usr/share/perl5/vendor_perl/XML/SAX/ParserDetails.ini: Permission
-denied at /usr/share/perl5/vendor_perl/XML/SAX.pm line 191.
-
-=back
-
-=head1 INTERFACE METHODS
-
-See L<CPANPLUS::Dist::Base>'s documentation for a description of the
-purpose of these functions.  All of these "interface" methods override
-Base's default actions in order to create our packages.
-
-These methods are called by the CPANPLUS::Backend object that controls
-building new packages (ie, via the cpanp or cpan2dist commands).  You
-should not call these methods directly, unless you know what you are
-doing.
-
-(This is mostly here to appease Test::POD::Coverage)
-
-
-=head2 format_available
-
-  Purpose  : Checks if we have makepkg and pacman installed
-  Returns  : 1 - if we have the tools needed to make a pacman package.
-             0 - if we don't think so.
-
-=head2 init
-
-  Purpose  : Initializes our object internals to get things started
-  Returns  : 1 always
-
-=head2 prepare
-
-  Purpose  : Prepares the files and directories we will need to build a
-             package.  Also prepares any data we expect to have later,
-             on a per-object basis.
-  Return   : 1 if ok, 0 on error.
-  Postcond : Sets $self->status->prepare to 1 or 0 on success or
-             failure.
-
-=head2 create
-
-  Purpose  : Creates the pacman package using the 'makepkg' command.
-
-=head2 install
-
-  Purpose  : Installs the package file (.pkg.tar.gz) using sudo and
-             pacman.
-  Comments : Called automatically on pre-requisite packages and if you
-             specify the --install flag
-
-=head1 BUGS
-
-Please report any bugs or feature requests to C<bug-cpanplus-dist-arch
-at rt.cpan.org>, or through the web interface at
-L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=CPANPLUS-Dist-Arch>.
-I will be notified, and then you'll automatically be notified of
-progress on your bug as I make changes.
-
-=head1 AUTHOR
-
-Justin Davis, C<< <jrcd83 at gmail.com> >>, juster on
-L<http://bbs.archlinux.org>
-
-=head1 ACKNOWLEDGEMENTS
-
-This module was inspired by the perl-cpanplus-pacman package and
-CPANPLUS::Dist::Pacman by Firmicus which is available at
-L<http://aur.archlinux.org/>.
-
-Much was learned from CPANPLUS::Dist::RPM which is on Google Code at
-L<http://code.google.com/p/cpanplus-dist-rpm/>.
-
-=head1 COPYRIGHT & LICENSE
-
-Copyright 2009 Justin Davis, all rights reserved.
-
-This program is free software; you can redistribute it and/or modify it
-under the same terms as Perl itself.
-
-=cut
-

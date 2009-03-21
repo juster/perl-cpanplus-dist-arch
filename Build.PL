@@ -11,16 +11,15 @@ my $builder = Module::Build->new(
         'Test::More' => 0,
     },
     requires => {
-        'Readonly'             => 0, # <-- The only module not in
-        'CPANPLUS'             => 0, #     core for perl 5.10
-        'Digest::MD5'          => 0,
-        'File::Path'           => 0, # I'm not sure which versions
-        'File::Copy'           => 0, # are necessary?
-        'File::stat'           => 0,
-        'IPC::Cmd'             => 0,
-        'Carp'                 => 0,
-        'Module::CoreList'     => 0,
-        'version'              => 0,
+        'Readonly'              => 0, # <-- The only module not in
+        'CPANPLUS'              => 0, #     core for perl 5.10
+        'Digest::MD5'           => 0,
+        'File::Path'            => 0, # I'm not sure which versions
+        'File::Copy'            => 0, # are necessary?
+        'File::stat'            => 0,
+        'IPC::Cmd'              => 0,
+        'Module::CoreList'      => 0,
+        'File::Spec::Functions' => 0,
     },
     add_to_cleanup      => [ 'CPANPLUS-Dist-Arch-*' ],
     create_makefile_pl => 'traditional',
