@@ -3,6 +3,7 @@ Changes
 MANIFEST
 README
 lib/CPANPLUS/Dist/Arch.pm
+lib/CPANPLUS/Dist/Arch.pod
 t/00-load.t
 t/pod-coverage.t
 t/pod.t

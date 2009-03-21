@@ -18,6 +18,8 @@ To install this module, run the following commands:
 	./Build test
 	./Build install
 
+CPANPLUS SETUP
+
 This module is not meant to be used directly.  Instead you should use
 it through the cpanp shell or the cpan2dist utility that is included
 with CPANPLUS.
@@ -49,11 +51,11 @@ Now you do not have to use the explicit --format flag:
 
 After dist_type is set, CPANPLUS will automatically package
 anything you install using cpanp.  Score!  You could then package
-and install the DBIx::Class module like so:
+and install the Acme::Bleach module like so:
 
   $ cpanp i Acme::Bleach
 
-WHERES THE PACKAGE?
+WHERES IS THE PACKAGE?
 
 Packages are stored under the user's home directory, (the HOME
 environment variable) under the .cpanplus directory.  Two seperate
@@ -65,7 +67,8 @@ Package Directory : ~/.cpanplus/5.10.0/pacman/pkg
 
 
 Where 5.10.0 represents the version of perl you used to build the
-package.
+package and ~/.cpanplus represents the base directory chosen
+in your CPANPLUS config.
 
 You can change the destination by setting PKGDEST in your
 /etc/makepkg.conf file.  The PACKAGER in /etc/makepkg.conf is
