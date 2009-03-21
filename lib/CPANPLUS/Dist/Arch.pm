@@ -90,13 +90,16 @@ build() {
   ( cd "${srcdir}/[% distdir %]"
     perl Makefile.PL INSTALLDIRS=vendor &&
     make &&
-[% skiptest_comment %]   PERL_MM_USE_DEFAULT=1 make test &&
+[% skiptest_comment %] PERL_MM_USE_DEFAULT=1 make test &&
      make DESTDIR="${pkgdir}/" install
   ) || return 1;
 [% FI %]
 [% IF is_modulebuild %]
   ( cd "${srcdir}/[% distdir %]"
-    perl Build.PL --installdirs vendor --destdir "$pkgdir"
+    perl Build.PL --installdirs=vendor --destdir="$pkgdir" &&
+    ./Build &&
+[% skiptest_comment %]   ./Build test &&
+    ./Build install
   ) || return 1;
 [% FI %]
 
@@ -556,9 +559,7 @@ sub _create_pkgbuild
 	my $extdir  = $module->package;
     $extdir     =~ s/ [.] ${\$module->package_extension} $ //xms;
 
-    # Quote our package desc for bash.
-    # Don't use 's cuz you can't escape them in a bash script.
-	$pkgdesc =~ s/ " / \\" /gxms;
+	$pkgdesc    =~ s/ " / \\" /gxms; # Quote our package desc for bash.
 
     my $templ_vars = { packager  => $PACKAGER,
                        version   => $VERSION,
@@ -625,7 +626,7 @@ sub _print_template
                  \[% \s* FI \s* %\] \n? }         # closing IF
                {$templ_vars->{$1} ? $2 : ''}xmseg;
 
-    $templ =~ s{ [[]% \s* (\w+) \s* %[]] }
+    $templ =~ s{ \[% \s* (\w+) \s* %\] }
                { ( defined $templ_vars->{$1}
                    ? $templ_vars->{$1}
                    : die "Template variable $1 was not provided" )
@@ -641,7 +642,7 @@ __END__
 
 =head1 NAME
 
-CPANPLUS::Dist::Arch - Creates Archlinux packages from Perl's CPAN repository.
+CPANPLUS::Dist::Arch - CPANPLUS backend for building Archlinux pacman packages
 
 =head1 VERSION
 
@@ -742,7 +743,7 @@ unless you know what you are doing.
 This module is just a simple wrapper around (well, I<inside> really)
 CPANPLUS.  CPANPLUS handles all the downloading and pre-requisite
 calculations itself and then calls this module to build, package up
-the module with L<makepkg>, and usually install it with L<pacman>.
+the module with L<makepkg(8)>, and usually install it with L<pacman(8)>.
 
 CPAN doesn't know anything about pacman packages, and pacman doesn't
 give a damn if CPAN thinks something is installed.  They both keep
@@ -778,8 +779,6 @@ It's all or nothing.  Install I<every Perl module> (other than those
 included in the core) as pacman packages or pacman will probably
 complain there is a missing dependency, even though CPAN will
 cheerfully point out there isn't any problem.
-
-This even includes CPANPLUS itself!
 
 =head1 LIMITATIONS
 
