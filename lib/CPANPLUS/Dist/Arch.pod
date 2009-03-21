@@ -6,7 +6,7 @@ CPANPLUS::Dist::Arch - CPANPLUS backend for building Archlinux pacman packages
 
 =head1 VERSION
 
-Version 0.01 -- First Public Release
+Version 0.02 -- March 21, 2008
 
 =head1 SYNOPSIS
 
@@ -14,7 +14,7 @@ This module is not meant to be used directly.  Instead you should use
 it through the cpanp shell or the cpan2dist utility that is included
 with CPANPLUS.
 
-  $ cpan2dist --format CPANPLUS::Dist::Arch DBIx::Class
+  $ cpan2dist --format CPANPLUS::Dist::Arch Acme::Bleach
 
 This lengthly command line can be shortened by specifying
 CPANPLUS::Dist::Arch as the default 'Dist' type to use in CPANPLUS's
@@ -37,13 +37,13 @@ configuration, like so:
 
 Now you do not have to use the explicit --format flag:
 
-  $ cpan2dist DBIx::Class
+  $ cpan2dist Acme::Bleach
 
 After C<dist_type> is set, CPANPLUS will automatically package
 anything you install using C<cpanp>.  Score!  You could then package
 and install the DBIx::Class module like so:
 
-  $ cpanp i DBIx::Class
+  $ cpanp i Acme::Bleach
 
 =head1 WHERES THE PACKAGE?
 
@@ -66,6 +66,11 @@ C<~/.cpanplus/5.10.0/pacman/pkg>
 
 Where 5.10.0 represents the version of perl you used to build the
 package.
+
+You can change the destination by setting PKGDEST in your
+C</etc/makepkg.conf> file.  The PACKAGER in C</etc/makepkg.conf> is
+inserted into the PKGBUILD comment header.  If there is no PACKAGER
+set, then 'Anonymous' is used, instead.
 
 =head1 COMMAND LINE OPTIONS
 
@@ -102,6 +107,16 @@ they aren't exactly bugs.  More specific bugs with exact error messages
 are in the L</BUGS> section.
 
 =over 4
+
+=item Cannot detect non-perl dependencies
+
+If the module you are building is an XS module, and it depends on
+external, non-perl libraries, CPANPLUS::Dist::Arch will not include
+those libraries in the PKGBUILD depends.
+
+This means if you plan on distributing a perl module package (ie
+uploading to AUR) you should edit the PKGBUILD by hand to include
+the libraries needed by the XS module.
 
 =item A module is installed, but pacman says it isn't
 

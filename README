@@ -18,13 +18,11 @@ To install this module, run the following commands:
 	./Build test
 	./Build install
 
-SETUP CPANPLUS
-
 This module is not meant to be used directly.  Instead you should use
 it through the cpanp shell or the cpan2dist utility that is included
 with CPANPLUS.
 
-  $ cpan2dist --format CPANPLUS::Dist::Arch DBIx::Class
+  $ cpan2dist --format CPANPLUS::Dist::Arch Acme::Bleach
 
 This lengthly command line can be shortened by specifying
 CPANPLUS::Dist::Arch as the default 'Dist' type to use in CPANPLUS's
@@ -47,13 +45,32 @@ configuration, like so:
 
 Now you do not have to use the explicit --format flag:
 
-  $ cpan2dist DBIx::Class
+  $ cpan2dist Acme::Bleach
 
-After C<dist_type> is set, CPANPLUS will automatically package
-anything you install using C<cpanp>.  Score!  You could then package
+After dist_type is set, CPANPLUS will automatically package
+anything you install using cpanp.  Score!  You could then package
 and install the DBIx::Class module like so:
 
-  $ cpanp i DBIx::Class
+  $ cpanp i Acme::Bleach
+
+WHERES THE PACKAGE?
+
+Packages are stored under the user's home directory, (the HOME
+environment variable) under the .cpanplus directory.  Two seperate
+directories are created for building packages and for storing the
+resulting package file.
+
+Build Directory   : ~/.cpanplus/5.10.0/pacman/build
+Package Directory : ~/.cpanplus/5.10.0/pacman/pkg
+
+
+Where 5.10.0 represents the version of perl you used to build the
+package.
+
+You can change the destination by setting PKGDEST in your
+/etc/makepkg.conf file.  The PACKAGER in /etc/makepkg.conf is
+inserted into the PKGBUILD comment header.  If there is no PACKAGER
+set, then 'Anonymous' is used, instead.
 
 SUPPORT AND DOCUMENTATION
 

@@ -16,7 +16,7 @@ use IPC::Cmd               qw(run can_run);
 use Readonly               qw(Readonly);
 use English                qw(-no_match_vars);
 
-our $VERSION = '0.02';
+use version; our $VERSION = qv('0.02');
 
 ####
 #### CLASS CONSTANTS
@@ -33,13 +33,15 @@ configuration.
 END_MSG
 
 
-# Override a package's name if Archlinux package repositories use a
-# different name and/or the automatically generated version conflicts
-# with Archlinux's package name specification.
+# Override a package's name if to conform to packaging guidelines.
+# Copied from CPANPLUS::Dist::Pacman.
 Readonly my $PKGNAME_OVERRIDES =>
-{ map { split /\s*=\s*/ } split /\n+/, <<'END_OVERRIDES' };
+{ map { split /[\s=]+/ } split /\s*\n+\s*/, <<'END_OVERRIDES' };
 
-libwww-perl = perl-libwww
+libwww-perl    = perl-libwww
+mod_perl       = perl-modperl
+glade-perl-two = perl-glade-two
+aceperl        = perl-ace
 
 END_OVERRIDES
 
@@ -55,11 +57,7 @@ END_OVERRIDES
  
     WARNING: IF blocks cannot be nested!
  
-    This template format is potentially very buggy so be careful!  I
-    did not want to require a templating module since I needed
-    something really simple.  Basically, because I don't need loops.
- 
-    See the _print_template method below.
+    See the _process_template method below.
 
 =cut
 
@@ -80,7 +78,7 @@ source='[% srcurl %]'
 md5sums=('[% md5sum %]')
 
 # Needed if the Makefile tries to run the module after
-# "installing".  This normally fails anyways.
+# "installing".  This normally still fails, anyways...
 #export PERL5LIB="${PERL5LIB}:$pkgdir/usr/lib/perl5/vendor_perl"
 
 build() {
@@ -156,7 +154,7 @@ sub init
 	my $self = shift;
 
 	$self->status->mk_accessors( qw{ pkgname  pkgver  pkgbase pkgdesc
-                                     pkgurl  pkgsize pkgarch
+                                     pkgurl   pkgsize pkgarch
                                      builddir destdir } );
 	return 1;
 }
@@ -183,8 +181,9 @@ sub prepare
 			die "$dir exists but is read-only!"       if ( ! -w _ );
 		}
         else {
-            mkpath $dir or die "failed to create directory '$dir': $!";
-            if ( $opts{'verbose'} ) { msg "Created directory $dir" }
+            mkpath $dir
+                or die qq{failed to create directory '$dir': $OS_ERROR};
+            if ( $opts{verbose} ) { msg "Created directory $dir" }
         }
 	}
 
@@ -225,13 +224,13 @@ sub create
 	if ( ! -e $srcfile_fqp ) {
         my $tarball_fqp = $module->_status->fetch;
         link $tarball_fqp, $srcfile_fqp
-            or error "Failed to create link to $tarball_fqp: $!";
+            or error "Failed to create link to $tarball_fqp: $OS_ERROR";
 	}
 
 	$self->_create_pkgbuild( skiptest => $opts{skiptest} );
 
     # Starting your engines!
-	chdir $status->pkgbase or die "chdir: $!";
+	chdir $status->pkgbase or die "chdir: $OS_ERROR";
 	my $makepkg_cmd = join ' ', ( 'makepkg',
                                   #'-m',
                                   ( $opts{force}    ? '-f'         : () ),
@@ -248,13 +247,12 @@ sub create
 
     my $destfile_fqp = catfile( $status->destdir, $pkgfile );
 	if ( ! rename $pkgfile_fqp, $destfile_fqp ) {
-		error "failed to move $pkgfile to $destfile_fqp: $!";
+		error "failed to move $pkgfile to $destfile_fqp: $OS_ERROR";
 		return 0;
 	}
 
 	$status->dist($destfile_fqp);
-
-	return $self->SUPER::create(@_);
+    return $status->created(1);
 }
 
 sub install
@@ -295,31 +293,82 @@ sub install
 ####
 
 #---INSTANCE METHOD---
-# Usage   : my $pkgname = $self->_convert_pkgname($module_object);
+# Usage   : my $pkgname = $self->_translate_pkgname($module_object);
 # Purpose : Converts a module's dist[ribution tarball] name to an
 #           Archlinux style perl package name.
 # Params  : $nodule_object - A CPANPLUS::Module object.
 # Returns : The Archlinux perl package name (ex: perl-acme-drunk).
 #---------------------
 
-sub _convert_pkgname
+sub _translate_name
 {
     my ($self, $module) = @_;
 
     my $distext  = $module->package_extension;
     my $distname = $module->package;
 
-    $distname =~ s/ - [\d.]+ [.] $distext $ //oxms;
+    $distname =~ s/ - [\d.]+ [.] $distext \z //oxms;
 
     return $PKGNAME_OVERRIDES->{$distname}
         if $PKGNAME_OVERRIDES->{$distname};
 
     $distname = lc $distname;
-    if ( $distname !~ / (?: ^ perl- ) | (?: -perl $ ) /xms ) {
+    if ( $distname !~ / (?: \A perl- ) | (?: -perl \z ) /xms ) {
         $distname = "perl-$distname";
     }
 
     return $distname;
+}
+
+#---INSTANCE METHOD---
+# Usage    : my $deps_str = $self->_translate_cpan_deps()
+# Purpose  : Convert CPAN prerequisites into pacman package dependencies
+# Returns  : String to be appended after 'depends=' in PKGBUILD file,
+#            without parenthesis.
+#---------------------
+
+sub _translate_cpan_deps
+{
+    my ($self) = @_;
+
+	my %pkgdeps;
+
+    my $module  = $self->parent;
+    my $backend = $module->parent;
+	my $prereqs = $module->status->prereqs;
+
+    CPAN_DEP_LOOP:
+	for my $modname (keys %{$prereqs}) {
+        my $depver = $prereqs->{$modname};
+
+		# Sometimes a perl version is given as a prerequisite
+		# XXX Seems filtered out of prereqs() hash beforehand..?
+		if ( $modname eq 'perl' ) {
+            $pkgdeps{perl} = $depver;
+			next CPAN_DEP_LOOP;
+		}
+
+        # Ignore modules included with this version of perl...
+		next CPAN_DEP_LOOP
+            if ( exists $Module::CoreList::version{0+$]}->{$modname} );
+
+        # Use a module's _distribution_ name (tarball filename) instead
+        # of just the module name because this corresponds easier to a
+        # pacman package file...
+
+        my $modobj  = $backend->parse_module( module => $modname );
+        my $pkgname = $self->_translate_name($modobj);
+
+        $pkgdeps{$pkgname} = $depver;
+	}
+
+    # Default to requiring the current perl version used to compile
+    # the module if there is no explicit perl version required...
+    $pkgdeps{perl} ||= sprintf '%vd', $PERL_VERSION;
+
+	return ( join ' ',
+             map { $pkgdeps{$_} ? qq{'${_}>=$pkgdeps{$_}'} : qq{'$_'} }
+             sort keys %pkgdeps );
 }
 
 #---INSTANCE METHOD---
@@ -339,6 +388,9 @@ sub _prepare_pkgdesc
 	my ($self) = @_;
 	my ($status, $module, $pkgdesc) = ($self->status, $self->parent);
 
+    return $status->pkgdesc( $module->description )
+        if ( $module->description );
+
 	# First, try to find the short description in the META.yml file.
     METAYML:
     {
@@ -353,7 +405,7 @@ sub _prepare_pkgdesc
             if ( ($pkgdesc) = /^abstract:\s*(.+)/) {
                 $pkgdesc = $1 if ( $pkgdesc =~ /\A'(.*)'\z/ );
                 close $metayml;
-                return $self->status->pkgdesc($pkgdesc);
+                return $status->pkgdesc($pkgdesc);
             }
         }
         close $metayml;
@@ -361,7 +413,7 @@ sub _prepare_pkgdesc
 
 	# Next, try to find it in in the README file
 	open my $readme, '<', $module->status->extract . '/README'
-        or return $self->status->pkgdesc(q{});
+        or return $status->pkgdesc(q{});
 #	error( "Could not open README to get pkgdesc: $!" ), return undef;
 
 	my $modname = $module->name;
@@ -370,12 +422,12 @@ sub _prepare_pkgdesc
 		if ( (/^NAME/ ... /^[A-Z]+/) &&
              (($pkgdesc) = / ^ \s* ${modname} [\s\-]+ (.+) $ /oxms) ) {
             close $readme;
-            return $self->status->pkgdesc($pkgdesc);
+            return $status->pkgdesc($pkgdesc);
 		}
 	}
 	close $readme;
 
-	return $self->status->pkgdesc(q{});
+	return $status->pkgdesc(q{});
 }
 
 #---INSTANCE METHOD---
@@ -400,7 +452,7 @@ sub _prepare_status
     $status->destdir( $PKGDEST || catdir( $our_base, 'pkg' ) );
 
 	my ($pkgver, $pkgname) = ( $module->version,
-                               $self->_convert_pkgname($module) );
+                               $self->_translate_name($module) );
 
 	my $pkgbase = catdir( $our_base, 'build', $pkgname );
 	my $pkgarch = `uname -m`;
@@ -475,55 +527,6 @@ sub _calc_tarballmd5
 }
 
 #---INSTANCE METHOD---
-# Usage    : my $deps_str = $self->_convert_cpan_deps()
-# Purpose  : Convert CPAN prerequisites into pacman package dependencies
-# Returns  : String to be appended after 'depends=' in PKGBUILD file,
-#            without parenthesis.
-#---------------------
-
-sub _convert_cpan_deps
-{
-    my ($self) = @_;
-
-	my %pkgdeps;
-
-    my $module  = $self->parent;
-    my $backend = $module->parent;
-	my $prereqs = $module->status->prereqs;
-
-	for my $modname (keys %{$prereqs}) {
-        my $depver = $prereqs->{$modname};
-
-		# Sometimes a perl version is given as a prerequisite
-		# XXX Seems filtered out of prereqs() hash beforehand..?
-		if ( $modname eq 'perl' ) {
-            $pkgdeps{perl} = $depver;
-			next;
-		}
-
-        # Ignore modules included with this version of perl...
-		next if exists $Module::CoreList::version{0+$]}->{$modname} ;
-
-        # Use a module's _distribution_ name (tarball filename) instead
-        # of just the module name because this corresponds easier to a
-        # pacman package file...
-
-        my $modobj  = $backend->parse_module( module => $modname );
-        my $pkgname = $self->_convert_pkgname($modobj);
-
-        $pkgdeps{$pkgname} = $depver;
-	}
-
-    # Default to requiring the current perl version used to compile
-    # the module if there is no explicit perl version required...
-    $pkgdeps{perl} ||= sprintf '%vd', $PERL_VERSION;
-
-	return ( join ' ',
-             map { $pkgdeps{$_} ? qq{'${_}>=$pkgdeps{$_}'} : qq{'$_'} }
-             sort keys %pkgdeps );
-}
-
-#---INSTANCE METHOD---
 # Usage    : $self->_create_pkgbuild()
 # Purpose  : Creates a PKGBUILD file in the package's build directory.
 # Precond  : 1. You must first call prepare on the SUPER class in order
@@ -543,7 +546,7 @@ sub _create_pkgbuild
     my $module  = $self->parent;
 	my $conf    = $module->parent->configure_object;
 
-    my $pkgdeps = $self->_convert_cpan_deps;
+    my $pkgdeps = $self->_translate_cpan_deps;
 
 	my $pkgdesc = $status->pkgdesc;
 	my $fqpath  = catfile( $status->pkgbase, 'PKGBUILD' );
@@ -581,10 +584,10 @@ sub _create_pkgbuild
                                                   $templ_vars );
 
 	open my $pkgbuild_file, '>', $fqpath
-        or die "failed to write PKGBUILD: $!";
+        or die "failed to write PKGBUILD: $OS_ERROR";
     print $pkgbuild_file $pkgbuild_text;
 	close $pkgbuild_file
-        or die "failed to write PKGBUILD: $!";
+        or die "failed to write PKGBUILD: $OS_ERROR";
 
 	return;
 }
