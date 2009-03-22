@@ -317,8 +317,8 @@ This module was inspired by the perl-cpanplus-pacman package and
 CPANPLUS::Dist::Pacman by Firmicus which is available at
 L<http://aur.archlinux.org/>.
 
-This mostly started from CPANPLUS::Dist::RPM which is
-L<on Google Code|http://code.google.com/p/cpanplus-dist-rpm/>.  This was a very
+This mostly started from CPANPLUS::Dist::RPM which is on Google Code
+at L<http://code.google.com/p/cpanplus-dist-rpm/>.  This was a very
 helpful starting point to try to understand the internals of CPANPLUS.
 
 Notice the helpful variable comments at the beginning of methods?
