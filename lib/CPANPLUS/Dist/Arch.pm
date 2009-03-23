@@ -77,10 +77,6 @@ url='[% disturl %]'
 source='[% srcurl %]'
 md5sums=('[% md5sum %]')
 
-# Needed if the Makefile tries to run the module after
-# "installing".  This normally still fails, anyways...
-#export PERL5LIB="${PERL5LIB}:$pkgdir/usr/lib/perl5/vendor_perl"
-
 build() {
 [% IF is_makemaker %]
   ( cd "${srcdir}/[% distdir %]"
@@ -187,6 +183,7 @@ sub prepare
         }
     }
 
+    # Call CPANPLUS::Dist::Base's prepare to resolve our pre-reqs.
     return $self->SUPER::prepare(@_);
 }
 
@@ -314,7 +311,9 @@ sub _translate_name
     $distname =~ tr/-a-z0-9//cd;
     $distname =~ tr/-/-/s;
 
-    $distname =~ s/-\z//; # delete trailing hyphen
+    # Delete leading or trailing hyphens...
+    $distname =~ s/\A-//;
+    $distname =~ s/-\z//;
 
     die qq{Dist name '$distname' completely violates packaging standards}
         if ( ! $distname );

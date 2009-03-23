@@ -1,4 +1,6 @@
-use Test::More tests => 18;
+#!perl -T
+
+use Test::More tests => 19;
 
 use CPANPLUS::Dist::Arch;
 
@@ -15,6 +17,7 @@ my %pkgname_of =
 
       'crazy~!@#$%^&*()_+{}|/\<>:"/' => 'perl-crazy',
       'Many-!!-$$-Hyphens' => 'perl-many-hyphens',
+      '-!_?-Leading-Hyphens' => 'perl-leading-hyphens',
 
       # Test overridden names
       'libwww-perl'       => 'perl-libwww',
