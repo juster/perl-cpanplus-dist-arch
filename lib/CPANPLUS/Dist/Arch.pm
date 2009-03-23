@@ -174,7 +174,7 @@ sub prepare
 
     $status->prepared(0);
 
-    # Create a directory for the new package
+    # Create directories for building and delivering the new package.
     for my $dir ( $status->pkgbase, $status->destdir ) {
         if ( -e $dir ) {
             die "$dir exists but is not a directory!" if ( ! -d _ );
@@ -202,7 +202,6 @@ sub create
                                                  # CPANPLUS::Dist::Build
 
     # Use CPANPLUS::Dist::Base to make packages for pre-requisites...
-
     my @ok_resolve_args = qw/ verbose target force prereq_build /;
     my %resolve_args = map { exists $opts{$_}  ?
                              ($_ => $opts{$_}) : () } @ok_resolve_args;
@@ -229,19 +228,19 @@ sub create
 
     $self->_create_pkgbuild( skiptest => $opts{skiptest} );
 
-    # Starting your engines!
+    # Wrap it up!
     chdir $status->pkgbase or die "chdir: $OS_ERROR";
     my $makepkg_cmd = join ' ', ( 'makepkg',
-                                  #'-m',
-                                  ( $opts{force}    ? '-f'         : () ),
                                   ( !$opts{verbose} ? '>/dev/null' : () )
                                  );
-    system $makepkg_cmd;
 
-    if ($?) {
-        error ( $? & 127
-                ? sprintf "makepkg failed with signal %d\n",        $? & 127
-                : sprintf "makepkg returned abnormal status: %d\n", $? >> 8 );
+    # I tried to use IPC::Cmd here, but colors didn't work...
+    system 'makepkg';
+    if ($CHILD_ERROR) {
+        error ( $CHILD_ERROR & 127
+                ? sprintf "makepkg failed with signal %d", $CHILD_ERROR & 127
+                : sprintf "makepkg returned abnormal status: %d", $CHILD_ERROR >> 8
+               );
         return 0;
     }
 
@@ -259,15 +258,16 @@ sub install
 {
     my ($self, %opts) = (shift, @_);
 
-    my $status   = $self->status;             # Private hash
-    my $module   = $self->parent;             # CPANPLUS::Module
-    my $intern   = $module->parent;           # CPANPLUS::Internals
-    my $conf     = $intern->configure_object; # CPANPLUS::Configure
+    my $status = $self->status;             # Private hash
+    my $module = $self->parent;             # CPANPLUS::Module
+    my $intern = $module->parent;           # CPANPLUS::Internals
+    my $conf   = $intern->configure_object; # CPANPLUS::Configure
 
+    # Make sure the user has high access to install a package...
     my $sudocmd = $conf->get_program('sudo');
-    if( $EFFECTIVE_USER_ID != $ROOT_USER_ID ) {
-        if( $sudocmd ) {
-            system "sudo pacman -U ${\$status->dist}";
+    if ( $EFFECTIVE_USER_ID != $ROOT_USER_ID ) {
+        if ( $sudocmd ) {
+            system "$sudocmd pacman -U ${\$status->dist}";
         }
         else {
             error $NONROOT_WARNING;
@@ -276,10 +276,10 @@ sub install
     }
     else { system "pacman -U ${\$status->dist}"; }
 
-    if ($?) {
-        error ( $? & 127
-                ? sprintf "pacman failed with signal %d",        $? & 127
-                : sprintf "pacman returned abnormal status: %d", $?>>8   
+    if ($CHILD_ERROR) {
+        error ( $CHILD_ERROR & 127
+                ? sprintf "pacman failed with signal %d",        $CHILD_ERROR & 127
+                : sprintf "pacman returned abnormal status: %d", $CHILD_ERROR >> 8
                );
         return 0;
     }
@@ -308,8 +308,18 @@ sub _translate_name
     return $PKGNAME_OVERRIDES->{$distname}
         if $PKGNAME_OVERRIDES->{$distname};
 
+    # Package names should be lowercase and consist of alphanumeric
+    # characters only...
     $distname = lc $distname;
-    if ( $distname !~ / (?: \A perl- ) | (?: -perl \z ) /xms ) {
+    $distname =~ tr/-a-z0-9//cd;
+    $distname =~ tr/-/-/s;
+
+    $distname =~ s/-\z//; # delete trailing hyphen
+
+    die qq{Dist name '$distname' completely violates packaging standards}
+        if ( ! $distname );
+
+    if ( $distname !~ / (?: \A perl ) | (?: -perl \z ) /xms ) {
         $distname = "perl-$distname";
     }
 
@@ -325,8 +335,9 @@ sub _translate_version
     die "Invalid arguments to _translate_version method" if @_ != 2;
     my ($self, $version) = @_;
 
-    # Remove anything other than numbers and decimal points.
-    $version =~ tr/0-9.//c;
+    # Package versions should be letters, numbers and decimal points only...
+    $version =~ tr/_-/../s;
+    $version =~ tr/a-zA-Z0-9.//cd;
     return $version;
 }
 
@@ -347,7 +358,7 @@ sub _translate_cpan_deps
     my $prereqs = $module->status->prereqs;
 
     CPAN_DEP_LOOP:
-    for my $modname (keys %{$prereqs}) {
+    for my $modname ( keys %{$prereqs} ) {
         my $depver = $prereqs->{$modname};
 
         # Sometimes a perl version is given as a prerequisite
@@ -361,14 +372,11 @@ sub _translate_cpan_deps
         next CPAN_DEP_LOOP
             if ( exists $Module::CoreList::version{0+$]}->{$modname} );
 
-        # Use a module's _distribution_ name (tarball filename) instead
-        # of just the module name because this corresponds easier to a
-        # pacman package file...
-
+        # Translate the module's distribution name into a package name...
         my $modobj  = $backend->parse_module( module => $modname );
         my $pkgname = $self->_translate_name( $modobj->package_name );
 
-        $pkgdeps{$pkgname} = $self->_translate_version($depver);
+        $pkgdeps{$pkgname} = $self->_translate_version( $depver );
     }
 
     # Default to requiring the current perl version used to compile
@@ -442,6 +450,7 @@ sub _prepare_pkgdesc
 # Purpose  : Prepares all the package-specific accessors in our $self->status
 #            accessor object (of the class Object::Accessor).
 # Postcond : Accessors assigned to: pkgname pkgver pkgbase pkgarch
+#                                   destdir
 # Returns  : The object's status accessor.
 #---------------------
 sub _prepare_status

@@ -1,5 +1,10 @@
 Revision history for CPANPLUS-Dist-Arch
 
+0.04    March 22, 2009
+        Fixed CPAN version numbers which don't conform to Archlinux standards.
+        Stopped using the version module for prefixing everything with v, why!!
+        Fixed typos, some inefficient code, etc...
+
 0.03    March 21, 2009
         Included missing file Arch.pod in MANIFEST.
         Fixed some typos in README and Arch.pod.
