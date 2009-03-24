@@ -78,8 +78,8 @@ source='[% srcurl %]'
 md5sums=('[% md5sum %]')
 
 build() {
+  ( cd "${srcdir}/[% distdir %]" &&
 [% IF is_makemaker %]
-  ( cd "${srcdir}/[% distdir %]"
     perl Makefile.PL INSTALLDIRS=vendor &&
     make &&
 [% skiptest_comment %]   PERL_MM_USE_DEFAULT=1 make test &&
@@ -87,7 +87,6 @@ build() {
   ) || return 1;
 [% FI %]
 [% IF is_modulebuild %]
-  ( cd "${srcdir}/[% distdir %]"
     perl Build.PL --installdirs=vendor --destdir="$pkgdir" &&
     ./Build &&
 [% skiptest_comment %]   ./Build test &&
@@ -497,7 +496,7 @@ sub _get_disturl
     my $self   = shift;
     my $module = $self->parent;
 
-    my $distname  = $module->package;
+    my $distname  = $module->package_name;
     return join '/', $CPANURL, 'dist', $distname;
 }
 
