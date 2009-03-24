@@ -512,7 +512,7 @@ sub _get_srcurl
     my ($self) = @_;
     my $module = $self->parent;
 
-    return join '/', $CPANURL, $module->path, $module->package;
+    return join '/', $CPANURL, 'CPAN', $module->path, $module->package;
 }
 
 #---INSTANCE METHOD---
