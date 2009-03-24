@@ -6,7 +6,7 @@ CPANPLUS::Dist::Arch - CPANPLUS backend for building Archlinux pacman packages
 
 =head1 VERSION
 
-Version 0.04 -- March 22, 2009
+Version 0.05 -- March 23, 2009
 
 =head1 SYNOPSIS
 

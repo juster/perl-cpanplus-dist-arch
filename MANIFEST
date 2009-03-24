@@ -5,6 +5,7 @@ README
 lib/CPANPLUS/Dist/Arch.pm
 lib/CPANPLUS/Dist/Arch.pod
 t/00-load.t
+t/01-translate.t
 t/pod-coverage.t
 t/pod.t
 META.yml

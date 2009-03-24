@@ -16,7 +16,7 @@ use IPC::Cmd               qw(run can_run);
 use Readonly               qw(Readonly);
 use English                qw(-no_match_vars);
 
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 
 ####
 #### CLASS CONSTANTS
@@ -488,7 +488,7 @@ sub _prepare_status
 }
 
 #---INSTANCE METHOD---
-# Usage    : my $pkgurl = $self->_get_disturl
+# Usage    : my $pkgurl = $self->_get_disturl()
 # Purpose  : Creates a nice, version agnostic homepage URL for the distribution.
 # Returns  : URL to the distribution's web page on CPAN.
 #---------------------
@@ -497,8 +497,7 @@ sub _get_disturl
     my $self   = shift;
     my $module = $self->parent;
 
-    my $distname  = $module->name;
-    $distname     =~ tr/:/-/s;
+    my $distname  = $module->package;
     return join '/', $CPANURL, 'dist', $distname;
 }
 

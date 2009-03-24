@@ -1,6 +1,9 @@
 #!perl -T
 
-use Test::More tests => 19;
+use warnings;
+use strict;
+
+use Test::More tests => 22;
 
 use CPANPLUS::Dist::Arch;
 
@@ -10,14 +13,19 @@ isa_ok( $dist, 'CPANPLUS::Dist::Arch' );
 can_ok( $dist, '_translate_name' );
 
 my %pkgname_of =
-    ( 'Crazy-CPAN_Name-'  => 'perl-crazy-cpanname',
+    ( '-Crazy-CPAN_Name-'  => 'perl-crazy-cpanname',
       'AT-END-IS-PERL'    => 'at-end-is-perl',
       'Perl-At-Beginning' => 'perl-at-beginning',
       'Middle-Perl-Here'  => 'perl-middle-perl-here',
 
       'crazy~!@#$%^&*()_+{}|/\<>:"/' => 'perl-crazy',
-      'Many-!!-$$-Hyphens' => 'perl-many-hyphens',
-      '-!_?-Leading-Hyphens' => 'perl-leading-hyphens',
+      'Many-!!-$$-Hyphens'           => 'perl-many-hyphens',
+      '-!_?-Leading-Hyphens'         => 'perl-leading-hyphens',
+
+      # Make sure real names work, too...
+      'CPANPLUS-Dist-Arch'       => 'perl-cpanplus-dist-arch',
+      'SWIFT-Factory-Tag-Tag17A' => 'perl-swift-factory-tag-tag17a',
+      'Data-Dumper'              => 'perl-data-dumper',
 
       # Test overridden names
       'libwww-perl'       => 'perl-libwww',
