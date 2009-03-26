@@ -259,18 +259,27 @@ sub install
     my $intern = $module->parent;           # CPANPLUS::Internals
     my $conf   = $intern->configure_object; # CPANPLUS::Configure
 
+    my $pkgfile_fpq = $status->dist
+        or die << 'END_ERROR';
+Path to package file has not been set.
+Someone is using CPANPLUS::Dist::Arch incorrectly.
+Tell them to call create() before install().
+END_ERROR
+
+    die "Package file $pkgfile_fpq was not found" if ( ! -f $pkgfile_fpq );
+
     # Make sure the user has high access to install a package...
     my $sudocmd = $conf->get_program('sudo');
     if ( $EFFECTIVE_USER_ID != $ROOT_USER_ID ) {
         if ( $sudocmd ) {
-            system "$sudocmd pacman -U ${\$status->dist}";
+            system "$sudocmd pacman -U $pkgfile_fpq";
         }
         else {
             error $NONROOT_WARNING;
             return 0;
         }
     }
-    else { system "pacman -U ${\$status->dist}"; }
+    else { system "pacman -U $pkgfile_fpq"; }
 
     if ($CHILD_ERROR) {
         error ( $CHILD_ERROR & 127
