@@ -10,7 +10,7 @@ options=('!emptydirs')
 depends=('perl>=5.10.0' 'perl-readonly')
 url='http://search.cpan.org/dist/CPANPLUS-Dist-Arch'
 source='http://search.cpan.org/CPAN/authors/id/J/JU/JUSTER/CPANPLUS-Dist-Arch-0.06.tar.gz'
-md5sums=('bf0fb22b7780b52ee502566e636da4b2')
+md5sums=('fad29a1a8d680e94b658d70c77fe6c46')
 
 build() {
   export PERL_MM_USE_DEFAULT=1 
