@@ -11,6 +11,8 @@ my $builder = Module::Build->new(
         'Test::More' => 0,
     },
     requires => {
+        'perl'                  => '5.8.0', # thx to CPAN Testers
+
         'Readonly'              => 0, # <-- The only module not in
         'CPANPLUS'              => 0, #     core for perl 5.10
         'Digest::MD5'           => 0,
@@ -20,7 +22,11 @@ my $builder = Module::Build->new(
         'IPC::Cmd'              => 0,
         'Module::CoreList'      => 0,
         'File::Spec::Functions' => 0,
+
+        'Getopt::Long'          => 0, # for the setupdistarch script
+        'Pod::Usage'            => 0,
     },
+    script_files => [ 'script/setupdistarch' ],
     add_to_cleanup      => [ 'CPANPLUS-Dist-Arch-*' ],
     create_makefile_pl  => 'traditional',
 );

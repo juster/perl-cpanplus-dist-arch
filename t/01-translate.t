@@ -13,7 +13,7 @@ isa_ok( $dist, 'CPANPLUS::Dist::Arch' );
 can_ok( $dist, '_translate_name' );
 
 my %pkgname_of =
-    ( '-Crazy-CPAN_Name-'  => 'perl-crazy-cpanname',
+    ( '-Crazy-CPAN_Name-'  => 'perl-crazy-cpan-name',
       'AT-END-IS-PERL'    => 'at-end-is-perl',
       'Perl-At-Beginning' => 'perl-at-beginning',
       'Middle-Perl-Here'  => 'perl-middle-perl-here',

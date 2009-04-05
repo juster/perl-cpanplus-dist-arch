@@ -1,0 +1,167 @@
+#!/usr/bin/perl
+
+use warnings;
+use strict;
+
+use English '-no_match_vars';
+use CPANPLUS::Backend;
+use Pod::Usage;
+use Getopt::Long;
+
+{
+    my $ROOT_UID = 0;
+
+    my ($show_help, $show_man, $do_removal, $do_force);
+    GetOptions( help   => \$show_help,
+                man    => \$show_man,
+                remove => \$do_removal,
+                force  => \$do_force );
+
+    pod2usage( verbose => 2 ) if $show_man;
+    pod2usage( verbose => 1 ) if $show_help;
+
+    goto CONFIRM_BYPASS if ( $do_force );
+
+    print $do_removal ? <<'END_REM_MSG' : <<'END_ADD_MSG';
+This script will now setup CPANPLUS to not package modules.
+END_REM_MSG
+This script will now setup CPANPLUS to automatically package all
+modules into pacman packages when installing.
+END_ADD_MSG
+
+    if ( $UID == $ROOT_UID ) {
+        print <<'END_WARNING';
+*** Warning: Running this script as root (without sudo) will set the
+***          system-wide default for ALL users.
+***
+***          DO NOT run this script with sudo or your config file
+***          will become owned by root.
+END_WARNING
+    }
+
+    print "Are you sure you want to do this? [y/N] ";
+    my $answer = <STDIN>;
+    chomp $answer;
+
+    exit 1 if ( $answer !~ /\A[yY]/ );
+
+    CONFIRM_BYPASS:
+
+    eval {
+        my $cb = CPANPLUS::Backend->new;
+        my $conf = $cb->configure_object;
+
+        my $newval = 'CPANPLUS::Dist::Arch';
+
+        if ( $do_removal && !$do_force ) {
+            my $oldval = $conf->get_conf('dist_type');
+            die <<"END_ERR" if ($oldval && $oldval ne $newval)
+The previous packager was set to '$oldval', not CPANPLUS::Dist::Arch.
+Use the -f or --force option to force its removal.
+END_ERR
+        }
+
+        $conf->set_conf( dist_type => ( $do_removal ? '' : $newval ));
+        $conf->save;
+    };
+
+    if ($EVAL_ERROR) {
+        warn "An ERROR occurred while configuring CPANPLUS:\n$EVAL_ERROR";
+        exit 1;
+    }
+
+    print +( $do_removal
+             ? 'Set CPANPLUS to not package modules'
+             : 'Set CPANPLUS to package all modules through CPANPLUS::Dist::Arch' ), "\n";
+    exit 0;
+}
+
+__END__
+
+=head1 NAME
+
+setupdistarch - Script to set CPANPLUS::Dist::Arch as the default packager for CPANPLUS
+
+=head1 SYNOPSIS
+
+Run this script from your command shell to set CPANPLUS to package all
+modules through CPANPLUS::Dist::Arch by default or to disable
+automatic packaging in CPANPLUS.
+
+  $ setupdistarch
+  Set CPANPLUS to package all modules through CPANPLUS::Dist::Arch
+
+  $ setupdistarch --remove
+  Set CPANPLUS to not package modules.
+
+  $ setupdistarch -h
+  (Displays this usage information.)
+
+DO NOT run this script with sudo or your configuration file will now
+be owned by root.
+
+=head1 OPTIONS
+
+=over
+
+=item B<--help>
+
+Print a brief help message and exit.
+
+=item B<--man>
+
+Prints the manual page and exists.
+
+=item B<--remove>
+
+Configures CPANPLUS to not use any packager when installing modules.
+
+=item B<--force>
+
+Forces the changes to CPANPLUS configuration without prompting for
+confirmation.  Might be useful when running as root uninteractively,
+for example.
+
+=back
+
+=head1 DESCRIPTION
+
+This script was created to make setting up or disabling
+CPANPLUS::Dist::Arch a little easier.  Without using the force option,
+the user must confirm they want to change CPANPLUS's configuration.
+
+If you run this script as root, it will change the *System-Wide*
+default for all CPANPLUS users.  A warning message is displayed.
+
+=head1 TROUBLESHOOTING
+
+=over
+
+=item sudo
+
+DO NOT run this script with sudo or your CPANPLUS configuration file
+will become owned by root.  To change it back, use sudo and chown
+on your configuration file.  For example:
+
+  sudo chown <yourname>.<yourgroup> ~/.cpanplus/lib/CPANPLUS/Config/User.pm
+
+=item PATH
+
+Archlinux currently installs binaries from perl modules (like this one
+here) under the C</usr/bin/perlbin/vendor> directory.  Make sure this
+is in your PATH environment variable if you are not typing the entire
+path.
+
+To the perl binary directories to your runtime PATH add something like
+the following to your /home/(username)/.profile file:
+
+  export PATH=/bin:/usr/bin:/usr/bin/perlbin/core:/usr/bin/perlbin/vendor
+
+=back
+
+=head1 AUTHOR
+
+Justin Davis C<jrcd83@gmail.com>, juster at L<http://bbs.archlinux.org>
+
+=cut
+

@@ -28,7 +28,22 @@ with CPANPLUS.
 
 This lengthly command line can be shortened by specifying
 CPANPLUS::Dist::Arch as the default 'Dist' type to use in CPANPLUS's
-configuration, like so:
+configuration.  A utility script name 'setupdistarch' is included
+with this module that can be used to quickly enable or disable
+packaging perl modules into pacman packages:
+
+  $ setupdistarch
+  This script will now setup CPANPLUS to automatically package all
+  modules into pacman packages when installing.
+  Are you sure you want to do this? [y/N] y
+  Set CPANPLUS to package all modules through CPANPLUS::Dist::Arch
+  $
+
+See setupdistarch for more information about setupdistarch.
+If you are having trouble running it, your PATH may not be set
+properly, there are instructions in the manual page.
+
+Or you can setup CPANPLUS manually:
 
   $ cpanp
 
