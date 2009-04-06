@@ -2,7 +2,6 @@ Build.PL
 Changes
 MANIFEST
 README
-PKGBUILD
 lib/CPANPLUS/Dist/Arch.pm
 lib/CPANPLUS/Dist/Arch.pod
 script/setupdistarch

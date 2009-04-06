@@ -239,8 +239,7 @@ doing.  (This is mostly here to appease Test::POD::Coverage)
 
   Purpose  : Installs the package file (.pkg.tar.gz) using sudo and
              pacman.
-  Comments : Called automatically on pre-requisite packages and if you
-             specify the --install flag
+  Comments : Called automatically on pre-requisite packages
 
 =head1 BUILD ERRORS
 
