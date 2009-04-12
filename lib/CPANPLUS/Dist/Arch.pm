@@ -523,7 +523,7 @@ sub _get_disturl
 #---------------------
 sub _get_srcurl
 {
-    die 'Invalid arguments to _get_srcurl method' if @_ != 2;
+    die 'Invalid arguments to _get_srcurl method' if @_ != 1;
     my ($self) = @_;
     my $module = $self->parent;
 
