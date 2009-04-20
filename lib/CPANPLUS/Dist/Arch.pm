@@ -17,7 +17,7 @@ use IPC::Cmd               qw(run can_run);
 use Readonly               qw(Readonly);
 use English                qw(-no_match_vars);
 
-our $VERSION = '0.07';
+our $VERSION = '0.08';
 
 ####
 #### CLASS CONSTANTS
