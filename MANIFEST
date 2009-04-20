@@ -2,6 +2,8 @@ Build.PL
 Changes
 MANIFEST
 README
+examples/cpan2aur.pl
+examples/cpanpkgbuild.pl
 lib/CPANPLUS/Dist/Arch.pm
 lib/CPANPLUS/Dist/Arch.pod
 script/setupdistarch

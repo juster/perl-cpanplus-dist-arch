@@ -20,6 +20,7 @@ my $builder = Module::Build->new(
         'File::Copy'            => 0, # are necessary?
         'File::stat'            => 0,
         'IPC::Cmd'              => 0,
+        'Pod::Select'           => 0,
         'Module::CoreList'      => 0,
         'File::Spec::Functions' => 0,
 

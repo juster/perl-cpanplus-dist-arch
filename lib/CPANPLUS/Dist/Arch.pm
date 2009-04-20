@@ -9,6 +9,7 @@ use File::Spec::Functions  qw(catfile catdir);
 use Module::CoreList       qw();
 use CPANPLUS::Error        qw(error msg);
 use Digest::MD5            qw();
+use Pod::Select            qw();
 use File::Path             qw(mkpath);
 use File::Copy             qw(copy);
 use File::stat             qw(stat);
@@ -16,7 +17,7 @@ use IPC::Cmd               qw(run can_run);
 use Readonly               qw(Readonly);
 use English                qw(-no_match_vars);
 
-our $VERSION = '0.06';
+our $VERSION = '0.07';
 
 ####
 #### CLASS CONSTANTS
@@ -157,7 +158,7 @@ sub init
 
 sub prepare
 {
-    my ($self, %opts) = (shift, @_);
+    my $self = shift;
 
     my $status   = $self->status;                # Private hash
     my $module   = $self->parent;                # CPANPLUS::Module
@@ -167,21 +168,7 @@ sub prepare
                                                  # CPANPLUS::Dist::Build
 
     $self->_prepare_status;
-
     $status->prepared(0);
-
-    # Create directories for building and delivering the new package.
-    for my $dir ( $status->pkgbase, $status->destdir ) {
-        if ( -e $dir ) {
-            die "$dir exists but is not a directory!" if ( ! -d _ );
-            die "$dir exists but is read-only!"       if ( ! -w _ );
-        }
-        else {
-            mkpath $dir
-                or die qq{failed to create directory '$dir': $OS_ERROR};
-            if ( $opts{verbose} ) { msg "Created directory $dir" }
-        }
-    }
 
     # Call CPANPLUS::Dist::Base's prepare to resolve our pre-reqs.
     return $self->SUPER::prepare(@_);
@@ -198,19 +185,50 @@ sub create
     my $distcpan = $module->status->dist_cpan;   # CPANPLUS::Dist::MM or
                                                  # CPANPLUS::Dist::Build
 
-    # Use CPANPLUS::Dist::Base to make packages for pre-requisites...
-    my @ok_resolve_args = qw/ verbose target force prereq_build /;
-    my %resolve_args = map { exists $opts{$_}  ?
-                             ($_ => $opts{$_}) : () } @ok_resolve_args;
+    # Create directories for building and delivering the new package.
+    for my $dir ( $status->pkgbase, $status->destdir ) {
+        if ( -e $dir ) {
+            die "$dir exists but is not a directory!" if ( ! -d _ );
+            die "$dir exists but is read-only!"       if ( ! -w _ );
+        }
+        else {
+            mkpath $dir
+                or die qq{failed to create directory '$dir': $OS_ERROR};
+            if ( $opts{verbose} ) { msg "Created directory $dir" }
+        }
+    }
 
-    $distcpan->_resolve_prereqs( %resolve_args,
-                                 'format'  => ref $self,
-                                 'prereqs' => $module->status->prereqs );
+    my $pkg_type = $opts{pkg} || $opts{pkgtype} || 'bin';
+    $pkg_type = lc $pkg_type;
+
+    die qq{Invalid package type requested: "$pkg_type"
+Package type must be 'bin' or 'src'}
+        unless ( $pkg_type =~ /^(?:bin|src)$/ );
+
+    if ( $opts{verbose} ) {
+        my %fullname = ( bin => 'binary', src => 'source' );
+        msg "Creating a $fullname{$pkg_type} pacman package";
+    }
+
+    if ( $pkg_type eq 'bin' ) {
+        # Use CPANPLUS::Dist::Base to make packages for pre-requisites...
+        # (starts the packaging process for any missing ones)
+        my @ok_resolve_args = qw/ verbose target force prereq_build /;
+        my %resolve_args = map { ( exists $opts{$_}  ?
+                                   ($_ => $opts{$_}) : () ) } @ok_resolve_args;
+
+        $distcpan->_resolve_prereqs( %resolve_args,
+                                     'format'  => ref $self,
+                                     'prereqs' => $module->status->prereqs );
+    }
 
     # Prepare our file name paths for pkgfile and source tarball...
-    my $pkgfile = join '-', ("${\$status->pkgname}",
-                             "${\$status->pkgver}-1",
-                             "${\$status->pkgarch}.pkg.tar.gz");
+    my $pkgfile = join '-', ( qq{${\$status->pkgname}},
+                              qq{${\$status->pkgver}},
+                              ( $pkg_type eq q{bin}
+                                ? ( q{1}, qq{${\$status->pkgarch}.pkg.tar.gz} )
+                                : q{1.src.tar.gz} )
+                             );
 
     my $srcfile_fqp = $status->pkgbase . '/' . $module->package;
     my $pkgfile_fqp = $status->pkgbase . "/$pkgfile";
@@ -223,16 +241,18 @@ sub create
             or error "Failed to create link to $tarball_fqp: $OS_ERROR";
     }
 
-    $self->_create_pkgbuild( skiptest => $opts{skiptest} );
+    $self->create_pkgbuild($self->status->pkgbase);
 
     # Wrap it up!
     chdir $status->pkgbase or die "chdir: $OS_ERROR";
     my $makepkg_cmd = join ' ', ( 'makepkg',
-                                  ( !$opts{verbose} ? '>/dev/null' : () )
+                                  ( $EUID == 0         ? '--asroot'   : () ),
+                                  ( $pkg_type eq 'src' ? '--source'   : () ),
+                                  ( !$opts{verbose}    ? '>/dev/null' : () ),
                                  );
 
     # I tried to use IPC::Cmd here, but colors didn't work...
-    system 'makepkg';
+    system $makepkg_cmd;
     if ($CHILD_ERROR) {
         error ( $CHILD_ERROR & 127
                 ? sprintf "makepkg failed with signal %d", $CHILD_ERROR & 127
@@ -241,7 +261,8 @@ sub create
         return 0;
     }
 
-    my $destfile_fqp = catfile( $status->destdir, $pkgfile );
+    my $destdir = $opts{destdir} || $status->destdir;
+    my $destfile_fqp = catfile( $destdir, $pkgfile );
     if ( ! rename $pkgfile_fqp, $destfile_fqp ) {
         error "failed to move $pkgfile to $destfile_fqp: $OS_ERROR";
         return 0;
@@ -291,6 +312,133 @@ END_ERROR
     }
 
     return $status->installed(1);
+}
+
+
+####
+#### PUBLIC METHODS
+####
+
+sub set_destdir
+{
+    die 'Invalid arguments to set_destdir' if ( @_ != 2 );
+    my ($self, $destdir) = @_;
+    $self->status->destdir($destdir);
+    return $destdir;
+}
+
+sub get_destdir
+{
+    my $self = shift;
+    return $self->status->destdir;
+}
+
+sub get_pkgvars
+{
+    die 'Invalid arguments to get_pkgvars' if ( @_ != 1 );
+
+    my $self   = shift;
+    my $status = $self->status;
+
+    die 'prepare() must be called before get_pkgvars()'
+        unless ( $status->prepared );
+
+    return ( pkgname  => $status->pkgname,
+             pkgver   => $status->pkgname,
+             pkgdesc  => $status->pkgdesc,
+             depends  => scalar $self->_translate_cpan_deps,
+             url      => $self->_get_disturl,
+             source   => $self->_get_srcurl,
+             md5sums  => $self->_calc_tarballmd5,
+
+             depshash => { $self->_translate_cpan_deps },
+            );
+}
+
+sub get_pkgvars_ref
+{
+    die 'Invalid arguments to get_pkgvars_ref' if ( @_ != 1 );
+
+    my $self = shift;
+    return { $self->get_pkgvars };
+}
+
+sub get_pkgbuild
+{
+    my ($self) = @_;
+
+    my $status  = $self->status;
+    my $module  = $self->parent;
+    my $conf    = $module->parent->configure_object;
+
+    die 'prepare() must be called before get_pkgbuild()'
+        unless $status->prepared;
+
+    my $pkgdeps = $self->_translate_cpan_deps;
+    my $pkgdesc = $status->pkgdesc;
+    my $extdir  = $module->package;
+    $extdir     =~ s/ [.] ${\$module->package_extension} \z //xms;
+    $pkgdesc    =~ s/ " / \\" /gxms; # Quote our package desc for bash.
+
+    my $templ_vars = { packager  => $PACKAGER,
+                       version   => $VERSION,
+
+                       pkgname   => $status->pkgname,
+                       pkgver    => $status->pkgver,
+                       pkgdesc   => $pkgdesc,
+                       pkgdeps   => $pkgdeps,
+
+                       disturl   => $self->_get_disturl(),
+                       srcurl    => $self->_get_srcurl(),
+                       md5sum    => $self->_calc_tarballmd5(),
+
+                       distdir   => $extdir,
+
+                       skiptest_comment => ( $conf->get_conf('skiptest')
+                                             ? '#' : ' ' )
+                      };
+
+    my $dist_type = $module->status->installer_type;
+    @{$templ_vars}{'is_makemaker', 'is_modulebuild'} =
+        ( $dist_type eq 'CPANPLUS::Dist::MM'    ? (1, 0) :
+          $dist_type eq 'CPANPLUS::Dist::Build' ? (0, 1) :
+          die "unknown Perl module installer type: '$dist_type'" );
+
+    return scalar $self->_process_template( $PKGBUILD_TEMPL,
+                                            $templ_vars );
+}
+
+#---INSTANCE METHOD---
+# Usage    : $self->_create_pkgbuild()
+# Purpose  : Creates a PKGBUILD file in the package's build directory.
+# Precond  : 1. You must first call prepare on the SUPER class in order
+#               to populate the pre-requisites.
+#            2. _prepare_status must be called before this method
+# Throws   : unknown installer type: '...'
+#            failed to write PKGBUILD: ...
+#            Invalid arguments to create_pkgbuild
+#            Invalid directoy passed to create_pkgbuild: ...
+# Returns  : Nothing.
+#---------------------
+sub create_pkgbuild
+{
+    die 'Invalid arguments to create_pkgbuild' if ( @_ != 2 );
+    my ($self, $destdir) = @_;
+
+    die qq{Invalid directory passed to create_pkgbuild: "$destdir" ...
+Directory does not exist or is not writeable}
+        unless ( -d $destdir && -w _ );
+
+    my $pkgbuild_text = $self->get_pkgbuild;
+    my $fqpath        = catfile( $destdir, 'PKGBUILD' );
+
+    open my $pkgbuild_file, '>', $fqpath
+        or die "failed to open new PKGBUILD: $OS_ERROR";
+    print $pkgbuild_file $pkgbuild_text;
+    close $pkgbuild_file
+        or die "failed to close new PKGBUILD: $OS_ERROR";
+
+    return;
 }
 
 
@@ -373,7 +521,6 @@ sub _translate_cpan_deps
         my $depver = $prereqs->{$modname};
 
         # Sometimes a perl version is given as a prerequisite
-        # XXX Seems filtered out of prereqs() hash beforehand..?
         if ( $modname eq 'perl' ) {
             $pkgdeps{perl} = $depver;
             next CPAN_DEP_LOOP;
@@ -394,6 +541,8 @@ sub _translate_cpan_deps
     # the module if there is no explicit perl version required...
     $pkgdeps{perl} ||= sprintf '%vd', $PERL_VERSION;
 
+    return %pkgdeps if ( wantarray );
+
     return ( join ' ',
              map { $pkgdeps{$_} ? qq{'${_}>=$pkgdeps{$_}'} : qq{'$_'} }
              sort keys %pkgdeps );
@@ -406,15 +555,16 @@ sub _translate_cpan_deps
 # Postcond : Sets the $self->status->pkgdesc accessor to the found
 #            package description.
 # Returns  : The package short description.
-# Comments : We search through the META.yml file and then the README file.
+# Comments : We search through the META.yml file, the main module's .pm file,
+#            .pod file, and then the README file.
 #---------------------
-#TODO# This should also look in the module source code's POD.
 sub _prepare_pkgdesc
 {
     die 'Invalid arguments to _prepare_pkgdesc method' if @_ != 1;
     my ($self) = @_;
     my ($status, $module, $pkgdesc) = ($self->status, $self->parent);
 
+    # Registered modules have their description stored in the object.
     return $status->pkgdesc( $module->description )
         if ( $module->description );
 
@@ -438,21 +588,68 @@ sub _prepare_pkgdesc
         close $metayml;
     }
 
-    # Next, try to find it in in the README file
-    open my $readme, '<', $module->status->extract . '/README'
-        or return $status->pkgdesc(q{});
-#   error( "Could not open README to get pkgdesc: $!" ), return undef;
+    # Next, parse the source file or pod file for a NAME section...
+    my $podselect = Pod::Select->new;
+    $podselect->select('NAME');
+    my $modname   = $module->name;
 
-    my $modname = $module->name;
-    while ( <$readme> ) {
-        chomp;
-        if ( (/^NAME/ ... /^[A-Z]+/) &&
-             (($pkgdesc) = / ^ \s* ${modname} [\s\-]+ (.+) $ /oxms) ) {
-            close $readme;
-            return $status->pkgdesc($pkgdesc);
-        }
+    # We use the package name because there is usually a module file
+    # with the exact same name as the package file.
+    #
+    # We want the main module's description, just in case the user requested
+    # a lesser module in the same package file.
+    #
+    # Assume the main .pm or .pod file is under lib/Module/Name/Here.pm
+    my $mainmod_file = $module->package_name;
+
+    $mainmod_file =~ tr{-}{/}s;
+    $mainmod_file = catfile( $module->status->extract, 'lib', $mainmod_file );
+
+    PODSEARCH:
+    for my $podfile_path ( map { "$mainmod_file.$_" } qw/pm pod/ ) {
+        my $name_section = '';
+
+        next PODSEARCH unless ( -e $podfile_path );
+        open my $podfile, '<', $podfile_path
+            or next PODSEARCH;
+
+        open my $podout, '>', \$name_section
+            or die "failed open on filehandle to string: $!";
+        $podselect->parse_from_filehandle( $podfile, $podout );
+
+        close $podfile;
+        close $podout
+            or die "failed close on filehandle to string: $!";
+
+        next PODSEARCH unless ($name_section);
+
+        # Remove formatting codes.
+        $name_section =~ s{ [IBCLEFSXZ]  <(.*?)>  }{$1}gxms;
+        $name_section =~ s{ [IBCLEFSXZ] <<(.*?)>> }{$1}gxms;
+
+        # The short desc is on a line beginning with 'Module::Name - '
+        return $status->pkgdesc($pkgdesc)
+            if ( ($pkgdesc) = $name_section =~ / ^ \s* $modname [\s-]+ (.+?) $ /xms );
     }
-    close $readme;
+
+    # Last, try to find it in in the README file
+    README:
+    {
+        open my $readme, '<', $module->status->extract . '/README'
+            or last README;
+        #   error( "Could not open README to get pkgdesc: $!" ), return undef;
+
+        my $modname = $module->name;
+        while ( <$readme> ) {
+            chomp;
+            if ( (/^NAME/ ... /^[A-Z]+/) # limit ourselves to a NAME section
+                 && ( ($pkgdesc) = / ^ \s* ${modname} [\s\-]+ (.+) $ /oxms) ) {
+                close $readme;
+                return $status->pkgdesc($pkgdesc);
+            }
+        }
+        close $readme;
+    }
 
     return $status->pkgdesc(q{});
 }
@@ -477,7 +674,10 @@ sub _prepare_status
                            ( sprintf "%vd", $PERL_VERSION ),
                            'pacman' );
 
-    $status->destdir( $PKGDEST || catdir( $our_base, 'pkg' ) );
+    # Watchout if this was set explicitly with set_destdir() method
+    if ( !$status->destdir ) {
+        $status->destdir( $PKGDEST || catdir( $our_base, 'pkg' ) );
+    }
 
     my ($pkgver, $pkgname)
         = ( $self->_translate_version($module->package_version),
@@ -542,7 +742,8 @@ sub _calc_tarballmd5
     my ($self) = @_;
     my $module = $self->parent;
 
-    my $tarball_fqp = $self->status->pkgbase . '/' . $module->package;
+    my $tarball_fqp = $module->_status->fetch;
+#    my $tarball_fqp = $self->status->pkgbase . '/' . $module->package;
     open my $distfile, '<', $tarball_fqp
         or die "failed to get md5 of $tarball_fqp: $OS_ERROR";
 
@@ -551,71 +752,6 @@ sub _calc_tarballmd5
     close $distfile;
 
     return $md5->hexdigest;
-}
-
-#---INSTANCE METHOD---
-# Usage    : $self->_create_pkgbuild()
-# Purpose  : Creates a PKGBUILD file in the package's build directory.
-# Precond  : 1. You must first call prepare on the SUPER class in order
-#               to populate the pre-requisites.
-#            2. _prepare_status must be called before this method
-# Throws   : unknown installer type: '...'
-#            failed to write PKGBUILD: ...
-# Returns  : Nothing.
-#---------------------
-sub _create_pkgbuild
-{
-    my $self = shift;
-    my %opts = @_;
-
-    my $status  = $self->status;
-    my $module  = $self->parent;
-    my $conf    = $module->parent->configure_object;
-
-    my $pkgdeps = $self->_translate_cpan_deps;
-
-    my $pkgdesc = $status->pkgdesc;
-    my $fqpath  = catfile( $status->pkgbase, 'PKGBUILD' );
-
-    my $extdir  = $module->package;
-    $extdir     =~ s/ [.] ${\$module->package_extension} \z //xms;
-
-    $pkgdesc    =~ s/ " / \\" /gxms; # Quote our package desc for bash.
-
-    my $templ_vars = { packager  => $PACKAGER,
-                       version   => $VERSION,
-
-                       pkgname   => $status->pkgname,
-                       pkgver    => $status->pkgver,
-                       pkgdesc   => $pkgdesc,
-                       pkgdeps   => $pkgdeps,
-
-                       disturl   => $self->_get_disturl(),
-                       srcurl    => $self->_get_srcurl(),
-                       md5sum    => $self->_calc_tarballmd5(),
-
-                       distdir   => $extdir,
-
-                       skiptest_comment => ( $conf->get_conf('skiptest')
-                                             ? '#' : ' ' )
-                      };
-
-    my $dist_type = $module->status->installer_type;
-    @{$templ_vars}{'is_makemaker', 'is_modulebuild'} =
-        ( $dist_type eq 'CPANPLUS::Dist::MM'    ? (1, 0) :
-          $dist_type eq 'CPANPLUS::Dist::Build' ? (0, 1) :
-          die "unknown Perl module installer type: '$dist_type'" );
-
-    my $pkgbuild_text = $self->_process_template( $PKGBUILD_TEMPL,
-                                                  $templ_vars );
-
-    open my $pkgbuild_file, '>', $fqpath
-        or die "failed to write PKGBUILD: $OS_ERROR";
-    print $pkgbuild_file $pkgbuild_text;
-    close $pkgbuild_file
-        or die "failed to write PKGBUILD: $OS_ERROR";
-
-    return;
 }
 
 #---INSTANCE METHOD---

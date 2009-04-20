@@ -137,7 +137,7 @@ default for all CPANPLUS users.  A warning message is displayed.
 
 =over
 
-=item sudo
+=item B<sudo>
 
 DO NOT run this script with sudo or your CPANPLUS configuration file
 will become owned by root.  To change it back, use sudo and chown
@@ -145,7 +145,7 @@ on your configuration file.  For example:
 
   sudo chown <yourname>.<yourgroup> ~/.cpanplus/lib/CPANPLUS/Config/User.pm
 
-=item PATH
+=item B<PATH>
 
 Archlinux currently installs binaries from perl modules (like this one
 here) under the C</usr/bin/perlbin/vendor> directory.  Make sure this
@@ -161,7 +161,7 @@ the following to your /home/(username)/.profile file:
 
 =head1 AUTHOR
 
-Justin Davis C<< jrcd83 at gmail.com> >>, juster on L<http://bbs.archlinux.org>
+Justin Davis C<< jrcd83 at gmail.com >>, juster on L<http://bbs.archlinux.org>
 
 =cut
 

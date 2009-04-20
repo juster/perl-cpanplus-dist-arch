@@ -1,5 +1,15 @@
 Revision history for CPANPLUS-Dist-Arch
 
+0.07    April 12, 2009
+        Fixed the typo bug in last version.  Added a build test so I'll catch this faster.
+        Now searches the main module's .pm and .pod files for the pkgdesc as well,
+        using Pod::Select.
+        Now running as root will work, also useful for nested fakeroot environments...
+
+0.06    April 05, 2009
+        Added the setupdistarch script to easily enable/disable CPANPLUS packaging.
+        I broke this version with a typo!  Luckily no one suspects anything.
+
 0.05    March 23, 2009
         Inserted missing /CPAN/ text for the PKGBUILD's srcurl variable, 
         Added tests for _translate_name & _translate_version.
