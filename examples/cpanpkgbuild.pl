@@ -66,4 +66,16 @@ Will create a PKGBUILD in the current directory for DBD::SQLite.  Then
 use your favorite editor to customize PKGBUILD, run makepkg on it,
 etc. etc.  The -f or -force flag forces overwriting any existing PKGBUILD.
 
+=head1 AUTHOR
+
+Justin Davis, C<< <jrcd83 at gmail.com> >>, juster on
+L<http://bbs.archlinux.org>
+
+=head1 COPYRIGHT & LICENSE
+
+Copyright 2009 Justin Davis, all rights reserved.
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+
 =cut

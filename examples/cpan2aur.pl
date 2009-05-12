@@ -25,3 +25,39 @@ while ( my $module = shift @ARGV ) {
                       pkg     => 'src',
                       destdir => $destdir );
 }
+
+__END__
+
+=head1 NAME
+
+cpan2aur.pl - Generate an AUR source package of a CPAN perl module
+
+=head1 SYNOPSIS
+
+  $ ./cpan2aur.pl Acme::Bleach
+  ... spammy output from CPAN & makepkg here ...
+  $ ls *.src.tar.gz
+  perl-acme-bleach-1.12-1.src.tar.gz
+  $
+
+=head1 DESCRIPTION
+
+Example script for using the advanced options of
+L<CPANPLUS::Dist::Arch>.  Useful for updating AUR
+perl modules you are maintaining.
+
+Ironic how this is much more succinct then just creating a PKGBUILD...
+
+=head1 AUTHOR
+
+Justin Davis, C<< <jrcd83 at gmail.com> >>, juster on
+L<http://bbs.archlinux.org>
+
+=head1 COPYRIGHT & LICENSE
+
+Copyright 2009 Justin Davis, all rights reserved.
+
+This program is free software; you can redistribute it and/or modify it
+under the same terms as Perl itself.
+
+=cut

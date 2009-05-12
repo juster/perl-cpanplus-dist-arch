@@ -75,7 +75,7 @@ license=('PerlArtistic' 'GPL')
 options=('!emptydirs')
 depends=([% pkgdeps %])
 url='[% disturl %]'
-source='[% srcurl %]'
+source=('[% srcurl %]')
 md5sums=('[% md5sum %]')
 
 build() {
