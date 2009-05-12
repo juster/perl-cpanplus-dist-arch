@@ -408,18 +408,6 @@ sub get_pkgbuild
                                             $templ_vars );
 }
 
-#---INSTANCE METHOD---
-# Usage    : $self->_create_pkgbuild()
-# Purpose  : Creates a PKGBUILD file in the package's build directory.
-# Precond  : 1. You must first call prepare on the SUPER class in order
-#               to populate the pre-requisites.
-#            2. _prepare_status must be called before this method
-# Throws   : unknown installer type: '...'
-#            failed to write PKGBUILD: ...
-#            Invalid arguments to create_pkgbuild
-#            Invalid directoy passed to create_pkgbuild: ...
-# Returns  : Nothing.
-#---------------------
 sub create_pkgbuild
 {
     die 'Invalid arguments to create_pkgbuild' if ( @_ != 2 );

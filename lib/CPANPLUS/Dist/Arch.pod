@@ -60,7 +60,7 @@ and install the Acme::Bleach module like so:
 
   $ cpanp i Acme::Bleach
 
-=head1 WHERE IS THE PACKAGE?
+=head1 WHERE IS THE PACKAGE
 
 Packages are stored under the user's home directory in the
 .cpanplus directory.  Two seperate directories are created for
@@ -112,6 +112,80 @@ unless you know what you are doing.
            built and installed; not just the module you specify.
 
 =back
+
+=head1 DIST OPTIONS
+
+cpan2dist allows you specify CPANPLUS::Dist::Arch specific options on
+the command line.  I'm not sure how or if cpanp does the same.  Look
+at the source code of the L<cpan2aur> script to see how they also work
+programmatically.
+
+=over
+
+=item B<pkgtype>
+
+This specifies whether to make a source package or a binary package.
+The default is to make a binary package.
+
+=item B<destdir>
+
+Specifies where to store the resulting package.  The default is to
+store under the C<~/.cpanp/pacman/pkg> directory, or the directory
+specified by C<PKGDEST> in the C</etc/makepkg.conf> config file.
+
+=back
+
+=head1 PUBLIC METHODS
+
+When using the CPANPLUS module in a perl script to create packages,
+these public methods are available.  See the cpanpkgbuild.pl script
+included in the examples folder for an example.
+
+=head2 set_destdir
+
+  Usage   : $dist->set_destdir('~/pkg/perl');
+  Purpose : Sets the directory to store the resulting package.
+  Returns : The directory that was set.
+
+=head2 get_destdir
+
+  Usage   : my $dest = $dist->get_destdir;
+  Returns : The directory where the package is going to end up.
+
+=head2 get_pkgvars
+
+  Usage   : my %pkgvars = $dist->get_pkgvars;
+  Returns : A hash containing all the PKGBUILD variables.
+            Keys are the bash variable names in the PKGBUILD.
+            Dependencies are converted to their pacman names.
+  
+            One new key is 'depshash' whose value is a hashref.
+            The hashref keys are packages and values are required versions,
+            or 0 if there is no required version.
+
+=head2 get_pkgvars_ref
+
+  Usage    : my $pkgvars_ref = $dist->get_pkgvars_ref;
+  Returns  : The same as C<get_pkgvars> except as a hashref.
+
+=head2 get_pkgbuild
+
+  Usage    : my $pkgbuildtext = $dist->get_pkgbuild;
+  Returns  : A scalar containing the full text of the PKGBUILD that would
+             be generated in the perl pacman package.
+
+=head2 create_pkgbuild
+
+  Usage   : $self->_create_pkgbuild( '/tmp' );
+  Purpose : Creates a PKGBUILD file in the specified directory.
+  Params  : The directory to put the new PKGBUILD in.
+  Precond : You must first call prepare or have CPANPLUS do it automatically.
+  Throws  : unknown installer type: '...'
+            failed to write PKGBUILD: ...
+            Invalid arguments to create_pkgbuild
+            Invalid directoy passed to create_pkgbuild: ...
+  Returns : Nothing.
+
 
 =head1 LIMITATIONS
 
@@ -186,17 +260,6 @@ implicitly but right now everything is installed explicitly.
 
 If this is a big problem, tell me and I will try to make some hackish
 solution.  I can't think of an elegant way to do this.
-
-=item Package descriptions are sometimes missing
-
-Right now this module searches in the META.xml and README file for a
-package description.  The description may also be inside the module in
-POD documentation.  Needless to say because there is no centralized
-location for perl module descriptions, they can be iffy and hard to
-find.
-
-Again, you may have to edit the PKGBUILD if you really, really, care.
-Until I add more complex handling, anyways.
 
 =back
 
@@ -302,10 +365,6 @@ of every build in C<~/.cpanplus/install_logs/>.
 You can also look for information at:
 
 =over 4
-
-=item * Archlinux Forums
-
-L<http://bbs.archlinux.org>
 
 =item * RT: CPAN's request tracker
 

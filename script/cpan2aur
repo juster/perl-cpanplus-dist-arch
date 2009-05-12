@@ -30,11 +30,11 @@ __END__
 
 =head1 NAME
 
-cpan2aur.pl - Generate an AUR source package of a CPAN perl module
+cpan2aur - Generate an AUR source package of a CPAN perl module
 
 =head1 SYNOPSIS
 
-  $ ./cpan2aur.pl Acme::Bleach
+  $ ./cpan2aur Acme::Bleach
   ... spammy output from CPAN & makepkg here ...
   $ ls *.src.tar.gz
   perl-acme-bleach-1.12-1.src.tar.gz
