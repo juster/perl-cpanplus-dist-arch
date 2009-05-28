@@ -433,7 +433,7 @@ sub get_pkgbuild
     my $pkgdesc = $status->pkgdesc;
     my $extdir  = $module->package;
     $extdir     =~ s/ [.] ${\$module->package_extension} \z //xms;
-    $pkgdesc    =~ s/ ([\$\"]) / \\$1 /gxms; # Quote our package desc for bash.
+    $pkgdesc    =~ s/ ([\$\"\`\!]) / \\$1 /gxms; # Quote our package desc for bash.
 
     my $templ_vars = { packager  => $PACKAGER,
                        version   => $VERSION,
