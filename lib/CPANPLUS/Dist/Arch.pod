@@ -2,67 +2,46 @@
 
 =head1 NAME
 
-CPANPLUS::Dist::Arch - CPANPLUS backend for building Archlinux pacman packages
+B<CPANPLUS::Dist::Arch> - CPANPLUS backend for building Archlinux pacman packages
 
 =head1 VERSION
 
-Version 0.08
+Version 0.09
 
 =head1 SYNOPSIS
-
-This module is not meant to be used directly.  Instead you should use
-it through the cpanp shell or the cpan2dist utility that is included
-with CPANPLUS.
-
-  $ cpan2dist --format CPANPLUS::Dist::Arch Acme::Bleach
-
-This lengthly command line can be shortened by specifying
-CPANPLUS::Dist::Arch as the default 'Dist' type to use in CPANPLUS's
-configuration.  A utility script name 'setupdistarch' is included
-with this module that can be used to quickly enable or disable
-packaging perl modules into pacman packages:
 
   $ setupdistarch
   This script will now setup CPANPLUS to automatically package all
   modules into pacman packages when installing.
   Are you sure you want to do this? [y/N] y
   Set CPANPLUS to package all modules through CPANPLUS::Dist::Arch
-  $
+  $ cpanp -i Perl::Module::Here
 
-See L<setupdistarch>(1) for more information about setupdistarch.
-If you are having trouble running it, your PATH may not be set
-properly, there are instructions in the manual page.
+  ...Installs the module's distribution file (think package in CPAN lingo)
+     as a pacman package...
 
-Or you can setup CPANPLUS manually:
+  Add --verbose for more output:
+  $ cpanp -i Acme::Bleach --verbose
 
-  $ cpanp
+  Use cpan2dist to make a package, but don't install it:
+  $ cpan2dist --verbose Acme::Bleach
 
-  ... CPANPLUS's startup output here ...
+  Now, use special options to create a source package in current directory:
+  $ cpan2dist --dist-opts pkgtype=src --dist-opts destdir=. Acme::Bleach
 
-  CPAN Terminal> s conf dist_type CPANPLUS::Dist::Arch
+=head1 SETUP
 
-  Key 'dist_type' was set to 'CPANPLUS::Dist::Arch'
-  CPAN Terminal> s save
+See L<setupdistarch>(1) for more information about setupdistarch.  If
+you are having trouble running C<setupdistarch> or C<cpan>, your PATH
+may not be set properly, add /usr/bin/perlbin/core and
+/use/bin/perlbin/vendor to your .profile file in your home directory.
 
-  Configuration successfully saved to CPANPLUS::Config::User
-      (/home/<yournamehere>/.cpanplus/lib/CPANPLUS/Config/User.pm)
-  CPAN Terminal> q
-
-  Exiting CPANPLUS shell
-
-Now you do not have to use the explicit --format flag:
-
-  $ cpan2dist Acme::Bleach
-
-After dist_type is set, CPANPLUS will automatically package
-anything you install using cpanp.  Score!  You could then package
-and install the Acme::Bleach module like so:
-
-  $ cpanp i Acme::Bleach
+  # Example ~/.profile
+  export PATH=/usr/bin:/bin:/usr/bin/perlbin/core:/usr/bin/perlbin/vendor
 
 =head1 WHERE IS THE PACKAGE
 
-Packages are stored under the user's home directory in the
+By default, packages are stored under the user's home directory in the
 .cpanplus directory.  Two seperate directories are created for
 building packages and for storing the resulting package file.
 
@@ -85,24 +64,21 @@ in your CPANPLUS config.
 You can change the destination by setting PKGDEST in your
 C</etc/makepkg.conf> file.  The PACKAGER in C</etc/makepkg.conf> is
 inserted into the PKGBUILD comment header.  If there is no PACKAGER
-set, then 'Anonymous' is used, instead.
+set, then 'Anonymous' is used instead.
 
 =head1 COMMAND LINE OPTIONS
 
-There are many command line options to cpan2dist and cpanp.  You can
-find these by typing C<cpan2dist --help> or C<cpanp --help> on the
-command line or reading the man page with C<man cpan2dist> or C<man
-cpanp>.  A small number of these options are recognized by
-CPANPLUS::Dist::Arch.
+There are many command line options to L<cpan2dist> and L<cpanp>.  A
+small number of these options are recognized by CPANPLUS::Dist::Arch.
 
 =over
 
-=item --verbose
+=item B<--verbose>
 
 This classic option allows for more verbose messages.  Otherwise you
 get next to no output.  Useful for debugging and neurosis.
 
-=item --skiptest
+=item B<--skiptest>
 
 This will I<comment out> the tests in PKGBUILD files that are generated.
 I actually think testing is a good idea and would not recommend this
@@ -197,17 +173,17 @@ are in the L</BUGS> section.
 
 =over 4
 
-=item Cannot detect non-perl dependencies
+=item B<Cannot detect non-perl dependencies>
 
-If the module you are building is an XS module, and it depends on
-external, non-perl libraries, CPANPLUS::Dist::Arch will not include
-those libraries in the PKGBUILD depends.
+As of version 0.9, CPANPLUS will I<try> to find non-perl dependencies.
+This seems to work better with ExtUtils::MakeMaker distributions.
+However, this method is far from perfect.
 
 This means if you plan on distributing a perl module package (ie
 uploading to AUR) you should edit the PKGBUILD by hand to include
 the libraries needed by the XS module.
 
-=item A module is installed, but pacman says it isn't
+=item B<A module is installed, but pacman says it isn't>
 
 CPAN[PLUS] considers a module installed if it can be C<use>d.  That
 is, if it is in @INC somewhere on your system.
@@ -226,21 +202,7 @@ Installing with this module will appease C<pacman>, but you may want
 to manually delete the previously installed modules to prevent
 version mismatch problems.
 
-=item Pacman says a required dependency I installed package for is missing
-
-Pacman is much more strict with its 'package' versions than CPAN is.
-pacman may rarely complain about you not having the required
-version when you obviously just installed them from CPAN!
-
-This is because CPAN module versions are wacky and can be just about
-anything, while pacman's versioning is much more methodical.
-CPANPLUS::Dist::Arch simply extract's CPAN's version and inserts it
-into the PKGBUILD for pacman's version.  You may have to go in and
-edit the PKGBUILD manually to translate the version from CPAN to pacman.
-
-(TODO: example here, I forgot what did this)
-
-=item Pre-requisites are always installed
+=item B<Pre-requisites are always installed>
 
 CPANPLUS by default installs the pre-requisite modules before the
 module you requested.  This module does the same only it creates an
@@ -249,7 +211,7 @@ Arch package and installs it with pacman instead.
 You should be able to run pacman under sudo for this to work properly.
 Or you could run cpan2dist as root, but I wouldn't recommend it.
 
-=item All module packages are installed explicitly
+=item B<All module packages are installed explicitly>
 
 This has to do with how Pacman categorizes automatically installed
 dependencies implicitly installed package.  Explicitly installed
@@ -263,61 +225,6 @@ solution.  I can't think of an elegant way to do this.
 
 =back
 
-=head1 INTERFACE METHODS
-
-See L<CPANPLUS::Dist::Base>'s documentation for a description of the
-purpose of these functions.  All of these "interface" methods override
-Base's default actions in order to create our packages.
-
-These methods are called by the CPANPLUS::Backend object that controls
-building new packages (ie, via the cpanp or cpan2dist commands).  You
-should not call these methods directly, unless you know what you are
-doing.  (This is mostly here to appease Test::POD::Coverage)
-
-=head2 format_available
-
-  Purpose  : Checks if we have makepkg and pacman installed
-  Returns  : 1 - if we have the tools needed to make a pacman package.
-             0 - if we don't think so.
-
-=head2 init
-
-  Purpose  : Initializes our object internals to get things started
-  Returns  : 1 always
-
-=head2 prepare
-
-  Purpose  : Prepares the files and directories we will need to build a
-             package.  Also prepares any data we expect to have later,
-             on a per-object basis.
-  Return   : 1 if ok, 0 on error.
-  Postcond : Sets $self->status->prepare to 1 or 0 on success or
-             failure.
-
-=head2 create
-
-  Purpose  : Creates the pacman package using the 'makepkg' command.
-
-=head2 install
-
-  Purpose  : Installs the package file (.pkg.tar.gz) using sudo and
-             pacman.
-  Comments : Called automatically on pre-requisite packages
-
-=head1 BUILD ERRORS
-
-Naturally, there are sometimes problems when trying to fool a module
-into thinking that you are installing it on the root (/) filesystem.
-Or just problems in general with compiling any software targeted
-to a broad range of systems!
-
-The solution is to look for a custom-made package online using pacman
-or checking the AUR.  If this fails, well, hack the package yourself!
-Sometimes patches or other fiddling are needed.
-
-As a last resort, you could ask nicely on the Archlinux forums for
-someone to make you a custom PKGBUILD.
-
 =head1 BUGS
 
 Please report any bugs or feature requests to C<bug-cpanplus-dist-arch
@@ -330,7 +237,7 @@ progress on your bug as I make changes.
 
 =over 4
 
-=item Dist creation of '...' skipped, build time exceeded: 300 seconds
+=item B<Dist creation of '...' skipped, build time exceeded: 300 seconds>
 
 If compiling a module takes a long time, this message will pop up.
 Interestingly, though, the module keeps compiling in the background...?
