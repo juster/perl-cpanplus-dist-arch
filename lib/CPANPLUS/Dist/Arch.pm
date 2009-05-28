@@ -16,7 +16,6 @@ use File::Copy             qw(copy);
 use File::stat             qw(stat);
 use DynaLoader             qw();
 use IPC::Cmd               qw(run can_run);
-use Readonly               qw(Readonly);
 use English                qw(-no_match_vars);
 
 use Data::Dumper;
@@ -28,26 +27,26 @@ our $VERSION = '0.09';
 # CLASS CONSTANTS
 #----------------------------------------------------------------------
 
-Readonly my $MKPKGCONF_FQP => '/etc/makepkg.conf';
-Readonly my $CPANURL       => 'http://search.cpan.org';
-Readonly my $ROOT_USER_ID  => 0;
+my $MKPKGCONF_FQP = '/etc/makepkg.conf';
+my $CPANURL       = 'http://search.cpan.org';
+my $ROOT_USER_ID  = 0;
 
-Readonly my $NONROOT_WARNING => <<'END_MSG';
+my $NONROOT_WARNING = <<'END_MSG';
 In order to install packages as a non-root user (highly recommended)
 you must have a sudo-like command specified in your CPANPLUS
 configuration.
 END_MSG
 
 # Patterns to use when using pacman for finding library owners.
-Readonly my $PACMAN_FINDOWN     => qr/\A[^ ]+ is owned by (\w+) ([\w.]+)/;
-Readonly my $PACMAN_FINDOWN_ERR => qr/\Aerror:/;
+my $PACMAN_FINDOWN     = qr/\A[^ ]+ is owned by (\w+) ([\w.]+)/;
+my $PACMAN_FINDOWN_ERR = qr/\Aerror:/;
 
 
 # Override a package's name to conform to packaging guidelines.
 # Copied entries from CPANPLUS::Dist::Pacman and alot more
 # from searching for packages with perl in their name in
 # [extra] and [community]
-Readonly my $PKGNAME_OVERRIDES =>
+my $PKGNAME_OVERRIDES =
 { map { split /[\s=]+/ } split /\s*\n+\s*/, <<'END_OVERRIDES' };
 
 libwww-perl    = perl-libwww
@@ -87,7 +86,7 @@ END_OVERRIDES
 =cut
 
 # Crude template for our PKGBUILD script
-Readonly my $PKGBUILD_TEMPL => <<'END_TEMPL';
+my $PKGBUILD_TEMPL = <<'END_TEMPL';
 # Contributor: [% packager %]
 # Generator  : CPANPLUS::Dist::Arch [% version %]
 pkgname='[% pkgname %]'
