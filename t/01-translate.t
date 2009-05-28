@@ -29,7 +29,7 @@ my %pkgname_of =
 
       # Test overridden names
       'libwww-perl'       => 'perl-libwww',
-      'mod_perl'          => 'perl-modperl',
+      'mod_perl'          => 'mod_perl',
       'glade-perl-two'    => 'perl-glade-two',
       'aceperl'           => 'perl-ace',
 
