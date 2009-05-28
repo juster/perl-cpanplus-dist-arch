@@ -24,9 +24,9 @@ use Data::Dumper;
 
 our $VERSION = '0.09';
 
-####
-#### CLASS CONSTANTS
-####
+#----------------------------------------------------------------------
+# CLASS CONSTANTS
+#----------------------------------------------------------------------
 
 Readonly my $MKPKGCONF_FQP => '/etc/makepkg.conf';
 Readonly my $CPANURL       => 'http://search.cpan.org';
@@ -125,9 +125,9 @@ build() {
 }
 END_TEMPL
 
-####
-#### CLASS GLOBALS
-####
+#----------------------------------------------------------------------
+# CLASS GLOBALS
+#----------------------------------------------------------------------
 
 our ($PKGDEST, $PACKAGER);
 
@@ -155,10 +155,22 @@ READ_CONF:
     close $mkpkgconf or error "close on makepkg.conf: $!";
 }
 
-####
-#### PUBLIC CPANPLUS::Dist::Base Interface
-####
+#-------------------------------------------------------------------------------
+# PUBLIC CPANPLUS::Dist::Base Interface
+#-------------------------------------------------------------------------------
 
+=for Interface Methods
+See L<CPANPLUS::Dist::Base>'s documentation for a description of the
+purpose of these functions.  All of these "interface" methods override
+Base's default actions in order to create our packages.
+
+=cut
+
+#---INTERFACE METHOD---
+# Purpose  : Checks if we have makepkg and pacman installed
+# Returns  : 1 - if we have the tools needed to make a pacman package.
+#            0 - if we don't think so.
+#----------------------
 sub format_available
 {
     for my $prog ( qw/ makepkg pacman / ) {
@@ -170,6 +182,10 @@ sub format_available
     return 1;
 }
 
+#---INTERFACE METHOD---
+# Purpose  : Initializes our object internals to get things started
+# Returns  : 1 always
+#----------------------
 sub init
 {
     my $self = shift;
@@ -180,6 +196,14 @@ sub init
     return 1;
 }
 
+#---INTERFACE METHOD---
+# Purpose  : Prepares the files and directories we will need to build a
+#            package.  Also prepares any data we expect to have later,
+#            on a per-object basis.
+# Return   : 1 if ok, 0 on error.
+# Postcond : Sets $self->status->prepare to 1 or 0 on success or
+#            failure.
+#----------------------
 sub prepare
 {
     my $self = shift;
@@ -198,6 +222,9 @@ sub prepare
     return $self->SUPER::prepare(@_);
 }
 
+#---INTERFACE METHOD---
+# Purpose  : Creates the pacman package using the 'makepkg' command.
+#----------------------
 sub create
 {
     my ($self, %opts) = (shift, @_);
@@ -296,6 +323,11 @@ Package type must be 'bin' or 'src'}
     return $status->created(1);
 }
 
+#---INTERFACE METHOD---
+# Purpose  : Installs the package file (.pkg.tar.gz) using sudo and
+#            pacman.
+# Comments : Called automatically on pre-requisite packages
+#----------------------
 sub install
 {
     my ($self, %opts) = (shift, @_);
@@ -338,10 +370,9 @@ END_ERROR
     return $status->installed(1);
 }
 
-
-####
-#### PUBLIC METHODS
-####
+#-------------------------------------------------------------------------------
+# PUBLIC METHODS
+#-------------------------------------------------------------------------------
 
 sub set_destdir
 {
@@ -453,10 +484,9 @@ Directory does not exist or is not writeable}
     return;
 }
 
-
-####
-#### PRIVATE INSTANCE METHODS
-####
+#-------------------------------------------------------------------------------
+# PRIVATE INSTANCE METHODS
+#-------------------------------------------------------------------------------
 
 #---INSTANCE METHOD---
 # Usage   : my $pkgname = $self->_translate_name($dist_name);
@@ -901,8 +931,6 @@ sub _get_mb_xs_deps
 
     my $mbobj = $dist->status->_mb_object;
     my $linker_flags = $mbobj->extra_linker_flags;
-
-#    print STDERR Dumper($linker_flags);
 
     return [ uniq grep { /\A-l/ } map { split } @{$linker_flags} ];
 }
