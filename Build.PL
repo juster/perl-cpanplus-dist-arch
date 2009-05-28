@@ -27,7 +27,7 @@ my $builder = Module::Build->new(
         'Getopt::Long'          => 0, # for the setupdistarch script
         'Pod::Usage'            => 0,
     },
-    script_files => [ 'script/setupdistarch' ],
+    script_files => [ qw{ script/cpan2aur script/setupdistarch } ],
     add_to_cleanup      => [ 'CPANPLUS-Dist-Arch-*' ],
     create_makefile_pl  => 'traditional',
 );

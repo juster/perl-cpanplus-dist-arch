@@ -1,8 +1,17 @@
 Revision history for CPANPLUS-Dist-Arch
 
+0.09    May 26, 2009
+        Now searches for non-perl dependencies as well!
+        Added many package name overrides.
+        Tweaked PKGBUILD again.
+
 0.08    May 11, 2009
         Added a public method interface to the CPANPLUS::Dist::Arch class.
         Added example script "cpanpkgbuild.pl" and binary script "cpan2aur".
+        Changed PKGBUILD template slightly as suggested by smb.
+
+        (I accidentally used the Makefile.PL for this version instead of Build.PL!
+         So META.yml got screwed up.  I also forgot to update this file.)
 
 0.07    April 12, 2009
         Fixed the typo bug in last version.  Added a build test so I'll catch this faster.
