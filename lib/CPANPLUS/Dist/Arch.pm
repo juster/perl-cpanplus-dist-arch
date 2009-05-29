@@ -17,6 +17,7 @@ use File::stat             qw(stat);
 use DynaLoader             qw();
 use IPC::Cmd               qw(run can_run);
 use English                qw(-no_match_vars);
+use Carp                   qw(carp croak);
 
 use Data::Dumper;
 
@@ -30,6 +31,8 @@ our $VERSION = '0.09';
 my $MKPKGCONF_FQP = '/etc/makepkg.conf';
 my $CPANURL       = 'http://search.cpan.org';
 my $ROOT_USER_ID  = 0;
+
+my $CFG_VALUE_MATCH  = '\A \s* (%s) \s* = \s* (.*?) \s* (?: \#.* )? \z';
 
 my $NONROOT_WARNING = <<'END_MSG';
 In order to install packages as a non-root user (highly recommended)
@@ -107,14 +110,14 @@ build() {
 [% IF is_makemaker %]
     perl Makefile.PL INSTALLDIRS=vendor &&
     make &&
-[% skiptest_comment %]   make test &&
+    [% IF skiptest %]#[% FI %]make test &&
     make DESTDIR="${pkgdir}/" install;
   } || return 1;
 [% FI %]
 [% IF is_modulebuild %]
     perl Build.PL --installdirs=vendor --destdir="$pkgdir" &&
     ./Build &&
-[% skiptest_comment %]   ./Build test &&
+    [% IF skiptest %]#[% FI %]./Build test &&
     ./Build install;
   } || return 1;
 [% FI %]
@@ -144,11 +147,23 @@ READ_CONF:
     my %cfg_vars = ( 'PKGDEST'  => \$PKGDEST,
                      'PACKAGER' => \$PACKAGER );
 
-    my $cfg_var_match = '(' . join( '|', keys %cfg_vars ) . ')';
+    my $cfg_field_match = sprintf $CFG_VALUE_MATCH,
+        join '|', keys %cfg_vars;
 
     while (<$mkpkgconf>) {
-        if (/ ^ $cfg_var_match = "? (.*) "? $ /xmso) {
-            ${$cfg_vars{$1}} = $2;
+        chomp;
+        if ( my ($name, $value) = /$cfg_field_match/xmso ) {
+            ${$cfg_vars{$name}} =
+                ( $value =~ m/\A"(.*)"\z/ ?
+                  do {
+                      $value = $1;
+                      $value =~ tr/\\//d;
+                      $value;
+                  } :
+
+                  $value =~ m/\A'(.*)'\z/ ? $1 :
+
+                  $value );
         }
     }
     close $mkpkgconf or error "close on makepkg.conf: $!";
@@ -159,7 +174,7 @@ READ_CONF:
 #-------------------------------------------------------------------------------
 
 =for Interface Methods
-See L<CPANPLUS::Dist::Base>'s documentation for a description of the
+See CPANPLUS::Dist::Base's documentation for a description of the
 purpose of these functions.  All of these "interface" methods override
 Base's default actions in order to create our packages.
 
@@ -251,9 +266,11 @@ sub create
     my $pkg_type = $opts{pkg} || $opts{pkgtype} || 'bin';
     $pkg_type = lc $pkg_type;
 
-    die qq{Invalid package type requested: "$pkg_type"
-Package type must be 'bin' or 'src'}
-        unless ( $pkg_type =~ /^(?:bin|src)$/ );
+    unless ( $pkg_type =~ /^(?:bin|src)$/ ) {
+        error qq{Invalid package type requested: "$pkg_type"
+Package type must be 'bin' or 'src'};
+        return 0;
+    }
 
     if ( $opts{verbose} ) {
         my %fullname = ( bin => 'binary', src => 'source' );
@@ -303,6 +320,7 @@ Package type must be 'bin' or 'src'}
 
     # I tried to use IPC::Cmd here, but colors didn't work...
     system $makepkg_cmd;
+
     if ($CHILD_ERROR) {
         error ( $CHILD_ERROR & 127
                 ? sprintf "makepkg failed with signal %d", $CHILD_ERROR & 127
@@ -336,27 +354,30 @@ sub install
     my $intern = $module->parent;           # CPANPLUS::Internals
     my $conf   = $intern->configure_object; # CPANPLUS::Configure
 
-    my $pkgfile_fpq = $status->dist
-        or die << 'END_ERROR';
+    my $pkgfile_fqp = $status->dist;
+    unless ( $pkgfile_fqp ) {
+        error << 'END_ERROR';
 Path to package file has not been set.
 Someone is using CPANPLUS::Dist::Arch incorrectly.
 Tell them to call create() before install().
 END_ERROR
+        return 0;
+    }
 
-    die "Package file $pkgfile_fpq was not found" if ( ! -f $pkgfile_fpq );
+    die "Package file $pkgfile_fqp was not found" if ( ! -f $pkgfile_fqp );
 
     # Make sure the user has access to install a package...
     my $sudocmd = $conf->get_program('sudo');
     if ( $EFFECTIVE_USER_ID != $ROOT_USER_ID ) {
         if ( $sudocmd ) {
-            system "$sudocmd pacman -U $pkgfile_fpq";
+            system "$sudocmd pacman -U $pkgfile_fqp";
         }
         else {
             error $NONROOT_WARNING;
             return 0;
         }
     }
-    else { system "pacman -U $pkgfile_fpq"; }
+    else { system "pacman -U $pkgfile_fqp"; }
 
     if ($CHILD_ERROR) {
         error ( $CHILD_ERROR & 127
@@ -375,7 +396,7 @@ END_ERROR
 
 sub set_destdir
 {
-    die 'Invalid arguments to set_destdir' if ( @_ != 2 );
+    croak 'Invalid arguments to set_destdir' if ( @_ != 2 );
     my ($self, $destdir) = @_;
     $self->status->destdir($destdir);
     return $destdir;
@@ -389,12 +410,12 @@ sub get_destdir
 
 sub get_pkgvars
 {
-    die 'Invalid arguments to get_pkgvars' if ( @_ != 1 );
+    croak 'Invalid arguments to get_pkgvars' if ( @_ != 1 );
 
     my $self   = shift;
     my $status = $self->status;
 
-    die 'prepare() must be called before get_pkgvars()'
+    croak 'prepare() must be called before get_pkgvars()'
         unless ( $status->prepared );
 
     return ( pkgname  => $status->pkgname,
@@ -411,7 +432,7 @@ sub get_pkgvars
 
 sub get_pkgvars_ref
 {
-    die 'Invalid arguments to get_pkgvars_ref' if ( @_ != 1 );
+    croak 'Invalid arguments to get_pkgvars_ref' if ( @_ != 1 );
 
     my $self = shift;
     return { $self->get_pkgvars };
@@ -425,7 +446,7 @@ sub get_pkgbuild
     my $module  = $self->parent;
     my $conf    = $module->parent->configure_object;
 
-    die 'prepare() must be called before get_pkgbuild()'
+    croak 'prepare() must be called before get_pkgbuild()'
         unless $status->prepared;
 
     my $pkgdeps = $self->_translate_cpan_deps;
@@ -448,8 +469,7 @@ sub get_pkgbuild
 
                        distdir   => $extdir,
 
-                       skiptest_comment => ( $conf->get_conf('skiptest')
-                                             ? '#' : ' ' )
+                       skiptest  => $conf->get_conf('skiptest'),
                       };
 
     my $dist_type = $module->status->installer_type;
@@ -464,10 +484,10 @@ sub get_pkgbuild
 
 sub create_pkgbuild
 {
-    die 'Invalid arguments to create_pkgbuild' if ( @_ != 2 );
+    croak 'Invalid arguments to create_pkgbuild' if ( @_ != 2 );
     my ($self, $destdir) = @_;
 
-    die qq{Invalid directory passed to create_pkgbuild: "$destdir" ...
+    croak qq{Invalid directory passed to create_pkgbuild: "$destdir" ...
 Directory does not exist or is not writeable}
         unless ( -d $destdir && -w _ );
 
@@ -496,7 +516,7 @@ Directory does not exist or is not writeable}
 #---------------------
 sub _translate_name
 {
-    die "Invalid arguments to _translate_name method" if @_ != 2;
+    croak "Invalid arguments to _translate_name method" if @_ != 2;
     my ($self, $distname) = @_;
 
     # Override this package name if there is one specified...
@@ -530,7 +550,7 @@ sub _translate_name
 #---------------------
 sub _translate_version
 {
-    die "Invalid arguments to _translate_version method" if @_ != 2;
+    croak "Invalid arguments to _translate_version method" if @_ != 2;
     my ($self, $version) = @_;
 
     # Package versions should be letters, numbers and decimal points only...
@@ -547,7 +567,7 @@ sub _translate_version
 #---------------------
 sub _translate_cpan_deps
 {
-    die 'Invalid arguments to _translate_cpan_deps method'
+    croak 'Invalid arguments to _translate_cpan_deps method'
         if @_ != 1;
     my ($self) = @_;
 
@@ -614,7 +634,7 @@ sub _translate_cpan_deps
 #---------------------
 sub _prepare_pkgdesc
 {
-    die 'Invalid arguments to _prepare_pkgdesc method' if @_ != 1;
+    croak 'Invalid arguments to _prepare_pkgdesc method' if @_ != 1;
     my ($self) = @_;
     my ($status, $module, $pkgdesc) = ($self->status, $self->parent);
 
@@ -718,7 +738,7 @@ sub _prepare_pkgdesc
 #---------------------
 sub _prepare_status
 {
-    die 'Invalid arguments to _prepare_status method' if @_ != 1;
+    croak 'Invalid arguments to _prepare_status method' if @_ != 1;
     my $self     = shift;
     my $status   = $self->status; # Private hash
     my $module   = $self->parent; # CPANPLUS::Module
@@ -762,7 +782,7 @@ sub _prepare_status
 #---------------------
 sub _get_disturl
 {
-    die 'Invalid arguments to _get_disturl method' if @_ != 1;
+    croak 'Invalid arguments to _get_disturl method' if @_ != 1;
     my $self   = shift;
     my $module = $self->parent;
 
@@ -777,7 +797,7 @@ sub _get_disturl
 #---------------------
 sub _get_srcurl
 {
-    die 'Invalid arguments to _get_srcurl method' if @_ != 1;
+    croak 'Invalid arguments to _get_srcurl method' if @_ != 1;
     my ($self) = @_;
     my $module = $self->parent;
 
@@ -808,6 +828,78 @@ sub _calc_tarballmd5
     return $md5->hexdigest;
 }
 
+#---HELPER FUNCTION---
+# Purpose : Split the text into everything before the tags, inside tags, and after
+#           the tags.  Inner nested tags are skipped.
+#---------------------
+sub _extract_nested
+{
+    croak 'Invalid arguments to _extract_nested' unless ( @_ == 3 );
+
+    my ($text, $begin_match, $end_match) = @_;
+
+    my ($before_end, $middle_start, $middle_end, $after_start);
+    croak qq{could not find beginning match "$begin_match"}
+        unless ( $text =~ /$begin_match/ );
+
+    $before_end   = $LAST_MATCH_START[0];
+    $middle_start = $LAST_MATCH_END  [0];
+
+    my $search_pos   = $middle_start;
+
+    END_SEARCH:
+    {
+        pos $text = $search_pos;
+        croak sprintf <<'END_ERR', substr $text, $search_pos, 30
+could not find ending match starting at:
+%s...
+END_ERR
+            unless ( $text =~ /$end_match/go );
+
+        $middle_end  = $LAST_MATCH_START[0];
+        $after_start = $LAST_MATCH_END[0];
+
+        pos $text = $search_pos;
+        if ( $text =~ /$begin_match/go && pos($text) < $after_start ) {
+            $search_pos = $after_start;
+            redo END_SEARCH;
+        }
+    }
+
+    my $before = substr $text, 0, $before_end;
+    my $middle = substr $text, $middle_start, $middle_end-$middle_start;
+    my $after  = substr $text, $after_start;
+
+    return ($before, $middle, $after);
+}
+
+#---HELPER FUNCTIONS---
+# Purpose : Removes IF blocks whose variables are not true.
+# Params  : $templ      - The template as a string.
+#           $templ_vars - A hashref to template variables.
+#----------------------
+sub _prune_if_blocks
+{
+    my ($templ, $templ_vars) = @_;
+
+    while ( my ($varname) = $templ =~ /\[%\s*IF (\w*)\s*%\]/ ) {
+        croak 'Invalid template given, must provide a variable name in IF block'
+            unless ( $varname );
+
+        croak "Unknown variable name in IF block: $varname"
+            unless ( exists $templ_vars->{$varname} );
+
+        my @chunks = _extract_nested( $templ,
+                                      qr/\[% IF \w+ %\]\n?/,
+                                      qr/\[% FI %\]\n?/ );
+
+        if ( ! $templ_vars->{$varname} ) { splice @chunks, 1, 1; }
+        $templ = join q{}, @chunks;
+    }
+
+    return $templ;
+}
+
 #---INSTANCE METHOD---
 # Usage    : $self->_process_template( $templ, $templ_vars );
 # Purpose  : Processes IF blocks and fills in a template with supplied variables.
@@ -821,21 +913,18 @@ sub _calc_tarballmd5
 #---------------------
 sub _process_template
 {
-    die "Invalid arguments to _template_out" if @_ != 3;
+    croak "Invalid arguments to _template_out" if @_ != 3;
     my ($self, $templ, $templ_vars) = @_;
 
-    die 'templ_var parameter must be a hashref'
+    croak 'templ_var parameter must be a hashref'
         if ( ref $templ_vars ne 'HASH' );
 
-    $templ =~ s{ \[% \s* IF \s+ (\w+) \s* %\] \n? # opening IF
-                 (.+?)                            # enclosed text
-                 \[% \s* FI \s* %\] \n? }         # closing IF
-               {$templ_vars->{$1} ? $2 : ''}xmseg;
+    $templ = _prune_if_blocks( $templ, $templ_vars );
 
     $templ =~ s{ \[% \s* (\w+) \s* %\] }
                { ( defined $templ_vars->{$1}
                    ? $templ_vars->{$1}
-                   : die "Template variable $1 was not provided" )
+                   : croak "Template variable $1 was not provided" )
                }xmseg;
 
     return $templ;

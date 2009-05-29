@@ -4,26 +4,27 @@ use warnings;
 use strict;
 
 use CPANPLUS::Backend;
+use Pod::Usage;
 use Cwd;
 
-BEGIN {
-    eval { require CPANPLUS::Dist::Arch; }
-        or die 'CPANPLUS::Dist::Arch must be installed for this script to work.'
-}
+eval { require CPANPLUS::Dist::Arch; }
+    or die "error: CPANPLUS::Dist::Arch must be installed for this script to work.\n";
 
 my $cb      = CPANPLUS::Backend->new;
-my $destdir = getcwd;
+
+my @modnames = grep { /\A[\w:]+\z/ } @ARGV;
+pod2usage() unless ( @modnames );
 
 MODULE_ARG:
-while ( my $module = shift @ARGV ) {
-    my $modobj = $cb->module_tree( $module )
+for my $modname ( @modnames ) {
+    my $modobj = $cb->module_tree( $modname )
         or next MODULE_ARG;
 
     $modobj->install( target  => 'create',
                       format  => 'CPANPLUS::Dist::Arch',
                       verbose => 1,
                       pkg     => 'src',
-                      destdir => $destdir );
+                      destdir => getcwd() );
 }
 
 __END__
@@ -34,23 +35,17 @@ cpan2aur - Generate an AUR source package of a CPAN perl module
 
 =head1 SYNOPSIS
 
-  $ ./cpan2aur Acme::Bleach
-  ... spammy output from CPAN & makepkg here ...
-  $ ls *.src.tar.gz
-  perl-acme-bleach-1.12-1.src.tar.gz
-  $
+cpan2aur Module::Name [ ... Module::Name ]
 
 =head1 DESCRIPTION
 
 Example script for using the advanced options of
-L<CPANPLUS::Dist::Arch>.  Useful for updating AUR
-perl modules you are maintaining.
-
-Ironic how this is much more succinct then just creating a PKGBUILD...
+L<CPANPLUS::Dist::Arch>.  Creates a source package in the current
+working directory of each module passed as arguments.
 
 =head1 AUTHOR
 
-Justin Davis, C<< <jrcd83 at gmail.com> >>, juster on
+Justin Davis, C<< <jrcd83 at gmail dot com> >>, juster on
 L<http://bbs.archlinux.org>
 
 =head1 COPYRIGHT & LICENSE
