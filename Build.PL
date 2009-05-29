@@ -24,6 +24,7 @@ my $builder = Module::Build->new(
         'Pod::Select'           => 0,
         'Module::CoreList'      => 0,
         'File::Spec::Functions' => 0,
+        'Carp'                  => 0,
 
         'Getopt::Long'          => 0, # for the setupdistarch script
         'Pod::Usage'            => 0,
