@@ -22,7 +22,7 @@ use Carp                   qw(carp croak);
 use Data::Dumper;
 
 
-our $VERSION = '0.09';
+our $VERSION = '0.10';
 
 #----------------------------------------------------------------------
 # CLASS CONSTANTS

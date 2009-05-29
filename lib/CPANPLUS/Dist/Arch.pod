@@ -6,7 +6,7 @@ B<CPANPLUS::Dist::Arch> - CPANPLUS backend for building Archlinux pacman package
 
 =head1 VERSION
 
-Version 0.09
+Version 0.10
 
 =head1 SYNOPSIS
 
