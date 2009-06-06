@@ -8,7 +8,6 @@ use base qw(CPANPLUS::Dist::Base);
 use File::Spec::Functions  qw(catfile catdir);
 use Module::CoreList       qw();
 use CPANPLUS::Error        qw(error msg);
-use List::MoreUtils        qw(uniq);
 use Digest::MD5            qw();
 use Pod::Select            qw();
 use File::Path             qw(mkpath);
@@ -1000,9 +999,12 @@ sub _get_mm_xs_deps
     my $mkfile_fqp = $dist->status->makefile
         or die "Internal error: makefile() path is unset in our object";
 
+    my %already_exists;
+
     open my $mkfile, '<', $mkfile_fqp
         or die "Internal error: failed to open Makefile at $mkfile_fqp ... $!";
-    my @libs = uniq map { chomp; (/$field_srch/o) } <$mkfile>;
+    my @libs = map { $already_exists{$_}++ ? () : $_ }
+        map { chomp; (/$field_srch/o) } <$mkfile>;
     close $mkfile;
 
     return [ grep { /\A-l/ } map { split } @libs ];
@@ -1020,7 +1022,9 @@ sub _get_mb_xs_deps
     my $mbobj = $dist->status->_mb_object;
     my $linker_flags = $mbobj->extra_linker_flags;
 
-    return [ uniq grep { /\A-l/ } map { split } @{$linker_flags} ];
+    my %exists;
+    return [ map { $exists{$_}++ ? () : $_ }
+             grep { /\A-l/ } map { split } @{$linker_flags} ];
 }
 
 1; # End of CPANPLUS::Dist::Arch
