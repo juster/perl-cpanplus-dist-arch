@@ -2,11 +2,11 @@
 
 =head1 NAME
 
-B<CPANPLUS::Dist::Arch> - CPANPLUS backend for building Archlinux pacman packages
+CPANPLUS::Dist::Arch - CPANPLUS backend for building Archlinux pacman packages
 
 =head1 VERSION
 
-Version 0.10
+Version 0.11
 
 =head1 SYNOPSIS
 
@@ -32,7 +32,7 @@ Version 0.10
 =head1 SETUP
 
 See L<setupdistarch>(1) for more information about setupdistarch.  If
-you are having trouble running C<setupdistarch> or C<cpan>, your PATH
+you are having trouble running C<setupdistarch> or C<cpanp>, your PATH
 may not be set properly, add /usr/bin/perlbin/core and
 /use/bin/perlbin/vendor to your .profile file in your home directory.
 
@@ -142,7 +142,7 @@ included in the examples folder for an example.
 =head2 get_pkgvars_ref
 
   Usage    : my $pkgvars_ref = $dist->get_pkgvars_ref;
-  Returns  : The same as C<get_pkgvars> except as a hashref.
+  Returns  : The same as get_pkgvars except as a hashref.
 
 =head2 get_pkgbuild
 
@@ -266,8 +266,10 @@ You can find documentation for this module with the perldoc command.
 
     perldoc CPANPLUS::Dist::Arch
 
-If you are confused why the build process failed, CPANPLUS keeps logs
-of every build in C<~/.cpanplus/install_logs/>.
+To check why the build process failed, read the build logs CPANPLUS
+keeps in C<~/.cpanplus/install_logs/>.  The problem may be specific to
+the module you're building and not this module.  You can email me at
+C<< <jrcd83 at gmail dot com> >> if you still need help.
 
 You can also look for information at:
 
@@ -295,7 +297,7 @@ L<http://search.cpan.org/dist/CPANPLUS-Dist-Arch/>
 
 This module was inspired by the perl-cpanplus-pacman package and
 CPANPLUS::Dist::Pacman by Firmicus which is available at
-L<http://aur.archlinux.org/>.
+L<http://aur.archlinux.org/packages.php?ID=5954>.
 
 This mostly started from CPANPLUS::Dist::RPM which is on Google Code
 at L<http://code.google.com/p/cpanplus-dist-rpm/>.  This was a very
@@ -308,9 +310,9 @@ Stolen!
 
 =over
 
-=item * AUR (Archlinux User Repository)
+=item * AUR Package: perl-cpanplus-dist
 
-L<http://aur.archlinux.org>
+L<http://aur.archlinux.org/packages.php?ID=24971>
 
 =item * Archlinux Perl Package Guidelines
 

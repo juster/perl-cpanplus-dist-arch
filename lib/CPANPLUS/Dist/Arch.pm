@@ -21,7 +21,7 @@ use Carp                   qw(carp croak);
 use Data::Dumper;
 
 
-our $VERSION = '0.10';
+our $VERSION = '0.11';
 
 #----------------------------------------------------------------------
 # CLASS CONSTANTS
@@ -985,6 +985,12 @@ sub _get_lib_pkg
     return ($pkgname => $pkgver);
 }
 
+sub _unique(@)
+{
+    my %seen;
+    return map { $seen{$_}++ ? () : $_ } @_;
+}
+
 #---INSTANCE METHOD---
 # Usage    : my $deps_ref = $self->_get_mm_xs_deps($dist_obj);
 # Params   : $dist_obj - A CPANPLUS::Dist::MM object
@@ -999,12 +1005,9 @@ sub _get_mm_xs_deps
     my $mkfile_fqp = $dist->status->makefile
         or die "Internal error: makefile() path is unset in our object";
 
-    my %already_exists;
-
     open my $mkfile, '<', $mkfile_fqp
         or die "Internal error: failed to open Makefile at $mkfile_fqp ... $!";
-    my @libs = map { $already_exists{$_}++ ? () : $_ }
-        map { chomp; (/$field_srch/o) } <$mkfile>;
+    my @libs = _unique map { chomp; (/$field_srch/o) } <$mkfile>;
     close $mkfile;
 
     return [ grep { /\A-l/ } map { split } @libs ];
@@ -1022,9 +1025,7 @@ sub _get_mb_xs_deps
     my $mbobj = $dist->status->_mb_object;
     my $linker_flags = $mbobj->extra_linker_flags;
 
-    my %exists;
-    return [ map { $exists{$_}++ ? () : $_ }
-             grep { /\A-l/ } map { split } @{$linker_flags} ];
+    return [ _unique grep { /\A-l/ } map { split } @{$linker_flags} ];
 }
 
 1; # End of CPANPLUS::Dist::Arch
