@@ -296,12 +296,17 @@ Package type must be 'bin' or 'src'};
     my $pkgfile = join '-', ( qq{${\$status->pkgname}},
                               qq{${\$status->pkgver}},
                               ( $pkg_type eq q{bin}
-                                ? ( q{1}, qq{${\$status->pkgarch}.pkg.tar.gz} )
+                                ? ( q{1},
+                                    qq{${\$status->pkgarch}.pkg.tar.gz} )
                                 : q{1.src.tar.gz} )
                              );
 
     my $srcfile_fqp = $status->pkgbase . '/' . $module->package;
     my $pkgfile_fqp = $status->pkgbase . "/$pkgfile";
+
+    my $destdir = $opts{destdir} || $status->destdir;
+    $destdir = Cwd::abs_path( $destdir );
+    my $destfile_fqp = catfile( $destdir, $pkgfile );
 
     # Prepare our 'makepkg' package building directory,
     # namely the PKGBUILD and source tarball files...
@@ -327,13 +332,12 @@ Package type must be 'bin' or 'src'};
     if ($CHILD_ERROR) {
         error ( $CHILD_ERROR & 127
                 ? sprintf "makepkg failed with signal %d", $CHILD_ERROR & 127
-                : sprintf "makepkg returned abnormal status: %d", $CHILD_ERROR >> 8
+                : sprintf "makepkg returned abnormal status: %d",
+                          $CHILD_ERROR >> 8
                );
         return 0;
     }
 
-    my $destdir = $opts{destdir} || $status->destdir;
-    my $destfile_fqp = catfile( $destdir, $pkgfile );
     if ( ! rename $pkgfile_fqp, $destfile_fqp ) {
         error "failed to move $pkgfile to $destfile_fqp: $OS_ERROR";
         return 0;
