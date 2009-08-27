@@ -85,8 +85,6 @@ END_OVERRIDES
     [% IF var_name %] ... [% FI %] will remove the ... stuff if the
     variable named var_name is not set to a true value.
  
-    WARNING: IF blocks cannot be nested!
- 
     See the _process_template method below.
 
 =cut
