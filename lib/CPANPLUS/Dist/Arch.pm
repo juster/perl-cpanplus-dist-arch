@@ -14,14 +14,18 @@ use File::Path             qw(mkpath);
 use File::Copy             qw(copy);
 use File::stat             qw(stat);
 use DynaLoader             qw();
-use IPC::Cmd               qw(run can_run);
+use IPC::Cmd               qw(can_run);
+use version                qw(qv);
 use English                qw(-no_match_vars);
 use Carp                   qw(carp croak);
+use Cwd                    qw();
 
 use Data::Dumper;
 
-
-our $VERSION = '0.11';
+our $VERSION     = '0.11';
+our @EXPORT      = qw();
+our @EXPORT_OK   = qw(dist_pkgname dist_pkgver);
+our @EXPORT_TAGS = ( ':all' => \@EXPORT_OK );
 
 #----------------------------------------------------------------------
 # CLASS CONSTANTS
@@ -389,6 +393,65 @@ END_ERROR
     return $status->installed(1);
 }
 
+
+#-------------------------------------------------------------------------------
+# EXPORTED FUNCTIONS
+#-------------------------------------------------------------------------------
+
+
+#---FUNCTION---
+# Usage   : my $pkgname = dist_pkgname($dist_name);
+# Purpose : Converts a module's distribution name to an
+#           Archlinux style perl package name.
+# Params  : $dist_name - The name of the distribution (ex: Acme-Drunk)
+# Returns : The Archlinux perl package name (ex: perl-acme-drunk).
+#--------------
+sub dist_pkgname
+{
+    croak "Must provide arguments to dist_pkgname" if ( @_ == 0 );
+    my ($distname) = @_;
+
+    # Override this package name if there is one specified...
+    return $PKGNAME_OVERRIDES->{$distname}
+        if $PKGNAME_OVERRIDES->{$distname};
+
+    # Package names should be lowercase and consist of alphanumeric
+    # characters only (and hyphens!)...
+    $distname =  lc $distname;
+    $distname =~ tr/_/-/;
+    $distname =~ tr/-a-z0-9//cd;
+    $distname =~ tr/-/-/s;
+
+    # Delete leading or trailing hyphens...
+    $distname =~ s/\A-//;
+    $distname =~ s/-\z//;
+
+    die qq{Dist name '$distname' completely violates packaging standards}
+        if ( ! $distname );
+
+    if ( $distname !~ / (?: \A perl ) | (?: -perl \z ) /xms ) {
+        $distname = "perl-$distname";
+    }
+
+    return $distname;
+}
+
+#---FUNCTION---
+# Purpose  : Convert a module's CPAN distribution version into our more
+#            restrictive pacman package version number.
+#--------------
+sub dist_pkgver
+{
+    croak "Must provide arguments to pacman_version" if ( @_ == 0 );
+    my ($version) = @_;
+
+    # Package versions should be letters, numbers and decimal points only...
+    $version =~ tr/_-/../s;
+    $version =~ tr/a-zA-Z0-9.//cd;
+    return $version;
+}
+
+
 #-------------------------------------------------------------------------------
 # PUBLIC METHODS
 #-------------------------------------------------------------------------------
@@ -507,58 +570,6 @@ Directory does not exist or is not writeable}
 #-------------------------------------------------------------------------------
 
 #---INSTANCE METHOD---
-# Usage   : my $pkgname = $self->_translate_name($dist_name);
-# Purpose : Converts a module's dist[ribution tarball] name to an
-#           Archlinux style perl package name.
-# Params  : $dist_name - The name of the distribution (ex: Acme-Drunk)
-# Returns : The Archlinux perl package name (ex: perl-acme-drunk).
-#---------------------
-sub _translate_name
-{
-    croak "Invalid arguments to _translate_name method" if @_ != 2;
-    my ($self, $distname) = @_;
-
-    # Override this package name if there is one specified...
-    return $PKGNAME_OVERRIDES->{$distname}
-        if $PKGNAME_OVERRIDES->{$distname};
-
-    # Package names should be lowercase and consist of alphanumeric
-    # characters only (and hyphens!)...
-    $distname =  lc $distname;
-    $distname =~ tr/_/-/;
-    $distname =~ tr/-a-z0-9//cd;
-    $distname =~ tr/-/-/s;
-
-    # Delete leading or trailing hyphens...
-    $distname =~ s/\A-//;
-    $distname =~ s/-\z//;
-
-    die qq{Dist name '$distname' completely violates packaging standards}
-        if ( ! $distname );
-
-    if ( $distname !~ / (?: \A perl ) | (?: -perl \z ) /xms ) {
-        $distname = "perl-$distname";
-    }
-
-    return $distname;
-}
-
-#---INSTANCE METHOD---
-# Purpose  : Convert a module's CPAN distribution version into our more
-#            restrictive pacman package version number.
-#---------------------
-sub _translate_version
-{
-    croak "Invalid arguments to _translate_version method" if @_ != 2;
-    my ($self, $version) = @_;
-
-    # Package versions should be letters, numbers and decimal points only...
-    $version =~ tr/_-/../s;
-    $version =~ tr/a-zA-Z0-9.//cd;
-    return $version;
-}
-
-#---INSTANCE METHOD---
 # Usage    : my $deps_str = $self->_translate_cpan_deps()
 # Purpose  : Convert CPAN prerequisites into pacman package dependencies
 # Returns  : String to be appended after 'depends=' in PKGBUILD file,
@@ -587,14 +598,22 @@ sub _translate_cpan_deps
         }
 
         # Ignore modules included with this version of perl...
-        next CPAN_DEP_LOOP
-            if ( exists $Module::CoreList::version{0+$]}->{$modname} );
+        # XXX: This checks the version of perl being run, not necessarily
+        #      the latest perl version.
+        # NOTE: If 'provides' are given version numbers in the perl
+        #       package we won't need to check this.
+        my $bundled_version = $Module::CoreList::version{0+$]}->{$modname};
+        if ( defined $bundled_version ) {
+            next CPAN_DEP_LOOP if ( qv($bundled_version) >= qv($depver) );
+        }
 
         # Translate the module's distribution name into a package name...
         my $modobj  = $backend->parse_module( module => $modname );
-        my $pkgname = $self->_translate_name( $modobj->package_name );
+        my $pkgname = dist_pkgname( $modobj->package_name );
 
-        $pkgdeps{$pkgname} = $self->_translate_version( $depver );
+        $pkgdeps{$pkgname} = ( $depver eq '0'
+                               ? $depver
+                               : dist_pkgver( $depver ) );
     }
 
     # Default to requiring the current perl version used to compile
@@ -747,14 +766,11 @@ sub _prepare_status
                            ( sprintf "%vd", $PERL_VERSION ),
                            'pacman' );
 
-    # Watchout if this was set explicitly with set_destdir() method
-    if ( !$status->destdir ) {
-        $status->destdir( $PKGDEST || catdir( $our_base, 'pkg' ) );
-    }
+    $status->destdir( $PKGDEST || catdir( $our_base, 'pkg' ) );
 
     my ($pkgver, $pkgname)
-        = ( $self->_translate_version($module->package_version),
-            $self->_translate_name($module->package_name) );
+        = (  dist_pkgver( $module->package_version ),
+            dist_pkgname( $module->package_name) );
 
     my $pkgbase = catdir( $our_base, 'build', "$pkgname-$pkgver" );
     my $pkgarch = `uname -m`;
