@@ -3,14 +3,9 @@
 use warnings;
 use strict;
 
-use Test::More tests => 22;
+use Test::More tests => 20;
 
-use CPANPLUS::Dist::Arch;
-
-my $dist = bless {}, 'CPANPLUS::Dist::Arch';
-isa_ok( $dist, 'CPANPLUS::Dist::Arch' );
-
-can_ok( $dist, '_translate_name' );
+use CPANPLUS::Dist::Arch qw( dist_pkgname dist_pkgver );
 
 my %pkgname_of =
     ( '-Crazy-CPAN_Name-'  => 'perl-crazy-cpan-name',
@@ -37,9 +32,9 @@ my %pkgname_of =
      );
 
 for my $cpan_name ( keys %pkgname_of ) {
-    is( $dist->_translate_name($cpan_name),
+    is( dist_pkgname($cpan_name),
         $pkgname_of{$cpan_name},
-        'CPAN to pacman name translation' );
+        "CPAN to pacman name translation of $cpan_name" );
 }
 
 my %pkgver_of =
@@ -51,7 +46,7 @@ my %pkgver_of =
      );
 
 for my $cpan_ver ( keys %pkgver_of ) {
-    is( $dist->_translate_version($cpan_ver),
+    is( dist_pkgver($cpan_ver),
         $pkgver_of{$cpan_ver},
-        'CPAN to pacman version translation' );
+        "CPAN to pacman version translation of $cpan_ver" );
 }
