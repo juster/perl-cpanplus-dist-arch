@@ -77,10 +77,11 @@ END_OVERRIDES
 
 =for Mini-Template Format
     The template format is very simple, to insert a template variable
-    use [% var_name %] this will insert the template variable's value.
+    use [% foo %].  This will insert the value of the variable
+    named 'foo'.
  
     The print_template() sub will throw: 'Template variable ... was
-    not provided' if the variable given by var_name is not defined.
+    not provided' if the variable was not defined.
  
     [% IF var_name %] ... [% FI %] will remove the ... stuff if the
     variable named var_name is not set to a true value.
@@ -100,37 +101,39 @@ pkgdesc="[% pkgdesc %]"
 arch=('i686' 'x86_64')
 license=('PerlArtistic' 'GPL')
 options=('!emptydirs')
-depends=([% pkgdeps %])
-url='[% disturl %]'
-source=('[% srcurl %]')
-md5sums=('[% md5sum %]')
+depends=([% depends %])
+url='[% url %]'
+source=('[% source %]')
+md5sums=('[% md5sums %]')
 
 build() {
+  _DISTDIR="${srcdir}/[% distdir %]"
   export PERL_MM_USE_DEFAULT=1
-  { cd "${srcdir}/[% distdir %]" &&
+  { cd "$_DISTDIR" &&
 [% IF is_makemaker %]
     perl Makefile.PL INSTALLDIRS=vendor &&
     make &&
     [% IF skiptest %]#[% FI %]make test &&
     make DESTDIR="${pkgdir}/" install;
-  } || return 1;
 [% FI %]
 [% IF is_modulebuild %]
     perl Build.PL --installdirs=vendor --destdir="$pkgdir" &&
     ./Build &&
     [% IF skiptest %]#[% FI %]./Build test &&
     ./Build install;
-  } || return 1;
 [% FI %]
+  } || return 1;
 
   find "$pkgdir" -name .packlist -delete
   find "$pkgdir" -name perllocal.pod -delete
 }
 END_TEMPL
 
+
 #----------------------------------------------------------------------
 # CLASS GLOBALS
 #----------------------------------------------------------------------
+
 
 our ($PKGDEST, $PACKAGER);
 
@@ -462,6 +465,16 @@ sub get_destdir
     return $self->status->destdir;
 }
 
+sub get_cpandistdir
+{
+    my ($self) = @_;
+
+    my $module  = $self->parent;
+    my $distdir = $module->package;
+    $distdir    =~ s/ [.] ${\$module->package_extension} \z //xms;
+    return $distdir;
+}
+
 sub get_pkgvars
 {
     croak 'Invalid arguments to get_pkgvars' if ( @_ != 1 );
@@ -473,9 +486,10 @@ sub get_pkgvars
         unless ( $status->prepared );
 
     return ( pkgname  => $status->pkgname,
-             pkgver   => $status->pkgname,
+             pkgver   => $status->pkgver,
              pkgdesc  => $status->pkgdesc,
              depends  => scalar $self->_translate_cpan_deps,
+
              url      => $self->_get_disturl,
              source   => $self->_get_srcurl,
              md5sums  => $self->_calc_tarballmd5,
@@ -503,26 +517,15 @@ sub get_pkgbuild
     croak 'prepare() must be called before get_pkgbuild()'
         unless $status->prepared;
 
-    my $pkgdeps = $self->_translate_cpan_deps;
-    my $pkgdesc = $status->pkgdesc;
-    my $extdir  = $module->package;
-    $extdir     =~ s/ [.] ${\$module->package_extension} \z //xms;
-    $pkgdesc    =~ s/ ([\$\"\`\!]) / \\$1 /gxms; # Quote our package desc for bash.
+    my %pkgvars = $self->get_pkgvars;
+
+    # Quote our package desc for bash.
+    $pkgvars{pkgdesc} =~ s/ ([$\"\`!]) / \\$1 /gxms;
 
     my $templ_vars = { packager  => $PACKAGER,
                        version   => $VERSION,
-
-                       pkgname   => $status->pkgname,
-                       pkgver    => $status->pkgver,
-                       pkgdesc   => $pkgdesc,
-                       pkgdeps   => $pkgdeps,
-
-                       disturl   => $self->_get_disturl(),
-                       srcurl    => $self->_get_srcurl(),
-                       md5sum    => $self->_calc_tarballmd5(),
-
-                       distdir   => $extdir,
-
+                       %pkgvars,
+                       distdir   => $self->get_cpandistdir(),
                        skiptest  => $conf->get_conf('skiptest'),
                       };
 

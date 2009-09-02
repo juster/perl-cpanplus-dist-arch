@@ -159,16 +159,30 @@ included in the examples directory for an example.
   Usage   : my $dest = $dist->get_destdir;
   Returns : The directory where the package is going to end up.
 
+=head2 get_cpandistdir
+
+  Usage   : my $distdir = $dist->get_cpandistdir;
+  Returns : The main directory name that will be inside the distribution
+            tarball.  This directory contains the entire distribution.
+  Example : If the distribution file of Acme-Bleach is in the tarball
+            Acme-Bleach-1.12.tar.gz or Acme-Bleach-1.12.tar.bz2
+            then $dist->get_cpandistdir will return 'Acme-Bleach-1.12'.
+  Notes   : Does not actually check if the directory exists in the tarball.
+            So far it always has...
+
 =head2 get_pkgvars
 
   Usage   : my %pkgvars = $dist->get_pkgvars;
   Returns : A hash containing all the PKGBUILD variables.
             Keys are the bash variable names in the PKGBUILD.
             Dependencies are converted to their pacman names.
-  
+ 
+            The keys are: pkgname, pkgver, pkgdesc, depends, url, source
+            md5sums (despite this name only one is given), depshash
+ 
             One new key is 'depshash' whose value is a hashref.
-            The hashref keys are packages and values are required versions,
-            or 0 if there is no required version.
+            The hashref keys are packages and their values are
+            required versions, or 0 if there is no required version.
 
 =head2 get_pkgvars_ref
 
