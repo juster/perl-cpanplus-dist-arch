@@ -111,11 +111,42 @@ specified by C<PKGDEST> in the C</etc/makepkg.conf> config file.
 
 =back
 
+=head1 EXPORT TAGS
+
+=over 4
+
+=item :all
+
+This will import the functions C<dist_pkgname> and C<dist_pkgver> into
+your package.
+
+=back
+
+=head1 EXPORTED FUNCTIONS
+
+=head2 dist_pkgname
+
+  Usage   : my $pkgname = dist_pkgname( 'Acme-Drunk' );
+  Purpose : Converts a module's distribution name to an
+            Archlinux style perl package name.
+  Params  : $dist_name - The name of the distribution (ex: Acme-Drunk)
+  Returns : The Archlinux perl package name (ex: perl-acme-drunk).
+            following the Archlinux packaging standards.
+
+=head2 dist_pkgver
+
+  Usage   : my $pkgver = dist_pkgver( '1.20.1_2A' );
+  Purpose : Convert a module's CPAN distribution version into our more
+            restrictive pacman package version number.
+  Params  : The version of the CPAN distribution file.
+  Returns : The Archlinux package version following the Archlinux
+            packaging standards.
+
 =head1 PUBLIC METHODS
 
 When using the CPANPLUS module in a perl script to create packages,
 these public methods are available.  See the cpanpkgbuild.pl script
-included in the examples folder for an example.
+included in the examples directory for an example.
 
 =head2 set_destdir
 

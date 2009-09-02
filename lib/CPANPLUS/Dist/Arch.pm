@@ -3,7 +3,7 @@ package CPANPLUS::Dist::Arch;
 use warnings;
 use strict;
 
-use base qw(CPANPLUS::Dist::Base);
+use base qw(CPANPLUS::Dist::Base Exporter);
 
 use File::Spec::Functions  qw(catfile catdir);
 use Module::CoreList       qw();
@@ -402,13 +402,6 @@ END_ERROR
 #-------------------------------------------------------------------------------
 
 
-#---FUNCTION---
-# Usage   : my $pkgname = dist_pkgname($dist_name);
-# Purpose : Converts a module's distribution name to an
-#           Archlinux style perl package name.
-# Params  : $dist_name - The name of the distribution (ex: Acme-Drunk)
-# Returns : The Archlinux perl package name (ex: perl-acme-drunk).
-#--------------
 sub dist_pkgname
 {
     croak "Must provide arguments to dist_pkgname" if ( @_ == 0 );
@@ -439,10 +432,6 @@ sub dist_pkgname
     return $distname;
 }
 
-#---FUNCTION---
-# Purpose  : Convert a module's CPAN distribution version into our more
-#            restrictive pacman package version number.
-#--------------
 sub dist_pkgver
 {
     croak "Must provide arguments to pacman_version" if ( @_ == 0 );
