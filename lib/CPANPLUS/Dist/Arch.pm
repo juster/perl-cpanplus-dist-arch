@@ -20,16 +20,16 @@ use English                qw(-no_match_vars);
 use Carp                   qw(carp croak);
 use Cwd                    qw();
 
-use Data::Dumper;
-
-our $VERSION     = '0.11';
+our $VERSION     = '0.12';
 our @EXPORT      = qw();
 our @EXPORT_OK   = qw(dist_pkgname dist_pkgver);
 our @EXPORT_TAGS = ( ':all' => \@EXPORT_OK );
 
+
 #----------------------------------------------------------------------
 # CLASS CONSTANTS
 #----------------------------------------------------------------------
+
 
 my $MKPKGCONF_FQP = '/etc/makepkg.conf';
 my $CPANURL       = 'http://search.cpan.org';
@@ -173,9 +173,11 @@ READ_CONF:
     close $mkpkgconf or error "close on makepkg.conf: $!";
 }
 
+
 #-------------------------------------------------------------------------------
 # PUBLIC CPANPLUS::Dist::Base Interface
 #-------------------------------------------------------------------------------
+
 
 =for Interface Methods
 See CPANPLUS::Dist::Base's documentation for a description of the
@@ -457,6 +459,7 @@ sub dist_pkgver
 # PUBLIC METHODS
 #-------------------------------------------------------------------------------
 
+
 sub set_destdir
 {
     croak 'Invalid arguments to set_destdir' if ( @_ != 2 );
@@ -566,6 +569,7 @@ Directory does not exist or is not writeable}
     return;
 }
 
+
 #-------------------------------------------------------------------------------
 # PRIVATE INSTANCE METHODS
 #-------------------------------------------------------------------------------
@@ -623,7 +627,6 @@ sub _translate_cpan_deps
 
     # Merge in the XS C library package deps...
     my $xs_deps = $self->_translate_xs_deps;
-#    print STDERR Dumper($xs_deps);
 
     XSDEP_LOOP:
     while ( my ($name, $ver) = each %$xs_deps ) {
@@ -721,8 +724,10 @@ sub _prepare_pkgdesc
         $name_section =~ s{ [IBCLEFSXZ] <<(.*?)>> }{$1}gxms;
 
         # The short desc is on a line beginning with 'Module::Name - '
-        return $status->pkgdesc($pkgdesc)
-            if ( ($pkgdesc) = $name_section =~ / ^ \s* $modname [\s-]+ (.+?) $ /xms );
+        if ( ($pkgdesc) =
+             $name_section =~ / ^ \s* $modname [\s-]+ (.+?) $ /xms ) {
+            return $status->pkgdesc($pkgdesc);
+        }
     }
 
     # Last, try to find it in in the README file
@@ -889,11 +894,11 @@ END_ERR
     return ($before, $middle, $after);
 }
 
-#---HELPER FUNCTIONS---
+#---HELPER FUNCTION---
 # Purpose : Removes IF blocks whose variables are not true.
 # Params  : $templ      - The template as a string.
 #           $templ_vars - A hashref to template variables.
-#----------------------
+#---------------------
 sub _prune_if_blocks
 {
     my ($templ, $templ_vars) = @_;
@@ -918,14 +923,15 @@ sub _prune_if_blocks
 
 #---INSTANCE METHOD---
 # Usage    : $self->_process_template( $templ, $templ_vars );
-# Purpose  : Processes IF blocks and fills in a template with supplied variables.
+# Purpose  : Processes IF blocks and fills in a template with supplied
+#            variables.
 # Params   : templ       - A scalar variable containing the template
 #            templ_vars  - A hashref of template variables that you can refer to
 #                          in the template to insert the variable's value.
 # Throws   : 'Template variable %s was not provided' is thrown if a template
-#            variable is used in $templ but not provided in $templ_vars, or
-#            it is undefined.
-# Returns  : String of the template with all variables filled inserted.
+#            variable is used in $templ but not provided in $templ_vars,
+#            OR IF IT IS UNDEF!
+# Returns  : String of the template result.
 #---------------------
 sub _process_template
 {
@@ -946,15 +952,18 @@ sub _process_template
     return $templ;
 }
 
+
 #-----------------------------------------------------------------------------
 # XS module library dependency hunting
 #-----------------------------------------------------------------------------
+
 
 #---INSTANCE METHOD---
 # Usage    : $deps_ref = $self->_translate_cs_deps;
 # Purpose  : Attempts to find non-perl dependencies in XS modules.
 # Returns  : A hashref of 'package name' => 'minimum version'.
-#            (Minimum version will be the current installed version of the library)
+#            (Minimum version will be the current installed version
+#             of the library)
 #---------------------
 sub _translate_xs_deps
 {
@@ -981,7 +990,8 @@ sub _translate_xs_deps
 # Params   : $lib - Can be a dynamic library name, with/without lib prefix
 #                   or the -l<name> flag that is passed to the linker.
 #                   (anything DynaLoader::dl_findfile accepts)
-# Returns  : A hash (or two element list) of 'package name' => 'installed version'
+# Returns  : A hash (or two element list) of:
+#            'package name' => 'installed version'
 #            or an empty list if the lib/package owner could not be found.
 #---------------------
 sub _get_lib_pkg
