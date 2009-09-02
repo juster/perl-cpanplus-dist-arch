@@ -375,23 +375,29 @@ END_ERROR
 
     die "Package file $pkgfile_fqp was not found" if ( ! -f $pkgfile_fqp );
 
+    my $pacmancmd;
+
     # Make sure the user has access to install a package...
     my $sudocmd = $conf->get_program('sudo');
     if ( $EFFECTIVE_USER_ID != $ROOT_USER_ID ) {
         if ( $sudocmd ) {
-            system "$sudocmd pacman -U $pkgfile_fqp";
+            $pacmancmd = "$sudocmd pacman -U $pkgfile_fqp";
         }
         else {
             error $NONROOT_WARNING;
             return 0;
         }
     }
-    else { system "pacman -U $pkgfile_fqp"; }
+    else { $pacmancmd = "pacman -U $pkgfile_fqp"; }
 
-    if ($CHILD_ERROR) {
+    system $pacmancmd;
+
+    if ( $CHILD_ERROR ) {
         error ( $CHILD_ERROR & 127
-                ? sprintf "pacman failed with signal %d",        $CHILD_ERROR & 127
-                : sprintf "pacman returned abnormal status: %d", $CHILD_ERROR >> 8
+                ? sprintf qq{'$pacmancmd' failed with signal %d},
+                          $CHILD_ERROR & 127
+                : sprintf qq{'$pacmancmd' returned abnormal status: %d},
+                          $CHILD_ERROR >> 8
                );
         return 0;
     }
