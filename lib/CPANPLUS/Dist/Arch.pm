@@ -44,7 +44,7 @@ configuration.
 END_MSG
 
 # Patterns to use when using pacman for finding library owners.
-my $PACMAN_FINDOWN     = qr/\A[^ ]+ is owned by (\w+) ([\w.]+)/;
+my $PACMAN_FINDOWN     = qr/\A[^ ]+ is owned by ([\w-]+) ([\w.-]+)/;
 my $PACMAN_FINDOWN_ERR = qr/\Aerror:/;
 
 
@@ -980,7 +980,7 @@ sub _translate_xs_deps
                      $self->_get_mb_xs_deps($distcpan)     :
                      die qq{Unknown installer type "$inst_type"} );
 
-    # Turn the linker flags into libraries and packages
+    # Turn the linker flags into package deps...
     return +{ map { ($self->_get_lib_pkg($_)) }
               @$libs_ref };
 }
@@ -1000,6 +1000,7 @@ sub _get_lib_pkg
 
     my $lib_fqp = DynaLoader::dl_findfile($libname)
         or return ();
+
     my $result = `pacman -Qo $lib_fqp`;
     chomp $result;
 
