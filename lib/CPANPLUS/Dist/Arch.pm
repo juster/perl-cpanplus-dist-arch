@@ -324,7 +324,8 @@ Package type must be 'bin' or 'src'};
     # Wrap it up!
     chdir $status->pkgbase or die "chdir: $OS_ERROR";
     my $makepkg_cmd = join ' ', ( 'makepkg',
-                                  '-f',
+                                  # XXX: should we force rebuilding?
+                                  #'-f',
                                   ( $EUID == 0         ? '--asroot'   : () ),
                                   ( $pkg_type eq 'src' ? '--source'   : () ),
                                   ( !$opts{verbose}    ? '>/dev/null' : () ),
