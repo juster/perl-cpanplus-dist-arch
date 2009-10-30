@@ -529,7 +529,7 @@ sub get_pkgbuild
     my %pkgvars = $self->get_pkgvars;
 
     # Quote our package desc for bash.
-    $pkgvars{pkgdesc} =~ s/ ([$\"\`!]) / \\$1 /gxms;
+    $pkgvars{pkgdesc} =~ s/ ([\$\"\`\!]) / \\$1 /gxms;
 
     my $templ_vars = { packager  => $PACKAGER,
                        version   => $VERSION,
