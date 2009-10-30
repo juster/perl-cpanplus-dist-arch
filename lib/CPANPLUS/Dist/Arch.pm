@@ -614,7 +614,8 @@ sub _translate_cpan_deps
         }
 
         # Translate the module's distribution name into a package name...
-        my $modobj  = $backend->parse_module( module => $modname );
+        my $modobj  = $backend->parse_module( module => $modname )
+            or next CPAN_DEP_LOOP;
         my $pkgname = dist_pkgname( $modobj->package_name );
 
         $pkgdeps{$pkgname} = ( $depver eq '0'
@@ -622,9 +623,8 @@ sub _translate_cpan_deps
                                : dist_pkgver( $depver ) );
     }
 
-    # Default to requiring the current perl version used to compile
-    # the module if there is no explicit perl version required...
-    $pkgdeps{perl} ||= sprintf '%vd', $PERL_VERSION;
+    # Always require perl.
+    $pkgdeps{perl} ||= 0;
 
     # Merge in the XS C library package deps...
     my $xs_deps = $self->_translate_xs_deps;
