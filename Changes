@@ -2,6 +2,7 @@ Revision history for CPANPLUS-Dist-Arch
 
 0.12    October 29, 2009
         Fixed bugs when searching for XS packages.
+        Fixed a regexp bug when escaping bash characters in pkgdesc.
         Changed the automatic perl dependency to not have a version.
 
 0.11    June 9, 2009
