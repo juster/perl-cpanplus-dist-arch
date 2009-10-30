@@ -267,6 +267,20 @@ implicitly but right now everything is installed explicitly.
 If this is a big problem, tell me and I will try to make some hackish
 solution.  I can't think of an elegant way to do this.
 
+=item B<Readline is broken and I can't use cpanplus!>
+
+I had this problem recently.  A system upgrade had updated my readline
+package but the L<Term::ReadLine::Gnu> module was not updated.  Or
+perhaps I had the termcap-compat package, which breaks
+L<Term::ReadLine::Gnu>.
+
+I forget, in any case Term::ReadLine::Gnu was broken.  To be able to
+update the perl-term-readline-gnu package, I had to force the
+Term::ReadLine module to not try to load Term::ReadLine::Gnu with the
+PERL_RL environment variable:
+
+  PERL_RL=0 cpanp -i Term::ReadLine::Gnu
+
 =back
 
 =head1 BUGS

@@ -39,9 +39,13 @@ packaging perl modules into pacman packages:
   Set CPANPLUS to package all modules through CPANPLUS::Dist::Arch
   $
 
-See setupdistarch for more information about setupdistarch.
-If you are having trouble running it, your PATH may not be set
-properly, there are instructions in the manual page.
+See setupdistarch for more information about setupdistarch.  If you
+are having trouble running setupdistarch or cpanp, your PATH may not
+be set properly, add /usr/bin/perlbin/core and /use/bin/perlbin/vendor
+to your .profile file in your home directory.
+
+  # Example ~/.profile
+  export PATH=/usr/bin:/bin:/usr/bin/perlbin/core:/usr/bin/perlbin/vendor
 
 Or you can setup CPANPLUS manually:
 
