@@ -80,7 +80,6 @@ resulting package file.
 Build Directory   : ~/.cpanplus/5.10.0/pacman/build
 Package Directory : ~/.cpanplus/5.10.0/pacman/pkg
 
-
 Where 5.10.0 represents the version of perl you used to build the
 package and ~/.cpanplus represents the base directory chosen
 in your CPANPLUS config.
@@ -97,7 +96,7 @@ perldoc command.
 
     perldoc CPANPLUS::Dist::Arch
 
-If you need help email me at jrcd83 AT gmail o com.
+If you need help email me at jrcd83 at gmail o com.
 
 You can also look for information at:
 
