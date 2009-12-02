@@ -20,7 +20,7 @@ use English                qw(-no_match_vars);
 use Carp                   qw(carp croak);
 use Cwd                    qw();
 
-our $VERSION     = '0.12.1';
+our $VERSION     = '0.13';
 our @EXPORT      = qw();
 our @EXPORT_OK   = qw(dist_pkgname dist_pkgver);
 our @EXPORT_TAGS = ( ':all' => \@EXPORT_OK );

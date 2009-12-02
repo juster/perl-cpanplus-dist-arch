@@ -6,7 +6,7 @@ CPANPLUS::Dist::Arch - CPANPLUS backend for building Archlinux pacman packages
 
 =head1 VERSION
 
-Version 0.12.1
+Version 0.13
 
 =head1 SYNOPSIS
 
@@ -400,8 +400,7 @@ L<http://search.cpan.org/dist/CPANPLUS/>
 
 =head1 AUTHOR
 
-Justin Davis, C<< <jrcd83 gmail> >>, juster on
-L<http://bbs.archlinux.org>
+Justin Davis, C<< <jrcd83 gmail> >>, juster on L<http://bbs.archlinux.org>
 
 =head1 COPYRIGHT & LICENSE
 
