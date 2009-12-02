@@ -307,7 +307,8 @@ Package type must be 'bin' or 'src'};
     my $srcfile_fqp = $status->pkgbase . '/' . $module->package;
     my $pkgfile_fqp = $status->pkgbase . "/$pkgfile";
 
-    my $destdir = $opts{destdir} || $status->destdir;
+    $status->destdir( $opts{destdir} ) if $opts{destdir};
+    my $destdir = $status->destdir;
     $destdir = Cwd::abs_path( $destdir );
     my $destfile_fqp = catfile( $destdir, $pkgfile );
 
@@ -321,11 +322,12 @@ Package type must be 'bin' or 'src'};
 
     $self->create_pkgbuild($self->status->pkgbase);
 
-    # Wrap it up!
+    # Package it up!
+    local $ENV{PKGDEST} = $destdir;
     chdir $status->pkgbase or die "chdir: $OS_ERROR";
     my $makepkg_cmd = join ' ', ( 'makepkg',
                                   # XXX: should we force rebuilding?
-                                  #'-f',
+                                  '-f',
                                   ( $EUID == 0         ? '--asroot'   : () ),
                                   ( $pkg_type eq 'src' ? '--source'   : () ),
                                   ( !$opts{verbose}    ? '>/dev/null' : () ),
@@ -340,11 +342,6 @@ Package type must be 'bin' or 'src'};
                 : sprintf "makepkg returned abnormal status: %d",
                           $CHILD_ERROR >> 8
                );
-        return 0;
-    }
-
-    if ( ! rename $pkgfile_fqp, $destfile_fqp ) {
-        error "failed to move $pkgfile to $destfile_fqp: $OS_ERROR";
         return 0;
     }
 
@@ -473,6 +470,12 @@ sub get_destdir
 {
     my $self = shift;
     return $self->status->destdir;
+}
+
+sub get_pkgpath
+{
+    my $self = shift;
+    return $self->status->dist;
 }
 
 sub get_cpandistdir
@@ -773,7 +776,9 @@ sub _prepare_status
                            ( sprintf "%vd", $PERL_VERSION ),
                            'pacman' );
 
-    $status->destdir( $PKGDEST || catdir( $our_base, 'pkg' ) );
+    $status->destdir( $ENV{PKGDEST} ||
+                      $PKGDEST      ||
+                      catdir( $our_base, 'pkg' ) );
 
     my ($pkgver, $pkgname)
         = (  dist_pkgver( $module->package_version ),

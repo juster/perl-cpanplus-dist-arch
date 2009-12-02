@@ -159,6 +159,12 @@ included in the examples directory for an example.
   Usage   : my $dest = $dist->get_destdir;
   Returns : The directory where the package is going to end up.
 
+=head2 get_pkgpath
+
+  Usage   : my $fqp = $dist->get_pkgpath;
+  Returns : The fully qualified path of the built package
+            or undef if no package was built yet.
+
 =head2 get_cpandistdir
 
   Usage   : my $distdir = $dist->get_cpandistdir;
