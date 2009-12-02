@@ -9,6 +9,7 @@ my $builder = Module::Build->new(
     dist_version_from   => 'lib/CPANPLUS/Dist/Arch.pm',
     build_requires => {
         'Test::More' => 0,
+        'Net::Ping'  => 0,
     },
     requires => {
         # 'perl'                  => '5.8.0', # thx to CPAN Testers
@@ -29,6 +30,9 @@ my $builder = Module::Build->new(
         'Getopt::Long'          => 0, # for the setupdistarch script
         'Pod::Usage'            => 0,
     },
+    meta_add => { resources =>
+                  { repository =>
+                    'http://github.com/juster/perl-cpanplus-dist-arch' }},
     script_files => [ qw{ script/cpan2aur script/setupdistarch } ],
     add_to_cleanup      => [ 'CPANPLUS-Dist-Arch-*' ],
     create_makefile_pl  => 'traditional',

@@ -1,3 +1,15 @@
+2009-12-02  Justin Davis  <jrcd83@gmail.com>
+
+	* 0.12.1 RELEASE
+
+	* lib/CPANPLUS/Dist/Arch.pm (get_pkgpath): Added new method.
+
+	* lib/CPANPLUS/Dist/Arch.pm (create): Fixed bug caused when
+	PKGDEST environment variable was used.
+
+	* t/02-build.t: Checks for online connectivity and deletes
+	the test package after it is created.
+
 Revision history for CPANPLUS-Dist-Arch
 
 0.12    October 29, 2009
@@ -56,4 +68,3 @@ Revision history for CPANPLUS-Dist-Arch
 
 0.01    March 20, 2009
         First version, uploaded to CPAN.
-

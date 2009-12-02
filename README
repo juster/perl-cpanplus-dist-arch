@@ -89,9 +89,8 @@ package and ~/.cpanplus represents the base directory chosen
 in your CPANPLUS config.
 
 You can change the destination by setting PKGDEST in your
-/etc/makepkg.conf file.  The PACKAGER in /etc/makepkg.conf is
-inserted into the PKGBUILD comment header.  If there is no PACKAGER
-set, then 'Anonymous' is used, instead.
+C</etc/makepkg.conf> file.  You can also set the PKGDEST environment
+variable to a directory where you want to store all built packages.
 
 SUPPORT AND DOCUMENTATION
 

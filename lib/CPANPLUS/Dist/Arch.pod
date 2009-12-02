@@ -6,7 +6,7 @@ CPANPLUS::Dist::Arch - CPANPLUS backend for building Archlinux pacman packages
 
 =head1 VERSION
 
-Version 0.12
+Version 0.12.1
 
 =head1 SYNOPSIS
 
@@ -62,9 +62,12 @@ package and ~/.cpanplus represents the base directory chosen
 in your CPANPLUS config.
 
 You can change the destination by setting PKGDEST in your
-C</etc/makepkg.conf> file.  The PACKAGER in C</etc/makepkg.conf> is
-inserted into the PKGBUILD comment header.  If there is no PACKAGER
-set, then 'Anonymous' is used instead.
+C</etc/makepkg.conf> file.  You can also set the PKGDEST environment
+variable to a directory where you want to store all built packages.
+
+The PACKAGER in C</etc/makepkg.conf> is inserted into the PKGBUILD
+comment header.  If there is no PACKAGER set, then 'Anonymous' is used
+instead.
 
 =head1 COMMAND LINE OPTIONS
 
@@ -326,14 +329,12 @@ with cpan2dist so far.  It happened when building L<PDL>, by the way.
 
 =head1 SUPPORT
 
-You can find documentation for this module with the perldoc command.
-
-    perldoc CPANPLUS::Dist::Arch
+Email me at C<< jrcd83 at gmail >> or message me as I<juster> on the
+Archlinux BBS at L<http://bbs.archlinux.org>.
 
 To check why the build process failed, read the build logs CPANPLUS
 keeps in C<~/.cpanplus/install_logs/>.  The problem may be specific to
-the module you're building and not this module.  You can email me at
-C<< <jrcd83 at gmail dot com> >> if you still need help.
+the module you're building and not this module.
 
 You can also look for information at:
 
@@ -367,9 +368,6 @@ This mostly started from CPANPLUS::Dist::RPM which is on Google Code
 at L<http://code.google.com/p/cpanplus-dist-rpm/>.  This was a very
 helpful starting point to try to understand the internals of CPANPLUS.
 
-Notice the helpful variable comments at the beginning of methods?
-Stolen!
-
 =head1 SEE ALSO
 
 =over
@@ -377,6 +375,10 @@ Stolen!
 =item * AUR Package: perl-cpanplus-dist
 
 L<http://aur.archlinux.org/packages.php?ID=24971>
+
+=item * Git Repository
+
+L<http://github.com/juster/perl-cpanplus-dist-arch>
 
 =item * Archlinux Perl Package Guidelines
 

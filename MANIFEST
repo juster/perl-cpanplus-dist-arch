@@ -1,5 +1,5 @@
 Build.PL
-Changes
+ChangeLog
 MANIFEST
 README
 examples/cpanpkgbuild.pl
