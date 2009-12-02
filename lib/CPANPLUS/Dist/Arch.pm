@@ -118,9 +118,9 @@ build() {
 [% FI %]
 [% IF is_modulebuild %]
     perl Build.PL --installdirs=vendor --destdir="$pkgdir" &&
-    ./Build &&
-    [% IF skiptest %]#[% FI %]./Build test &&
-    ./Build install;
+    perl Build &&
+    [% IF skiptest %]#[% FI %]perl Build test &&
+    perl Build install;
 [% FI %]
   } || return 1;
 
@@ -129,6 +129,14 @@ build() {
 }
 END_TEMPL
 
+=for Weird "perl Build" Syntax
+We use "perl Build" above instead of the normal "./Build" in order to
+make the yaourt packager happy.  Yaourt runs the PKGBUILD under the /tmp
+directory and makepkg will fail if /tmp is a seperate partition mounted
+with noexec.  Thanks to xenoterracide on the AUR for mentioning the
+problem.
+
+=cut
 
 #----------------------------------------------------------------------
 # CLASS GLOBALS
