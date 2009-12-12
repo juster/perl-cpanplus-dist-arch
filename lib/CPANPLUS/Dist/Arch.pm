@@ -455,13 +455,17 @@ sub dist_pkgver
     my ($version) = @_;
 
     # Package versions should be numbers and decimal points only...
-    $version =~ tr/-/./s;
+    $version =~ tr/-/./;
     $version =~ tr/0-9.-//cd;
 
     # Developer packages have a ##_## at the end though...
     unless (( $version =~ tr/_/_/ == 1 ) && ( $version =~ /\d_\d/ )) {
-        $version =~ tr/_/./s;
+        $version =~ tr/_/./;
     }
+
+    $version =~ tr/././s;
+    $version =~ s/[.]$//;
+    $version =~ s/^[.]//;
 
     return $version;
 }
