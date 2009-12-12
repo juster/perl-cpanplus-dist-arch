@@ -454,11 +454,27 @@ sub dist_pkgver
     croak "Must provide arguments to pacman_version" if ( @_ == 0 );
     my ($version) = @_;
 
-    # Package versions should be letters, numbers and decimal points only...
-    $version =~ tr/_-/../s;
-    $version =~ tr/a-zA-Z0-9.//cd;
+    # Package versions should be numbers and decimal points only...
+    $version =~ tr/-/./s;
+    $version =~ tr/0-9.-//cd;
+
+    # Developer packages have a ##_## at the end though...
+    unless (( $version =~ tr/_/_/ == 1 ) && ( $version =~ /\d_\d/ )) {
+        $version =~ tr/_/./s;
+    }
+
     return $version;
 }
+
+=for Letters In Versions
+  Letters aren't allowed in versions because makepkg doesn't handle them
+  in dependencies.  Example:
+    * CAM::PDF requires Text::PDF 0.29
+    * Text::PDF 0.29a was built/installed
+    * makepkg still complains about perl-text-pdf>=0.29 is missing ... ?
+  So ... no more letters in versions.
+
+=cut
 
 
 #-------------------------------------------------------------------------------
@@ -491,8 +507,9 @@ sub get_cpandistdir
     my ($self) = @_;
 
     my $module  = $self->parent;
-    my $distdir = $module->package;
-    $distdir    =~ s/ [.] ${\$module->package_extension} \z //xms;
+    my $distdir = $module->status->dist_cpan->status->distdir;
+    $distdir    =~ s{^.*/}{};
+
     return $distdir;
 }
 

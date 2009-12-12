@@ -1,3 +1,17 @@
+2009-12-12  Justin Davis  <jrcd83@gmail.com>
+
+	* 0.14 RELEASE
+
+	* lib/CPANPLUS/Dist/Arch.pm (get_cpandistdir): Fixed bug caused by
+	distributions having letters in their filenames.  The extracted
+	directory did not have the trailing letter.  Now we use the
+	distribution directory name previously stored by CPANPLUS.
+
+	* lib/CPANPLUS/Dist/Arch.pm (dist_pkgver): Fixed bug with letters
+	in package versions.  Letters are removed because makepkg cannot
+	compare versions with letters properly.  Underscores are now only
+	allowed at the end of the version; for developer releases.
+
 2009-12-02  Justin Davis  <jrcd83@gmail.com>
 
 	* 0.13 RELEASE
