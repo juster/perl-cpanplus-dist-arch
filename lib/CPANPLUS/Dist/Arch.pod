@@ -6,7 +6,7 @@ CPANPLUS::Dist::Arch - CPANPLUS backend for building Archlinux pacman packages
 
 =head1 VERSION
 
-Version 0.14
+Version 0.15
 
 =head1 SYNOPSIS
 
@@ -201,14 +201,18 @@ included in the examples directory for an example.
 =head2 get_pkgbuild
 
   Usage    : my $pkgbuildtext = $dist->get_pkgbuild;
+  Params   : $skiptest - (optional, default is 0)
+                         Whether to skip testing and comment out the test.
   Returns  : A scalar containing the full text of the PKGBUILD that would
              be generated in the perl pacman package.
 
 =head2 create_pkgbuild
 
-  Usage   : $self->create_pkgbuild( '/tmp' );
+  Usage   : $self->create_pkgbuild( '/tmp', 1 );
   Purpose : Creates a PKGBUILD file in the specified directory.
-  Params  : The directory to put the new PKGBUILD in.
+  Params  : $destdir - The directory to put the new PKGBUILD in.
+            $skiptest - (optional, default is 0)
+                        Whether to skip testing and comment out the test.
   Precond : You must first call prepare or have CPANPLUS do it automatically.
   Throws  : unknown installer type: '...'
             failed to write PKGBUILD: ...

@@ -20,7 +20,7 @@ use English                qw(-no_match_vars);
 use Carp                   qw(carp croak);
 use Cwd                    qw();
 
-our $VERSION     = '0.14';
+our $VERSION     = '0.15';
 our @EXPORT      = qw();
 our @EXPORT_OK   = qw(dist_pkgname dist_pkgver);
 our @EXPORT_TAGS = ( ':all' => \@EXPORT_OK );
@@ -328,7 +328,7 @@ Package type must be 'bin' or 'src'};
             or error "Failed to create link to $tarball_fqp: $OS_ERROR";
     }
 
-    $self->create_pkgbuild($self->status->pkgbase);
+    $self->create_pkgbuild( $self->status->pkgbase, $opts{skiptest} );
 
     # Package it up!
     local $ENV{PKGDEST} = $destdir;
@@ -550,7 +550,7 @@ sub get_pkgvars_ref
 
 sub get_pkgbuild
 {
-    my ($self) = @_;
+    my ($self, $skiptest) = @_;
 
     my $status  = $self->status;
     my $module  = $self->parent;
@@ -568,7 +568,7 @@ sub get_pkgbuild
                        version   => $VERSION,
                        %pkgvars,
                        distdir   => $self->get_cpandistdir(),
-                       skiptest  => $conf->get_conf('skiptest'),
+                       skiptest  => $skiptest || $conf->get_conf('skiptest'),
                       };
 
     my $dist_type = $module->status->installer_type;
@@ -584,13 +584,13 @@ sub get_pkgbuild
 sub create_pkgbuild
 {
     croak 'Invalid arguments to create_pkgbuild' if ( @_ != 2 );
-    my ($self, $destdir) = @_;
+    my ($self, $destdir, $skiptest) = @_;
 
     croak qq{Invalid directory passed to create_pkgbuild: "$destdir" ...
 Directory does not exist or is not writeable}
         unless ( -d $destdir && -w _ );
 
-    my $pkgbuild_text = $self->get_pkgbuild;
+    my $pkgbuild_text = $self->get_pkgbuild( $skiptest );
     my $fqpath        = catfile( $destdir, 'PKGBUILD' );
 
     open my $pkgbuild_file, '>', $fqpath

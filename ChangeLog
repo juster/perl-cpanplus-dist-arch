@@ -1,3 +1,11 @@
+2010-01-02  Justin Davis  <jrcd83@gmail.com>
+
+	* lib/CPANPLUS/Dist/Arch.pm (create): Fixed bug where I broke
+	skiptest handling when creating the PKGBUILD.
+	(create_pkgbuild): Added optional argument for skipping tests in
+	PKGBUILD.
+	(get_pkgbuild): Same as create_pkgbuild.
+
 2009-12-12  Justin Davis  <jrcd83@gmail.com>
 
 	* 0.14 RELEASE
