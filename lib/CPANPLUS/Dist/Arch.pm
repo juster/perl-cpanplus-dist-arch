@@ -550,6 +550,7 @@ sub get_pkgvars_ref
 
 sub get_pkgbuild
 {
+    croak 'Invalid arguments to get_pkgbuild' if ( @_ < 1 );
     my ($self, $skiptest) = @_;
 
     my $status  = $self->status;
@@ -583,7 +584,7 @@ sub get_pkgbuild
 
 sub create_pkgbuild
 {
-    croak 'Invalid arguments to create_pkgbuild' if ( @_ != 2 );
+    croak 'Invalid arguments to create_pkgbuild' if ( @_ < 2 );
     my ($self, $destdir, $skiptest) = @_;
 
     croak qq{Invalid directory passed to create_pkgbuild: "$destdir" ...
