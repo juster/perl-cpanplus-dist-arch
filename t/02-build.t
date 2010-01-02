@@ -14,7 +14,7 @@ plan skip_all => 'build testing requires pacman & makepkg installed'
     unless ( CPANPLUS::Dist::Arch::format_available );
 
 my $p = Net::Ping->new();
-plan skip_all => 'must be connected to the interweb for these tests'
+plan skip_all => 'must be able to connect to CPAN for these tests'
     unless ( $p->ping( 'cpan.org' ));
 $p->close();
 
