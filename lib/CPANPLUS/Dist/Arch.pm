@@ -1045,6 +1045,7 @@ sub _get_lib_pkg
     }
 
     my ($pkgname, $pkgver) = $result =~ /$PACMAN_FINDOWN/;
+    $pkgver =~ s/-\d+\z//; # remove the package revision number
     return ($pkgname => $pkgver);
 }
 
