@@ -565,7 +565,7 @@ sub get_pkgbuild
     # Quote our package desc for bash.
     $pkgvars{pkgdesc} =~ s/ ([\$\"\`\!]) / \\$1 /gxms;
 
-    my $templ_vars = { packager  => $PACKAGER,
+    my $templ_vars = { packager  => $ENV{PACKAGER} || $PACKAGER,
                        version   => $VERSION,
                        %pkgvars,
                        distdir   => $self->get_cpandistdir(),
@@ -811,8 +811,8 @@ sub _prepare_status
                       catdir( $our_base, 'pkg' ) );
 
     my ($pkgver, $pkgname)
-        = (  dist_pkgver( $module->package_version ),
-            dist_pkgname( $module->package_name) );
+        = ( dist_pkgver( $module->package_version ),
+            dist_pkgname( $module->package_name));
 
     my $pkgbase = catdir( $our_base, 'build', "$pkgname-$pkgver" );
     my $pkgarch = `uname -m`;
