@@ -124,8 +124,7 @@ build() {
 [% FI %]
   } || return 1;
 
-  find "$pkgdir" -name .packlist -delete
-  find "$pkgdir" -name perllocal.pod -delete
+  find "$pkgdir" -name .packlist -o -name perllocal.pod -delete
 }
 END_TEMPL
 
