@@ -3,7 +3,7 @@
 use warnings;
 use strict;
 
-use Test::More tests => 20;
+use Test::More tests => 22;
 
 use CPANPLUS::Dist::Arch qw( dist_pkgname dist_pkgver );
 
@@ -43,6 +43,9 @@ my %pkgver_of =
       '98 65 AB.2' => '9865.2',
       '1~!@#$%^&*() _ 2+= - 3\][{}|;":, . 4/?><' => '12.3.4',
       '1234-ABCDE.fghi' => '1234',
+      '1.14_02'    => '1.14_02',
+      '12ABCD_ABCD1' => '12_1',
+      '10.01.07.b610f5f' => '10.01.07.6105', # real!
      );
 
 for my $cpan_ver ( keys %pkgver_of ) {

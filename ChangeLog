@@ -1,4 +1,12 @@
+2010-01-07  Justin Davis  <jrcd83@gmail.com>
+
+	* lib/CPANPLUS/Dist/Arch.pm (dist_pkgver): Fixed bug where
+	underscores in developer releases were not preserved as they
+	were supposed to be.
+
 2010-01-02  Justin Davis  <jrcd83@gmail.com>
+
+	* 0.15 (RELEASE)
 
 	* lib/CPANPLUS/Dist/Arch.pm (create): Fixed bug where I broke
 	skiptest handling when creating the PKGBUILD.
@@ -8,7 +16,7 @@
 
 2009-12-12  Justin Davis  <jrcd83@gmail.com>
 
-	* 0.14 RELEASE
+	* 0.14 (RELEASE)
 
 	* lib/CPANPLUS/Dist/Arch.pm (get_cpandistdir): Fixed bug caused by
 	distributions having letters in their filenames.  The extracted
@@ -22,7 +30,7 @@
 
 2009-12-02  Justin Davis  <jrcd83@gmail.com>
 
-	* 0.13 RELEASE
+	* 0.13 (RELEASE)
 
 	* lib/CPANPLUS/Dist/Arch.pm (create): Fixed a bug caused when
 	PKGDEST environment variable was used.  Fixed a bug when yaourt is
@@ -79,7 +87,7 @@ Revision history for CPANPLUS-Dist-Arch
         I broke this version with a typo!  Luckily no one suspects anything.
 
 0.05    March 23, 2009
-        Inserted missing /CPAN/ text for the PKGBUILD's srcurl variable, 
+        Inserted missing /CPAN/ text for the PKGBUILD's srcurl variable,
         Added tests for _translate_name & _translate_version.
 
 0.04    March 22, 2009
