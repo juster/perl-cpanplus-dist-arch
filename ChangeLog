@@ -1,8 +1,15 @@
+2010-01-08  Justin Davis  <jrcd83@gmail.com>
+
+	* lib/CPANPLUS/Dist/Arch.pm (_translate_xs_deps): Fixed bug
+	with detecting XS deps for Module::Build distributions.
+	It never seemed to work right anyways, and would sometimes
+	cause a fatal error.  (thanks Xenoterracide)
+
 2010-01-07  Justin Davis  <jrcd83@gmail.com>
 
 	* lib/CPANPLUS/Dist/Arch.pm (dist_pkgver): Fixed bug where
 	underscores in developer releases were not preserved as they
-	were supposed to be.
+	were supposed to be.  (thanks Xenoterracide for telling me)
 
 2010-01-02  Justin Davis  <jrcd83@gmail.com>
 

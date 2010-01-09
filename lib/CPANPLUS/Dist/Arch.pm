@@ -1009,11 +1009,9 @@ sub _translate_xs_deps
     my $distcpan  = $modstat->dist_cpan;
 
     # Delegate to the other methods depending on the dist type...
-    my $libs_ref = ( $inst_type eq 'CPANPLUS::Dist::MM'    ?
-                     $self->_get_mm_xs_deps($distcpan)     :
-                     $inst_type eq 'CPANPLUS::Dist::Build' ?
-                     $self->_get_mb_xs_deps($distcpan)     :
-                     die qq{Unknown installer type "$inst_type"} );
+    my $libs_ref = ( $inst_type eq 'CPANPLUS::Dist::MM'
+                     ? $self->_get_mm_xs_deps($distcpan) : [] );
+    # TODO: figure out how to do this with Module::Build
 
     # Turn the linker flags into package deps...
     return +{ map { ($self->_get_lib_pkg($_)) }
@@ -1075,21 +1073,6 @@ sub _get_mm_xs_deps
     close $mkfile;
 
     return [ grep { /\A-l/ } map { split } @libs ];
-}
-
-#---INSTANCE METHOD---
-# Usage    : my $deps_ref = $self->_get_mb_xs_deps($dist_obj);
-# Params   : $dist_obj - A CPANPLUS::Dist::Build object
-# Returns  : Arrayref of library flags (-l...) passed to the linker on build.
-#---------------------
-sub _get_mb_xs_deps
-{
-    my ($self, $dist) = @_;
-
-    my $mbobj = $dist->status->_mb_object;
-    my $linker_flags = $mbobj->extra_linker_flags;
-
-    return [ _unique grep { /\A-l/ } map { split } @{$linker_flags} ];
 }
 
 1; # End of CPANPLUS::Dist::Arch
