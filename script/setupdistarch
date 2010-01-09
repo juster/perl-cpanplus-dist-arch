@@ -161,12 +161,12 @@ the following to your /home/(username)/.profile file:
 
 =head1 AUTHOR
 
-Justin Davis, C<< <jrcd83 at gmail.com> >>, juster on
+Justin Davis, C<< <jrcd83 gmail> >>, juster on
 L<http://bbs.archlinux.org>
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2009 Justin Davis, all rights reserved.
+Copyright 2010 Justin Davis, all rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
