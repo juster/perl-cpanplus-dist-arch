@@ -4,53 +4,119 @@ use warnings;
 use strict;
 
 use CPANPLUS::Backend;
+use Getopt::Long;
+use English qw(no_match_vars);
 use Pod::Usage;
+use 5.010;
 use Cwd;
 
-eval { require CPANPLUS::Dist::Arch; }
-    or die "error: CPANPLUS::Dist::Arch must be installed for this script to work.\n";
+eval { require CPANPLUS::Dist::Arch; 1; }
+    or die "cpan2aur: CPANPLUS::Dist::Arch must be installed for this script to work.\n";
 
-my $cb      = CPANPLUS::Backend->new;
+my ($DIRECTORY, $VERBOSE, $QUIET, $HELP);
 
-my @modnames = grep { /\A[\w:]+\z/ } @ARGV;
-pod2usage() unless ( @modnames );
+GetOptions( 'directory' => \$DIRECTORY,
+            'verbose'   => \$VERBOSE,
+            'quiet'     => \$QUIET,
+            'help'      => \$HELP,
+           );
+
+
+pod2usage( -message => 'We cannot be both verbose and quiet!',
+           -verbose => 0,
+           -retval  => 1 ) if ( $VERBOSE && $QUIET);
+
+pod2usage( -verbose => 0 ) unless ( @ARGV );
+pod2usage( -verbose => 1 ) if ( $HELP );
+
+sub create_aurpkgdir
+{
+    my $dist_obj = shift;
+    my $pkgname = $dist_obj->status->pkgname;
+    my $pkgver  = $dist_obj->status->pkgver;
+    my $pkgsrc  = 'sourcefile.tar.gz';
+
+
+    mkdir $pkgname or die qq{failed to "mkdir $pkgname": $!};
+    $dist_obj->create_pkgbuild( $pkgname );
+
+    say "Created ${pkgname}/PKGBUILD" unless $QUIET;
+    return;
+}
+
+sub execute
+{
+    my $mod_obj = shift;
+    $mod_obj->install( target  => shift,
+                       format  => 'CPANPLUS::Dist::Arch',
+                       verbose => $VERBOSE,
+                       pkg     => 'src',
+                       destdir => getcwd())
+}
+
+my $cb = CPANPLUS::Backend->new;
 
 MODULE_ARG:
-for my $modname ( @modnames ) {
-    my $modobj = $cb->module_tree( $modname )
-        or next MODULE_ARG;
+for my $modname ( @ARGV ) {
+    my $modobj = $cb->module_tree( $modname );
 
-    $modobj->install( target  => 'create',
-                      format  => 'CPANPLUS::Dist::Arch',
-                      verbose => 1,
-                      pkg     => 'src',
-                      destdir => getcwd() );
+    print "Finding module $modname... " unless $QUIET;
+
+    unless ( $modobj ) {
+        say 'failed!';
+        say STDERR "cpan2aur: Failed to find a module named $modname";
+        next MODULE_ARG;
+    }
+
+    say 'done' unless $QUIET;
+
+    if ( $DIRECTORY ) {
+        execute( $modobj => 'prepare' ) or die "failed to prepare module";
+        create_aurpkgdir( $modobj->status->dist );
+        next MODULE_ARG;
+    }
+
+    say "Creating source package file... " unless $QUIET;
+    execute( $modobj => 'create' );
 }
 
 __END__
 
 =head1 NAME
 
-cpan2aur - Generate an AUR source package of a CPAN perl module
+cpan2aur - AUR Utility for CPAN perl modules
 
 =head1 SYNOPSIS
 
-cpan2aur Module::Name [ ... Module::Name ]
+cpan2aur Module::Name [ Module::Name, ... Module::Name ]
+
+ Options:
+   -h, --help            Brief help message.
+   -d, --directory       Create a directory with a special Makefile inside
+                         used to tweak and create an AUR package.
+   -q, --quiet           Quiet mode.  Supress our own messages.
+   -v, --verbose         Allow CPANPLUS to be verbose (spammy).
+                         May be useful for debugging.
 
 =head1 DESCRIPTION
 
-Example script for using the advanced options of
-L<CPANPLUS::Dist::Arch>.  Creates a source package in the current
-working directory of each module passed as arguments.
+This is a utility useful for creating and uploading perl packages for
+the AUR (Archlinux User Repository).  cpan2aur's simplest usage
+creates AUR source packages in the current directory.  With the -d or
+--directory flags cpan2aur will create a directory to contain the
+source package and generate a PKGBUILD for it.
+
+=head1 SEE ALSO
+
+L<http://aur.archlinux.org>
 
 =head1 AUTHOR
 
-Justin Davis, C<< <jrcd83 at gmail dot com> >>, juster on
-L<http://bbs.archlinux.org>
+Justin Davis, C<< <jrcd83 gmail> >>, juster on L<http://bbs.archlinux.org>
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2009 Justin Davis, all rights reserved.
+Copyright 2010 Justin Davis, all rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.

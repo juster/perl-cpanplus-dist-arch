@@ -1,5 +1,10 @@
 2010-01-08  Justin Davis  <jrcd83@gmail.com>
 
+	* 0.16 (RELEASE)
+
+	* script/cpan2aur: Now we can also create a source package
+	directory for tweaking the PKGBUILD and then running makepkg.
+
 	* lib/CPANPLUS/Dist/Arch.pm (_translate_xs_deps): Fixed bug
 	with detecting XS deps for Module::Build distributions.
 	It never seemed to work right anyways, and would sometimes
