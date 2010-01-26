@@ -114,7 +114,7 @@ build() {
     perl Makefile.PL INSTALLDIRS=vendor &&
     make &&
     [% IF skiptest %]#[% FI %]make test &&
-    make DESTDIR="${pkgdir}/" install;
+    make DESTDIR="$pkgdir" install;
 [% FI %]
 [% IF is_modulebuild %]
     perl Build.PL --installdirs=vendor --destdir="$pkgdir" &&
