@@ -714,6 +714,10 @@ sub _prepare_pkgdesc
             if ( ($pkgdesc) = /^abstract:\s*(.+)/) {
                 $pkgdesc = $1 if ( $pkgdesc =~ /\A'(.*)'\z/ );
                 close $metayml;
+
+                # Descriptions of ~ pop up in metafiles, rarely...
+                last METAYML if $pkgdesc eq '~';
+
                 return $status->pkgdesc($pkgdesc);
             }
         }
@@ -760,10 +764,9 @@ sub _prepare_pkgdesc
         $name_section =~ s{ [IBCLEFSXZ] <<(.*?)>> }{$1}gxms;
 
         # The short desc is on a line beginning with 'Module::Name - '
-        if ( ($pkgdesc) =
-             $name_section =~ / ^ \s* $modname [\s-]+ (.+?) $ /xms ) {
-            return $status->pkgdesc($pkgdesc);
-        }
+        return $status->pkgdesc($pkgdesc)
+            if ($pkgdesc) =
+                $name_section =~ / ^ \s* $modname [ -]+ ([^\n]+) /xms;
     }
 
     # Last, try to find it in in the README file
@@ -778,11 +781,9 @@ sub _prepare_pkgdesc
             chomp;
             if ( (/^NAME/ ... /^[A-Z]+/) # limit ourselves to a NAME section
                  && ( ($pkgdesc) = / ^ \s* ${modname} [\s\-]+ (.+) $ /oxms) ) {
-                close $readme;
                 return $status->pkgdesc($pkgdesc);
             }
         }
-        close $readme;
     }
 
     return $status->pkgdesc(q{});
