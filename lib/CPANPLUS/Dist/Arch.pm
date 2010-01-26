@@ -26,9 +26,9 @@ our @EXPORT_OK   = qw(dist_pkgname dist_pkgver);
 our @EXPORT_TAGS = ( ':all' => \@EXPORT_OK );
 
 
-#----------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 # CLASS CONSTANTS
-#----------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 
 
 my $MKPKGCONF_FQP = '/etc/makepkg.conf';
@@ -181,9 +181,9 @@ READ_CONF:
 }
 
 
-#-------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 # PUBLIC CPANPLUS::Dist::Base Interface
-#-------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 
 
 =for Interface Methods
@@ -413,9 +413,9 @@ END_ERROR
 }
 
 
-#-------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 # EXPORTED FUNCTIONS
-#-------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 
 
 sub dist_pkgname
@@ -480,9 +480,9 @@ sub dist_pkgver
 =cut
 
 
-#-------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 # PUBLIC METHODS
-#-------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 
 
 sub set_destdir
@@ -603,9 +603,9 @@ Directory does not exist or is not writeable}
 }
 
 
-#-------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 # PRIVATE INSTANCE METHODS
-#-------------------------------------------------------------------------------
+#-----------------------------------------------------------------------------
 
 #---INSTANCE METHOD---
 # Usage    : my $deps_str = $self->_translate_cpan_deps()
@@ -833,7 +833,8 @@ sub _prepare_status
 
 #---INSTANCE METHOD---
 # Usage    : my $pkgurl = $self->_get_disturl()
-# Purpose  : Creates a nice, version agnostic homepage URL for the distribution.
+# Purpose  : Creates a nice, version agnostic homepage URL for the
+#            distribution.
 # Returns  : URL to the distribution's web page on CPAN.
 #---------------------
 sub _get_disturl
@@ -885,8 +886,8 @@ sub _calc_tarballmd5
 }
 
 #---HELPER FUNCTION---
-# Purpose : Split the text into everything before the tags, inside tags, and after
-#           the tags.  Inner nested tags are skipped.
+# Purpose : Split the text into everything before the tags, inside tags, and
+#           after the tags.  Inner nested tags are skipped.
 #---------------------
 sub _extract_nested
 {
