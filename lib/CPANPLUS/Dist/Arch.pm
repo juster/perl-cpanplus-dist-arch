@@ -141,8 +141,7 @@ problem.
 # CLASS GLOBALS
 #----------------------------------------------------------------------
 
-
-our ($PKGDEST, $PACKAGER);
+our ($Is_dependency, $PKGDEST, $PACKAGER);
 
 $PACKAGER = 'Anonymous';
 
@@ -297,6 +296,8 @@ Package type must be 'bin' or 'src'};
         my %resolve_args = map { ( exists $opts{$_}  ?
                                    ($_ => $opts{$_}) : () ) } @ok_resolve_args;
 
+        local $Is_dependency = 1; # only top level pkgs explicitly installed
+
         $distcpan->_resolve_prereqs( %resolve_args,
                                      'format'  => ref $self,
                                      'prereqs' => $module->status->prereqs );
@@ -382,29 +383,31 @@ END_ERROR
 
     die "Package file $pkgfile_fqp was not found" if ( ! -f $pkgfile_fqp );
 
-    my $pacmancmd;
+    my @pacmancmd = ( 'pacman', '-U', $pkgfile_fqp,
+                      ( $Is_dependency ? '--asdeps' : '--asexplicit' ),
+                     );
 
     # Make sure the user has access to install a package...
     my $sudocmd = $conf->get_program('sudo');
     if ( $EFFECTIVE_USER_ID != $ROOT_USER_ID ) {
         if ( $sudocmd ) {
-            $pacmancmd = "$sudocmd pacman -U $pkgfile_fqp";
+            unshift @pacmancmd, $sudocmd;
+#            $pacmancmd = "$sudocmd pacman -U $pkgfile_fqp";
         }
         else {
             error $NONROOT_WARNING;
             return 0;
         }
     }
-    else { $pacmancmd = "pacman -U $pkgfile_fqp"; }
 
-    system $pacmancmd;
+    system @pacmancmd;
 
     if ( $CHILD_ERROR ) {
         error ( $CHILD_ERROR & 127
-                ? sprintf qq{'$pacmancmd' failed with signal %d},
-                          $CHILD_ERROR & 127
-                : sprintf qq{'$pacmancmd' returned abnormal status: %d},
-                          $CHILD_ERROR >> 8
+                ? sprintf qq{'@pacmancmd' failed with signal %d},
+                  $CHILD_ERROR & 127
+                : sprintf qq{'@pacmancmd' returned abnormal status: %d},
+                  $CHILD_ERROR >> 8
                );
         return 0;
     }

@@ -1,3 +1,8 @@
+2010-01-26  Justin Davis  <jrcd83@gmail.com>
+
+	* lib/CPANPLUS/Dist/Arch.pm (create): Dependencies of modules are
+	now installed as implicit packages.
+
 2010-01-08  Justin Davis  <jrcd83@gmail.com>
 
 	* 0.16 (RELEASE)
