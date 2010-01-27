@@ -4,6 +4,7 @@ use warnings;
 use strict;
 
 use CPANPLUS::Backend;
+use Term::ReadLine;
 use Getopt::Long;
 use English qw(no_match_vars);
 use Pod::Usage;
@@ -11,12 +12,22 @@ use 5.010;
 use Cwd;
 
 eval { require CPANPLUS::Dist::Arch; 1; }
-    or die "cpan2aur: CPANPLUS::Dist::Arch must be installed for this script to work.\n";
+    or die <<END_ERR;
+cpan2aur: CPANPLUS::Dist::Arch must be installed for this script to work.
+END_ERR
 
-my ($DIRECTORY, $VERBOSE, $QUIET, $HELP);
+my ($DIRECTORY, $VERBOSE, $UPLOAD, $QUIET, $FORCE, $HELP);
+
+sub PKGBUILD_ERRCODE() { 2 }
+sub AURLOGIN_URI()     { 'http://aur.archlinux.org/' }
+sub AUR_UPLOAD_URI()   { 'http://aur.archlinux.org/packagesubmit.php' }
+
+my $CFGPATH = "$ENV{HOME}/.cpan2aur";
 
 GetOptions( 'directory' => \$DIRECTORY,
             'verbose'   => \$VERBOSE,
+            'upload:s'  => \$UPLOAD,
+            'force'     => \$FORCE,
             'quiet'     => \$QUIET,
             'help'      => \$HELP,
            );
@@ -29,6 +40,32 @@ pod2usage( -message => 'We cannot be both verbose and quiet!',
 pod2usage( -verbose => 0 ) unless ( @ARGV );
 pod2usage( -verbose => 1 ) if ( $HELP );
 
+# AUR PACKAGE BUILDING
+##############################################################################
+
+sub confirm_overwrite
+{
+    my ($pkgdir) = @_;
+
+    return 1              if $FORCE; # user asked to force confirm
+    exit PKGBUILD_ERRCODE if $QUIET; # exit program with error if we're quiet
+
+    USER_QUESTION:
+    {
+        my $rl = Term::ReadLine->new( 'cpan2aur' );
+            
+        print "${pkgdir}/PKGBUILD already exists, overwrite? [y/N] ";
+        my $answer = $rl->readline;
+        
+        $answer ||= q{n};
+        redo USER_QUESTION unless $answer =~ /\A[yn]/i;
+ 
+        return $answer =~ /\Ay/i;
+    }
+
+    die 'Unknown error';
+}
+
 sub create_aurpkgdir
 {
     my $dist_obj = shift;
@@ -36,15 +73,88 @@ sub create_aurpkgdir
     my $pkgver  = $dist_obj->status->pkgver;
     my $pkgsrc  = 'sourcefile.tar.gz';
 
-
-    mkdir $pkgname or die qq{failed to "mkdir $pkgname": $!};
+    if ( -d $pkgname ) {
+        # If package directory exists, offer to overwrite PKGBUILD
+        return unless confirm_overwrite( $pkgname );
+        
+        say "Overwriting ${pkgname}/PKGBUILD..." unless $QUIET;
+        unlink "$pkgname/PKGBUILD";
+    }
+    else {
+        mkdir $pkgname or die qq{failed to "mkdir $pkgname": $!};
+        say "Creating ${pkgname}/PKGBUILD..." unless $QUIET;
+    }
     $dist_obj->create_pkgbuild( $pkgname );
 
-    say "Created ${pkgname}/PKGBUILD" unless $QUIET;
     return;
 }
 
-sub execute
+## AUR PACKAGE UPLOAD
+##############################################################################
+
+sub load_login_sid
+{
+    my ($username) = @_;
+
+    return undef unless ( -e $CFGPATH );
+
+    die "Please chmod 600 ~/.cpan2aur, it is not readable"
+        unless ( -r $CFGPATH );
+
+    $username = lc $username;
+    open my $cfgfile, '<', $CFGPATH or die "open $CFGPATH: $!";
+    while ( <$cfgfile> ) {
+        return $1 if ( / ^ $username [ \t:]+ ([A-F0-9]+) /oxms );
+    }
+    close $cfgfile;
+
+    return undef;
+}
+
+sub save_login_sid
+{
+    my ($username, $sid) = @_;
+
+    # Set umask to keep this file private...
+    my ($oldmask, $found) = (umask 0077, 0);
+    $username = lc $username;
+
+    if ( -f $CFGPATH ) {
+        local ($INPLACE_EDIT, @ARGV) = (q{}, $CFGPATH);
+        while ( <> ) {
+            $found ||= s/ ^ $username [ \t:]+ [A-F0-9]+ $/$username: $sid/oxms;
+            print;
+        }
+    }
+
+    unless ( $found ) {
+        open my $cfgfile, '>>', $CFGPATH or die "open $CFGPATH: $!";
+        seek $cfgfile, 0, 2 or die "seek: $!";
+        print $cfgfile "$username: $sid\n";
+        close $cfgfile or die "close $CFGPATH: $!";
+    }
+
+    umask $oldmask;
+
+    return;
+}
+
+sub login_ua
+{
+    my ($ua, $username) = @_;
+
+    my $sid = load_login_sid( $username );
+    unless ( $sid ) {
+        $ua->cookie_jar( HTTP::Cookies->new() );
+    }
+}
+
+sub upload_to_aur
+{
+    my ($ua, $pkg_path) = @_;
+}
+
+sub cpan_pkg
 {
     my $mod_obj = shift;
     $mod_obj->install( target  => shift,
@@ -53,6 +163,22 @@ sub execute
                        pkg     => 'src',
                        destdir => getcwd())
 }
+
+sub random_sid
+{
+    state $charset = 'ABCDEF0123456789';
+    return join q{}, map { substr $charset, $_, 1 }
+        map { int( rand length $charset ) } 1 .. 32;
+}
+
+# SCRIPT START
+##############################################################################
+
+my $sid = load_login_sid( 'juster' );
+say "\$sid = $sid" if $sid;
+$sid = random_sid();
+save_login_sid( 'juster', $sid );
+exit 0;
 
 my $cb = CPANPLUS::Backend->new;
 
@@ -63,21 +189,23 @@ for my $modname ( @ARGV ) {
     print "Finding module $modname... " unless $QUIET;
 
     unless ( $modobj ) {
-        say 'failed!';
-        say STDERR "cpan2aur: Failed to find a module named $modname";
+        unless ( $QUIET ) {
+            say 'failed!';
+            warn "cpan2aur: Failed to find a module named $modname\n";
+        }
         next MODULE_ARG;
     }
 
     say 'done' unless $QUIET;
 
     if ( $DIRECTORY ) {
-        execute( $modobj => 'prepare' ) or die "failed to prepare module";
+        cpan_pkg( $modobj => 'prepare' ) or die "failed to prepare module";
         create_aurpkgdir( $modobj->status->dist );
         next MODULE_ARG;
     }
 
     say "Creating source package file... " unless $QUIET;
-    execute( $modobj => 'create' );
+    cpan_pkg( $modobj => 'create' );
 }
 
 __END__
@@ -92,9 +220,11 @@ cpan2aur Module::Name [ Module::Name, ... Module::Name ]
 
  Options:
    -h, --help            Brief help message.
-   -d, --directory       Create a directory with a special Makefile inside
-                         used to tweak and create an AUR package.
-   -q, --quiet           Quiet mode.  Supress our own messages.
+   -d, --directory       Create a source package directory with a PKGBUILD.
+   -f, --force           When using -d switch, overwrite the dir's old PKGBUILD
+                         without asking.
+   -q, --quiet           Quiet mode.  Supress our own messages.  Answers the default
+                         to any questions.
    -v, --verbose         Allow CPANPLUS to be verbose (spammy).
                          May be useful for debugging.
 
