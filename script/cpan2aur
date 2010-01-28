@@ -11,37 +11,57 @@ use Pod::Usage;
 use 5.010;
 use Cwd;
 
+use LWP::UserAgent;
+use HTTP::Cookies;
+
 eval { require CPANPLUS::Dist::Arch; 1; }
     or die <<END_ERR;
 cpan2aur: CPANPLUS::Dist::Arch must be installed for this script to work.
 END_ERR
 
-my ($DIRECTORY, $VERBOSE, $UPLOAD, $QUIET, $FORCE, $HELP);
+## COMMAND LINE ARGUMENTS
+##############################################################################
+
+my ($DIRECTORY, $VERBOSE, $UPLOAD, $QUIET, $FORCE, $HELP, $MAN, $NAME);
 
 sub PKGBUILD_ERRCODE() { 2 }
-sub AURLOGIN_URI()     { 'http://aur.archlinux.org/' }
-sub AUR_UPLOAD_URI()   { 'http://aur.archlinux.org/packagesubmit.php' }
+sub AUR_LOGIN_URI()    { 'http://aur.archlinux.org/' }
+sub AUR_UPLOAD_URI()   { 'http://aur.archlinux.org/pkgsubmit.php' }
+sub COOKIE_NAME()      { 'AURSID' }
+sub CAT_LIB()          { 10 };
 
-my $CFGPATH = "$ENV{HOME}/.cpan2aur";
+my $BAD_LOGIN_MSG  = 'Bad username or password.';
+my $NEED_LOGIN_MSG = 'You must create an account before you can upload packages.';
+my $PKG_EXISTS_MSG = qr{You are not allowed to overwrite the <b>.*?</b> package.};
+my $CFGPATH        = "$ENV{HOME}/.cpan2aur";
+
+my $NEED_LOGIN_ERR = "ERROR\nAttempted to upload with bad/no session";
+my $PKG_EXISTS_ERR = "ERROR\nAttempted to submit a package you do not own";
 
 GetOptions( 'directory' => \$DIRECTORY,
             'verbose'   => \$VERBOSE,
             'upload:s'  => \$UPLOAD,
+            'name:s'    => \$NAME,
             'force'     => \$FORCE,
             'quiet'     => \$QUIET,
+            'man'       => \$MAN,
             'help'      => \$HELP,
            );
-
 
 pod2usage( -message => 'We cannot be both verbose and quiet!',
            -verbose => 0,
            -retval  => 1 ) if ( $VERBOSE && $QUIET);
 
-pod2usage( -verbose => 0 ) unless ( @ARGV );
 pod2usage( -verbose => 1 ) if ( $HELP );
+pod2usage( -verbose => 0 ) unless ( @ARGV );
 
-# AUR PACKAGE BUILDING
+## AUR PACKAGE BUILDING
 ##############################################################################
+
+sub msg
+{
+    print $_[0] unless $QUIET;
+}
 
 sub confirm_overwrite
 {
@@ -89,8 +109,42 @@ sub create_aurpkgdir
     return;
 }
 
+sub cpan_pkg
+{
+    my $mod_obj = shift;
+    $mod_obj->install( target  => shift,
+                       format  => 'CPANPLUS::Dist::Arch',
+                       verbose => $VERBOSE,
+                       pkg     => 'src',
+                       destdir => getcwd())
+}
+
 ## AUR PACKAGE UPLOAD
 ##############################################################################
+
+sub get_username
+{
+    my $username;
+
+    if ( !( $username = $NAME ) && -e $CFGPATH ) {
+        open my $cfgfile, '<', $CFGPATH or die "open $CFGPATH: $!";
+        $username = <$cfgfile>;
+        chomp $username;
+        if ( $username =~ /:/ ) {
+            undef $username;
+        }
+    }
+
+    if ( $username ) {
+        msg "Username:$username\n";
+        return $username;
+    }
+
+    my $rl = Term::ReadLine->new( 'cpan2aur' );
+    $username = $rl->readline( 'User:' );
+
+    return $username;
+}
 
 sub load_login_sid
 {
@@ -103,6 +157,7 @@ sub load_login_sid
 
     $username = lc $username;
     open my $cfgfile, '<', $CFGPATH or die "open $CFGPATH: $!";
+    <$cfgfile>; # skip first line, which has the last username in it
     while ( <$cfgfile> ) {
         return $1 if ( / ^ $username [ \t:]+ ([A-F0-9]+) /oxms );
     }
@@ -122,6 +177,11 @@ sub save_login_sid
     if ( -f $CFGPATH ) {
         local ($INPLACE_EDIT, @ARGV) = (q{}, $CFGPATH);
         while ( <> ) {
+            if ( $NR == 1) {
+                # Put last used username at the top of the file.
+                print $username, "\n";
+                next;
+            }
             $found ||= s/ ^ $username [ \t:]+ [A-F0-9]+ $/$username: $sid/oxms;
             print;
         }
@@ -139,46 +199,133 @@ sub save_login_sid
     return;
 }
 
-sub login_ua
+sub new_login_sid
 {
-    my ($ua, $username) = @_;
+    my ($ua, $username, $passwd) = @_;
 
-    my $sid = load_login_sid( $username );
-    unless ( $sid ) {
-        $ua->cookie_jar( HTTP::Cookies->new() );
+    # Get a fresh session ID cookie...
+    $ua->cookie_jar( HTTP::Cookies->new() );
+    my $resp = $ua->post( AUR_LOGIN_URI,
+                          [ user   => $username,
+                            passwd => $passwd ] );
+
+    # Check for problems...
+    die "Bad username or password\n"
+        if $resp->content =~ /$BAD_LOGIN_MSG/;
+
+    die "Error with AUR login, expected status code 302.\nGot status: ",
+        $resp->status_line if !( $resp->code == 302  && !$resp->is_success );
+
+    my $sid;
+    $ua->cookie_jar()->scan( sub { $sid = $_[2] if $_[1] eq COOKIE_NAME; } );
+
+    die "ERROR Login did not supply us with an AURSID cookie\n"
+        unless ( $sid );
+
+    return $sid;
+}
+
+sub mk_session_cookie
+{
+    my ($sid) = @_;
+
+    my %cookies = ( COOKIE_NAME() => $sid,
+                    AURLANG       => 'en', );
+
+    my $cookie_obj = HTTP::Cookies->new();
+    for my $name ( keys %cookies ) {
+        $cookie_obj->set_cookie( q{}, $name, $cookies{$name},
+                                 q{/}, 'aur.archlinux.org' );
     }
+
+    return $cookie_obj;
+}
+
+sub post_upload
+{
+    my ($ua, $pkg_path) = @_;
+
+    my $resp = $ua->post( AUR_UPLOAD_URI,
+                          'Content-Type' => 'form-data',
+                          'Content'      => [ category  => CAT_LIB(),
+                                              submit    => 'Upload',
+                                              pkgsubmit => 1,
+                                              pfile     => [ $pkg_path ],
+                                             ] );
+#     print STDERR $resp->content, "\n\n";
+
+    # We get a 302 Moved HTTP status code on success and when uploading a package
+    # that we own, where the package file is older and ignored...
+    return if $resp->code() == 302;
+    
+    die "Error when uploading file, got http status ", $resp->status_line
+        unless ( $resp->is_success );
+
+    die $NEED_LOGIN_ERR if ( $resp->content =~ /$NEED_LOGIN_MSG/ );
+    die $PKG_EXISTS_ERR if ( $resp->content =~ /$PKG_EXISTS_MSG/ );
 }
 
 sub upload_to_aur
 {
-    my ($ua, $pkg_path) = @_;
+    my ($pkg_path) = @_;
+    local $OUTPUT_AUTOFLUSH = 1;
+
+    msg "Uploading $pkg_path to AUR...\n";
+
+    my $username = get_username();
+    my $ua       = LWP::UserAgent->new();
+
+    # First try to reuse an old Session ID...
+    my $sid = load_login_sid( $username );
+
+    if ( $sid ) {
+        msg "Sending package as $username... ";
+        $ua->cookie_jar( mk_session_cookie( $sid ));
+        eval { post_upload( $ua, $pkg_path ) };
+        unless ($EVAL_ERROR) {
+            msg "ok\n";
+            return;
+        }
+
+        # Fall through to get a new session ID if we just need to re-login...
+        die unless $EVAL_ERROR =~ /$NEED_LOGIN_ERR/;
+
+        msg "old session ID failed.\n";
+    }
+
+    my $rl     = Term::ReadLine->new( 'cpan2aur' );
+    my $passwd = $rl->readline('Password:');
+
+    # Retrieve a new session and save it...
+    $sid = new_login_sid( $ua, $username, $passwd );
+    save_login_sid( $username, $sid );
+
+    msg "ok\n";
+
+    msg "Sending package as $username... ";
+    post_upload( $ua, $pkg_path );
+    msg "ok\n";
+
+    return;
 }
 
-sub cpan_pkg
-{
-    my $mod_obj = shift;
-    $mod_obj->install( target  => shift,
-                       format  => 'CPANPLUS::Dist::Arch',
-                       verbose => $VERBOSE,
-                       pkg     => 'src',
-                       destdir => getcwd())
-}
-
-sub random_sid
-{
-    state $charset = 'ABCDEF0123456789';
-    return join q{}, map { substr $charset, $_, 1 }
-        map { int( rand length $charset ) } 1 .. 32;
-}
-
-# SCRIPT START
+## SCRIPT START
 ##############################################################################
 
-my $sid = load_login_sid( 'juster' );
-say "\$sid = $sid" if $sid;
-$sid = random_sid();
-save_login_sid( 'juster', $sid );
+# my $ua = LWP::UserAgent->new;
+# my $sid = new_login_sid( $ua, 'juster' );
+# say "$sid";
+
+# $ua->cookie_jar( { COOKIE_NAME() => $sid } );
+upload_to_aur( $ARGV[0] );
+
 exit 0;
+
+# my $sid = load_login_sid( 'juster' );
+# say "\$sid = $sid" if $sid;
+# $sid = random_sid();
+# save_login_sid( 'juster', $sid );
+# exit 0;
 
 my $cb = CPANPLUS::Backend->new;
 
@@ -218,23 +365,65 @@ cpan2aur - AUR Utility for CPAN perl modules
 
 cpan2aur Module::Name [ Module::Name, ... Module::Name ]
 
- Options:
-   -h, --help            Brief help message.
-   -d, --directory       Create a source package directory with a PKGBUILD.
-   -f, --force           When using -d switch, overwrite the dir's old PKGBUILD
-                         without asking.
-   -q, --quiet           Quiet mode.  Supress our own messages.  Answers the default
-                         to any questions.
-   -v, --verbose         Allow CPANPLUS to be verbose (spammy).
-                         May be useful for debugging.
+ -h, --help            Brief help message.
+ -m, --man             Full help manpage.
+ -q, --quiet           Quiet mode.  Supress our own messages.  Answers
+                       the default to any questions.
+ -v, --verbose         Allow CPANPLUS to be verbose (spammy).
+                       May be useful for debugging.
+
+ -d, --directory       Create a source package directory with a PKGBUILD.
+ -f, --force           When using -d switch, overwrite the dir's old
+                       PKGBUILD without asking.
+
+ -u, --upload <file>   Upload the generated source package to the AUR.
+                       If a file is specified, [try to] upload that
+                       instead.
+                       * If no module is specified on the command line
+                         and a PKGBUILD exists in our current directory,
+                         run makepkg and then upload that source package.
+                         (see example in cpan2aur --help)
+ -n, --name <aurlogin> Use a new username to login to AUR, don't use
+                       the last one.
 
 =head1 DESCRIPTION
 
-This is a utility useful for creating and uploading perl packages for
+This is a utility made for creating and uploading perl packages for
 the AUR (Archlinux User Repository).  cpan2aur's simplest usage
-creates AUR source packages in the current directory.  With the -d or
---directory flags cpan2aur will create a directory to contain the
-source package and generate a PKGBUILD for it.
+creates AUR source packages in the current directory.
+
+With the I<-d> or I<--directory> flags cpan2aur will create a
+directory to contain the source package and generate a C<PKGBUILD>
+inside it.
+
+With the I<-u> or I<--upload> flag it will upload a source package to
+the AUR.  It will try to Do The Right Thing (tm) for uploading.  We
+store previous logins inside the file C<~/.cpan2aur>.  The last username
+that was used will be retried.  To specify a new name use the I<-n> or
+I<--name> flag.
+
+=over
+
+=item 1. If an argument is given to I<-u> then just try uploading that file.
+         (It must end in .pkg.tar.gz, though)
+
+=item 2. If we are inside a source package directory (with a PKGBUILD),
+         try to run 'makepkg' and then uplaod the resulting file.
+
+=item 3. Otherwise, create a vanilla .pkg.tar.gz file and then upload it.
+
+=back
+
+=head1 EXAMPLE
+
+Here is how to use the directory and upload features in your AUR
+packaging workflow:
+
+ cpan2aur -d ALPM     ( 1. We create a source package dir )
+ cd perl-alpm         ( 2. Enter it                       )
+ ed PKGBUILD          ( 3. Tweak the PKGBUILD a bit       )
+ cpan2aur -u          ( 4. Run makepkg and upload!        )
+                      ( 5. Done                           )
 
 =head1 SEE ALSO
 
