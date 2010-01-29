@@ -25,6 +25,8 @@ END_ERR
 my ($DIRECTORY, $VERBOSE, $UPLOAD, $QUIET, $FORCE, $HELP, $MAN, $NAME);
 
 sub PKGBUILD_ERRCODE() { 2 }
+sub TOOQUIET_ERRCODE() { 3 }
+
 sub AUR_LOGIN_URI()    { 'http://aur.archlinux.org/' }
 sub AUR_UPLOAD_URI()   { 'http://aur.archlinux.org/pkgsubmit.php' }
 sub COOKIE_NAME()      { 'AURSID' }
@@ -35,8 +37,8 @@ my $NEED_LOGIN_MSG = 'You must create an account before you can upload packages.
 my $PKG_EXISTS_MSG = qr{You are not allowed to overwrite the <b>.*?</b> package.};
 my $CFGPATH        = "$ENV{HOME}/.cpan2aur";
 
-my $NEED_LOGIN_ERR = "ERROR\nAttempted to upload with bad/no session";
-my $PKG_EXISTS_ERR = "ERROR\nAttempted to submit a package you do not own";
+my $NEED_LOGIN_ERR = "ERROR\nLogin session was invalid.\n";
+my $PKG_EXISTS_ERR = "ERROR\nYou tried to submit a package you do not own.\n";
 
 GetOptions( 'directory' => \$DIRECTORY,
             'verbose'   => \$VERBOSE,
@@ -122,51 +124,24 @@ sub cpan_pkg
 ## AUR PACKAGE UPLOAD
 ##############################################################################
 
-sub get_username
+sub load_last_login
 {
-    my $username;
+    return () unless ( -e $CFGPATH );
 
-    if ( !( $username = $NAME ) && -e $CFGPATH ) {
-        open my $cfgfile, '<', $CFGPATH or die "open $CFGPATH: $!";
-        $username = <$cfgfile>;
-        chomp $username;
-        if ( $username =~ /:/ ) {
-            undef $username;
-        }
-    }
-
-    if ( $username ) {
-        msg "Username:$username\n";
-        return $username;
-    }
-
-    my $rl = Term::ReadLine->new( 'cpan2aur' );
-    $username = $rl->readline( 'User:' );
-
-    return $username;
-}
-
-sub load_login_sid
-{
-    my ($username) = @_;
-
-    return undef unless ( -e $CFGPATH );
-
-    die "Please chmod 600 ~/.cpan2aur, it is not readable"
+    die q{Please 'chmod 600 ~/.cpan2aur', it is not readable}
         unless ( -r $CFGPATH );
 
-    $username = lc $username;
     open my $cfgfile, '<', $CFGPATH or die "open $CFGPATH: $!";
-    <$cfgfile>; # skip first line, which has the last username in it
-    while ( <$cfgfile> ) {
-        return $1 if ( / ^ $username [ \t:]+ ([A-F0-9]+) /oxms );
-    }
+    my ($user, $sid) = split ':', <$cfgfile>;
     close $cfgfile;
 
-    return undef;
+    return () unless ( $user && $sid && $sid =~ /^[A-F0-9]+$/m );
+
+    chomp $sid;
+    return ($user, $sid);
 }
 
-sub save_login_sid
+sub save_last_login
 {
     my ($username, $sid) = @_;
 
@@ -174,28 +149,11 @@ sub save_login_sid
     my ($oldmask, $found) = (umask 0077, 0);
     $username = lc $username;
 
-    if ( -f $CFGPATH ) {
-        local ($INPLACE_EDIT, @ARGV) = (q{}, $CFGPATH);
-        while ( <> ) {
-            if ( $NR == 1) {
-                # Put last used username at the top of the file.
-                print $username, "\n";
-                next;
-            }
-            $found ||= s/ ^ $username [ \t:]+ [A-F0-9]+ $/$username: $sid/oxms;
-            print;
-        }
-    }
-
-    unless ( $found ) {
-        open my $cfgfile, '>>', $CFGPATH or die "open $CFGPATH: $!";
-        seek $cfgfile, 0, 2 or die "seek: $!";
-        print $cfgfile "$username: $sid\n";
-        close $cfgfile or die "close $CFGPATH: $!";
-    }
+    open my $cfgfile, '>', $CFGPATH or die "open $CFGPATH: $!";
+    print $cfgfile "$username:$sid\n";
+    close $cfgfile or die "close $CFGPATH: $!";
 
     umask $oldmask;
-
     return;
 }
 
@@ -206,12 +164,14 @@ sub new_login_sid
     # Get a fresh session ID cookie...
     $ua->cookie_jar( HTTP::Cookies->new() );
     my $resp = $ua->post( AUR_LOGIN_URI,
-                          [ user   => $username,
-                            passwd => $passwd ] );
+                          [ user        => $username,
+                            passwd      => $passwd,
+                            remember_me => 1, # probably not needed
+                           ] );
 
     # Check for problems...
     die "Bad username or password\n"
-        if $resp->content =~ /$BAD_LOGIN_MSG/;
+        if ( $resp->content =~ /$BAD_LOGIN_MSG/ );
 
     die "Error with AUR login, expected status code 302.\nGot status: ",
         $resp->status_line if !( $resp->code == 302  && !$resp->is_success );
@@ -252,17 +212,22 @@ sub post_upload
                                               pkgsubmit => 1,
                                               pfile     => [ $pkg_path ],
                                              ] );
-#     print STDERR $resp->content, "\n\n";
 
     # We get a 302 Moved HTTP status code on success and when uploading a package
-    # that we own, where the package file is older and ignored...
-    return if $resp->code() == 302;
+    # that we own if the package file is older and ignored...
+    return if ( $resp->code() == 302 );
     
     die "Error when uploading file, got http status ", $resp->status_line
         unless ( $resp->is_success );
 
     die $NEED_LOGIN_ERR if ( $resp->content =~ /$NEED_LOGIN_MSG/ );
     die $PKG_EXISTS_ERR if ( $resp->content =~ /$PKG_EXISTS_MSG/ );
+}
+
+sub prompt
+{
+    exit TOOQUIET_ERRCODE if $QUIET;
+    return Term::ReadLine->new( 'cpan2aur' )->readline( shift );
 }
 
 sub upload_to_aur
@@ -272,39 +237,36 @@ sub upload_to_aur
 
     msg "Uploading $pkg_path to AUR...\n";
 
-    my $username = get_username();
-    my $ua       = LWP::UserAgent->new();
+    my ($username, $sid) = load_last_login();
+    $username ||= prompt( 'Username:' );
+    my $ua      = LWP::UserAgent->new();
 
     # First try to reuse an old Session ID...
-    my $sid = load_login_sid( $username );
-
     if ( $sid ) {
-        msg "Sending package as $username... ";
+        msg( "Sending package as $username... " );
         $ua->cookie_jar( mk_session_cookie( $sid ));
         eval { post_upload( $ua, $pkg_path ) };
-        unless ($EVAL_ERROR) {
-            msg "ok\n";
+        unless ( $EVAL_ERROR ) {
+            msg( "ok\n" );
             return;
         }
 
         # Fall through to get a new session ID if we just need to re-login...
-        die unless $EVAL_ERROR =~ /$NEED_LOGIN_ERR/;
+        die $@ unless ( $EVAL_ERROR =~ /$NEED_LOGIN_ERR/ );
 
-        msg "old session ID failed.\n";
+        msg( "old session ID failed. Starting new session.\n" );
     }
 
-    my $rl     = Term::ReadLine->new( 'cpan2aur' );
-    my $passwd = $rl->readline('Password:');
+    my $passwd = prompt( 'Password:' );
 
     # Retrieve a new session and save it...
     $sid = new_login_sid( $ua, $username, $passwd );
-    save_login_sid( $username, $sid );
+    save_last_login( $username, $sid );
+    msg( "ok\n" );
 
-    msg "ok\n";
-
-    msg "Sending package as $username... ";
+    msg( "Sending package as $username... " );
     post_upload( $ua, $pkg_path );
-    msg "ok\n";
+    msg( "ok\n" );
 
     return;
 }
