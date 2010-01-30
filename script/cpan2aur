@@ -42,8 +42,7 @@ my $PKG_EXISTS_ERR = "ERROR\nYou tried to submit a package you do not own.\n";
 
 GetOptions( 'directory' => \$DIRECTORY,
             'verbose'   => \$VERBOSE,
-            'upload:s'  => \$UPLOAD,
-            'name:s'    => \$NAME,
+            'upload'    => \$UPLOAD,
             'force'     => \$FORCE,
             'quiet'     => \$QUIET,
             'man'       => \$MAN,
@@ -62,7 +61,15 @@ pod2usage( -verbose => 0 ) unless ( @ARGV );
 
 sub msg
 {
-    print $_[0] unless $QUIET;
+    return if $QUIET;
+
+    if ( @_ == 2 ) {
+        my $fh = shift;
+        print $fh @_;
+        return;
+    }
+
+    print @_;
 }
 
 sub confirm_overwrite
@@ -99,26 +106,47 @@ sub create_aurpkgdir
         # If package directory exists, offer to overwrite PKGBUILD
         return unless confirm_overwrite( $pkgname );
         
-        say "Overwriting ${pkgname}/PKGBUILD..." unless $QUIET;
+        msg( "Overwriting ${pkgname}/PKGBUILD..." );
         unlink "$pkgname/PKGBUILD";
     }
     else {
         mkdir $pkgname or die qq{failed to "mkdir $pkgname": $!};
-        say "Creating ${pkgname}/PKGBUILD..." unless $QUIET;
+        msg( "Creating ${pkgname}/PKGBUILD..." );
     }
     $dist_obj->create_pkgbuild( $pkgname );
 
     return;
 }
 
-sub cpan_pkg
+sub create_dist_arch
 {
-    my $mod_obj = shift;
-    $mod_obj->install( target  => shift,
-                       format  => 'CPANPLUS::Dist::Arch',
-                       verbose => $VERBOSE,
-                       pkg     => 'src',
-                       destdir => getcwd())
+    my ($mod_obj, $target) = @_;
+    my $v = !$QUIET && $VERBOSE;
+
+    $mod_obj->fetch( verbose => $v ) && $mod_obj->extract( verbose => $v )
+        or return 0;
+
+    my ($stdout_dup, $stderr_dup);
+    if ( $QUIET ) {
+        # prepare() does not honor our 'verbose' argument.
+        # dist() does not pass our 'verbose' argument to create().
+        # time to get serious about begin quiet!
+        open $stdout_dup, '>&STDOUT' or die "duping STDOUT: $!";
+        open $stderr_dup, '>&STDERR' or die "duping STDOUT: $!";
+        close STDOUT;
+        close STDERR;
+    }
+
+    return $mod_obj->dist( target  => $target,
+                           format  => 'CPANPLUS::Dist::Arch',
+                           args    => { verbose => $v,
+                                        pkg     => 'src',
+                                        destdir => getcwd() } );
+
+    if ( $QUIET ) {
+        open STDOUT, ">&", $stdout_dup or die "resuming STDOUT: $!";
+        open STDERR, ">&", $stderr_dup or die "resuming STDERR: $!";
+    }
 }
 
 ## AUR PACKAGE UPLOAD
@@ -274,47 +302,35 @@ sub upload_to_aur
 ## SCRIPT START
 ##############################################################################
 
-# my $ua = LWP::UserAgent->new;
-# my $sid = new_login_sid( $ua, 'juster' );
-# say "$sid";
-
-# $ua->cookie_jar( { COOKIE_NAME() => $sid } );
-upload_to_aur( $ARGV[0] );
-
-exit 0;
-
-# my $sid = load_login_sid( 'juster' );
-# say "\$sid = $sid" if $sid;
-# $sid = random_sid();
-# save_login_sid( 'juster', $sid );
-# exit 0;
-
 my $cb = CPANPLUS::Backend->new;
 
 MODULE_ARG:
 for my $modname ( @ARGV ) {
     my $modobj = $cb->module_tree( $modname );
 
-    print "Finding module $modname... " unless $QUIET;
+    msg( "Finding module $modname... " );
 
     unless ( $modobj ) {
-        unless ( $QUIET ) {
-            say 'failed!';
-            warn "cpan2aur: Failed to find a module named $modname\n";
-        }
+        msg( "failed!\n" );
+        msg( *STDERR, "cpan2aur: Failed to find a module named $modname\n" );
         next MODULE_ARG;
     }
 
-    say 'done' unless $QUIET;
+    msg( "done\n" );
 
     if ( $DIRECTORY ) {
-        cpan_pkg( $modobj => 'prepare' ) or die "failed to prepare module";
-        create_aurpkgdir( $modobj->status->dist );
+        my $distobj = create_dist_arch( $modobj => 'prepare' )
+            or die "failed to prepare module";
+        create_aurpkgdir( $distobj );
         next MODULE_ARG;
     }
 
-    say "Creating source package file... " unless $QUIET;
-    cpan_pkg( $modobj => 'create' );
+    msg( "Creating source package file... " );
+    my $distobj = create_dist_arch( $modobj => 'create' );
+    if ( $UPLOAD ) {
+        my $srcpkg_fqp = $distobj->status->dist;
+        msg( $srcpkg_fqp );
+    }
 }
 
 __END__
@@ -338,15 +354,11 @@ cpan2aur Module::Name [ Module::Name, ... Module::Name ]
  -f, --force           When using -d switch, overwrite the dir's old
                        PKGBUILD without asking.
 
- -u, --upload <file>   Upload the generated source package to the AUR.
-                       If a file is specified, [try to] upload that
-                       instead.
+ -u, --upload          Upload the generated source package to the AUR.
                        * If no module is specified on the command line
                          and a PKGBUILD exists in our current directory,
                          run makepkg and then upload that source package.
                          (see example in cpan2aur --help)
- -n, --name <aurlogin> Use a new username to login to AUR, don't use
-                       the last one.
 
 =head1 DESCRIPTION
 
