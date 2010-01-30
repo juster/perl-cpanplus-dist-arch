@@ -107,9 +107,9 @@ source=('[% source %]')
 md5sums=('[% md5sums %]')
 
 build() {
-  _DISTDIR="${srcdir}/[% distdir %]"
+  DIST_DIR="${srcdir}/[% distdir %]"
   export PERL_MM_USE_DEFAULT=1
-  { cd "$_DISTDIR" &&
+  { cd "$DIST_DIR" &&
 [% IF is_makemaker %]
     perl Makefile.PL INSTALLDIRS=vendor &&
     make &&
