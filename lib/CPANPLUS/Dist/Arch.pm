@@ -47,7 +47,6 @@ END_MSG
 my $PACMAN_FINDOWN     = qr/\A[^ ]+ is owned by ([\w-]+) ([\w.-]+)/;
 my $PACMAN_FINDOWN_ERR = qr/\Aerror:/;
 
-
 # Override a package's name to conform to packaging guidelines.
 # Copied entries from CPANPLUS::Dist::Pacman and alot more
 # from searching for packages with perl in their name in
@@ -74,21 +73,6 @@ SDL_Perl       = sdl_perl
 shorewall-perl = shorewall-perl
 
 END_OVERRIDES
-
-=for Mini-Template Format
-    The template format is very simple, to insert a template variable
-    use [% foo %].  This will insert the value of the variable
-    named 'foo'.
- 
-    The print_template() sub will throw: 'Template variable ... was
-    not provided' if the variable was not defined.
- 
-    [% IF var_name %] ... [% FI %] will remove the ... stuff if the
-    variable named var_name is not set to a true value.
- 
-    See the _process_template method below.
-
-=cut
 
 # Crude template for our PKGBUILD script
 my $PKGBUILD_TEMPL = <<'END_TEMPL';
@@ -218,7 +202,7 @@ sub init
 
     $self->status->mk_accessors( qw{ pkgname  pkgver  pkgbase pkgdesc
                                      pkgurl   pkgsize pkgarch
-                                     builddir destdir } );
+                                     builddir destdir pkgbuild_templ  } );
     return 1;
 }
 
@@ -550,6 +534,20 @@ sub get_pkgvars_ref
     return { $self->get_pkgvars };
 }
 
+sub set_pkgbuild_templ
+{
+    my ($self, $template) = @_;
+
+    return $self->status->pkgbuild_templ( $template );
+}
+
+sub get_pkgbuild_templ
+{
+    my ($self) = @_;
+
+    return $self->status->pkgbuild_templ() || $PKGBUILD_TEMPL;
+}
+
 sub get_pkgbuild
 {
     croak 'Invalid arguments to get_pkgbuild' if ( @_ < 1 );
@@ -580,8 +578,9 @@ sub get_pkgbuild
           $dist_type eq 'CPANPLUS::Dist::Build' ? (0, 1) :
           die "unknown Perl module installer type: '$dist_type'" );
 
-    return scalar $self->_process_template( $PKGBUILD_TEMPL,
-                                            $templ_vars );
+    my $templ_text = $status->pkgbuild_templ || $PKGBUILD_TEMPL;
+
+    return scalar $self->_process_template( $templ_text, $templ_vars );
 }
 
 sub create_pkgbuild

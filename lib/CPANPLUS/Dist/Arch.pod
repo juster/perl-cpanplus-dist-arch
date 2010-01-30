@@ -239,6 +239,39 @@ included in the examples directory for an example.
             Invalid directoy passed to create_pkgbuild: ...
   Returns : Nothing.
 
+=head2 get_pkgbuild_templ
+
+  Usage   : my $tt_text = $self->get_pkgbuild_templ();
+  Purpose : Mostly just to compliment L</set_pkgbuild_templ>.
+  Returns : The template used internally by L</get_pkgbuild>
+
+See L</PKGBUILD TEMPLATE>.
+
+=head2 set_pkgbuild_templ
+
+  Usage   : my $new_tt_text = $self->set_pkgbuild_templ( $templ_text );
+  Purpose : Create PKGBUILDs based on a template.
+  Params  : $templ_text - New template text to use for creating the PKGBUILD.
+  Returns : The new template text.
+            
+See L</PKGBUILD TEMPLATE>.
+
+=head1 PKGBUILD TEMPLATE
+
+The template format is an extremely simplified ripoff of
+L<Template::Toolkit> syntax.  It only implements variable
+interpolation and the C<IF> directive.
+
+To insert a template variable use the syntax C<[% foo %]>.  This will
+insert the value of the variable named 'foo'.  The C<get_pkgbuild()>
+method will croak with the message I<Template variable ... was not
+provided> if the variable was not defined.  C<[% IF var_name %]>
+... C<[% FI %]> will remove what is in-between the C<IF> and C<FI>
+tags if the variable named C<var_name> is not set to a true value.
+
+See L</get_pkgvars> for a list of the variables that can be used
+inside the template.
+
 =head1 LIMITATIONS
 
 There are some limitations in the way CPANPLUS and pacman works
