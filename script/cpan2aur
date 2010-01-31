@@ -32,6 +32,8 @@ sub AUR_UPLOAD_URI()   { 'http://aur.archlinux.org/pkgsubmit.php' }
 sub COOKIE_NAME()      { 'AURSID' }
 sub CAT_LIB()          { 10 };
 
+my $TT_DIST_PREFIX = '# CPAN Dist. : ';
+
 my $BAD_LOGIN_MSG  = 'Bad username or password.';
 my $NEED_LOGIN_MSG = 'You must create an account before you can upload packages.';
 my $PKG_EXISTS_MSG = qr{You are not allowed to overwrite the <b>.*?</b> package.};
@@ -50,7 +52,7 @@ GetOptions( 'directory' => \$DIRECTORY,
             'template'  => \$TEMPLATE,
             'verbose'   => \$VERBOSE,
             'reverse'   => \$REVERSE,
-            'upload'    => \$UPLOAD,
+            'upload:s'  => \$UPLOAD,
             'force'     => \$FORCE,
             'quiet'     => \$QUIET,
             'man'       => \$MAN,
@@ -62,7 +64,6 @@ pod2usage( -message => 'We cannot be both verbose and quiet!',
            -retval  => 1 ) if ( $VERBOSE && $QUIET);
 
 pod2usage( -verbose => 1 ) if ( $HELP );
-pod2usage( -verbose => 0 ) unless ( @ARGV );
 
 ## AUR PACKAGE BUILDING
 ##############################################################################
@@ -102,8 +103,8 @@ sub confirm_overwrite
     {
         my $rl = Term::ReadLine->new( 'cpan2aur' );
             
-        print "$file_path already exists, overwrite? [y/N] ";
-        my $answer = $rl->readline;
+        print "$file_path already exists, overwrite? [yN] ";
+        my $answer = $rl->readline();
         
         $answer ||= q{n};
         redo USER_QUESTION unless $answer =~ /\A[yn]/i;
@@ -345,12 +346,14 @@ sub new_tt_file
 {
     my ($dist_obj) = @_;
 
-    return unless confirm_overwrite( 'PKGBUILD.tt' );
-
     my $pkgdir = $dist_obj->status->pkgname;
+    mkdir $pkgdir unless ( -d $pkgdir );
+
+    return unless confirm_overwrite( "$pkgdir/PKGBUILD.tt" );
+
     open my $templ_file, '>', "$pkgdir/PKGBUILD.tt"
         or die "open PKGBUILD.tt failed: $!";
-
+    print $templ_file $TT_DIST_PREFIX, $dist_obj->parent->package_name, "\n";
     print $templ_file $dist_obj->get_pkgbuild_templ;
     close $templ_file or die "close PKGBUILD.tt failed: $!";
 }
@@ -361,12 +364,21 @@ sub pkgbuild_to_tt
     # Handle missing or existing files...
     die "ERROR There is no PKGBUILD in current directory that we can reverse
 into a template" unless ( -f 'PKGBUILD' );
+
     return unless confirm_overwrite( 'PKGBUILD.tt' );
 
-    # Replace all bash variables values we can with template values...
     my $pkgbuild_txt = do { local (@ARGV, $/) = 'PKGBUILD'; <> };
 
-    my @var_names = qw{ pkgname pkgver pkgdesc depends url source md5sums source };
+    # Find the distribution name so we can look it up when we convert the template
+    # to the PKGBUILD...
+    my ($distname) =
+        $pkgbuild_txt =~ m{^ source = \s* [^\n]* / ( [-\w]+ ) -\d }xms;
+    
+    die "ERROR failed to determine the distribution name from the existing PKGBUILD\n"
+        unless ( $distname );
+
+    # Replace all bash variables values we can with template values...
+    my @var_names = qw{ pkgname pkgver pkgdesc url source md5sums source };
     my $var_match = join '|', @var_names;
 
     $pkgbuild_txt =~ s{($var_match) = \s* ["]    .*? [^\\] ["]    }
@@ -378,6 +390,13 @@ into a template" unless ( -f 'PKGBUILD' );
     $pkgbuild_txt =~ s{($var_match) = \s* [(]["] .*? [^\\] ["][)] }
                       {$1=("\[% $1 \%]")}gxms;
 
+    # Depends are different, remove the quotes from inside the parenthesis.
+    # Also try to preserve non-perl dependencies...
+    $pkgbuild_txt =~ s{ depends = \s* [(] (.*?) [)] }
+                      { q{depends=([% depends %] }
+                        . ( join q{ }, grep { !/perl/ } split /\s+/, $1 )
+                        . q{)} }xmse;
+
     # Also replace _DISTDIR or DIST_DIR if we are creating a template from
     # a C::D::A generated PKGBUILD...
     $pkgbuild_txt =~ s{(DIST|_DIST)DIR=".*?"}{DIST_DIR="\${srcdir}/[% distdir %]"};
@@ -385,6 +404,7 @@ into a template" unless ( -f 'PKGBUILD' );
     # Change _DISTDIR for backwards compatibility...
 
     open my $templ_file, '>', 'PKGBUILD.tt' or die "open PKGBUILD.tt: $!";
+    print $templ_file $TT_DIST_PREFIX, $distname, "\n";
     print $templ_file $pkgbuild_txt;
     close $templ_file;
 
@@ -394,24 +414,86 @@ into a template" unless ( -f 'PKGBUILD' );
 }
 
 # Fills a template and prints it to a PKGBUILD file.
+# Returns: A CPANPLUS::Dist::Arch object of the PKGBUILD's package.
 sub tt_to_pkgbuild
 {
-    my ($distobj) = @_;
-
     return unless confirm_overwrite( 'PKGBUILD' );
 
     open my $templ_file, '<', 'PKGBUILD.tt' or die "open PKGBUILD.tt: $!";
+    my ($distname) = ( scalar <$templ_file> ) =~ /^$TT_DIST_PREFIX(.*)$/;
+    die qq{ERROR "$TT_DIST_PREFIX" line is missing from the PKGBUILD.tt template\n}
+        unless $distname;
+    
     my $templ_text = do { local $/; <$templ_file> };
     close $templ_file or die "close PKGBUILD.tt: $!";
 
+    print STDERR "*** \$distname = $distname\n";
+
+    my $cb      = CPANPLUS::Backend->new();
+    my $modobj  = $cb->parse_module( module => $distname );
+    my $distobj = create_dist_arch( $modobj => 'prepare' );
+
     $distobj->set_pkgbuild_templ( $templ_text );
     $distobj->create_pkgbuild( q{.} );
-    return;
+
+    return $distobj;
 }
 
 ## SCRIPT START
 ##############################################################################
 
+if ( $REVERSE ) {
+    pkgbuild_to_tt();
+    exit 0;
+}
+
+UPLOAD_CMD:
+if ( defined $UPLOAD && !@ARGV ) {
+    # A string argument was given to the -upload switch, is it a directory,
+    # file, or module?  Try to DWIM.
+
+    if ( length $UPLOAD > 0 ) {
+        if ( -d $UPLOAD ) {
+            # Hopefully this is a package directory...
+            chdir $UPLOAD;
+        }
+        elsif ( $UPLOAD =~ /[.]src[.]tar[.]gz$/ && -f $UPLOAD ) {
+            upload_to_aur( $UPLOAD );
+            exit 0;
+        }
+        else {
+            push @ARGV, $UPLOAD;
+            goto PARSE_MODS;
+        }
+    }
+
+    # Without any arguments, work on the current directory as if it is
+    # a source package directory...
+
+    # Convert template to PKGBUILD if one exists in the directory.
+    tt_to_pkgbuild() if ( -f 'PKGBUILD.tt' );
+
+    die <<'END_ERR' unless ( -f 'PKGBUILD' );
+There is no PKGBUILD in the directory and no module names
+specified on the command line.  Cannot upload anything.
+END_ERR
+
+    my $make_cmd = join ' ', 'makepkg', '--source', ( $FORCE ? '-f' : () ), '2>&1';
+    my $output = `$make_cmd`;
+
+    # We can only parse the output of makepkg to find the filename...
+    my @pkginfo = $output =~ /Making package: ([\w-]+) ([\d.-]+)/
+        or die "ERROR makepkg returned unknown output";
+
+    my $pkgfile = ( join '-', @pkginfo ) . '.src.tar.gz';
+
+    upload_to_aur( $pkgfile );
+    exit 0;
+}
+
+pod2usage( -verbose => 0 ) unless ( @ARGV );
+
+PARSE_MODS:
 my $cb = CPANPLUS::Backend->new;
 
 MODULE_ARG:
@@ -427,6 +509,14 @@ for my $modname ( @ARGV ) {
     }
 
     msg( "done\n" );
+
+    if ( $TEMPLATE ) {
+        my $distobj = create_dist_arch( $modobj => 'prepare' )
+            or die "failed to prepare module";
+
+        new_tt_file( $distobj );
+        next MODULE_ARG;
+    }
 
     if ( $DIRECTORY ) {
         my $distobj = create_dist_arch( $modobj => 'prepare' )
@@ -454,8 +544,7 @@ cpan2aur - AUR Utility for CPAN perl modules
 
 cpan2aur [-qvfdtu] Module::Name [ Module::Name, ... Module::Name ]
 
-cd <package-directory>
-cpan2aur [-r or -u]
+cd <package-directory>; cpan2aur [-r or -u]
 
  -h, --help            Brief help message.
  -m, --man             Full help manpage.
@@ -466,19 +555,22 @@ cpan2aur [-r or -u]
  -f, --force           Overwrite files without confirming.
 
  -d, --directory       Create a source package directory with a PKGBUILD.
- -t, --template        Create a source package directory with a PKGBUILD.tt
-                       template file.
- -r, --reverse         Convert a PKGBUILD in the current directory to a template
-                       (a PKGBUILD.tt file).
- -u, --upload          Upload the generated source package to the AUR.
-                       * If no module is specified on the command line
-                         and a PKGBUILD exists in our current directory,
-                         run makepkg and then upload that source package.
-                         (see example in cpan2aur --help)
-                         + If a PKGBUILD.tt exists instead, generate a
-                           PKGBUILD from that instead.
+ -t, --template        Create a source package directory with a default
+                       PKGBUILD.tt template file.
+ -r, --reverse         Convert a PKGBUILD in the current directory to a template.
+ -u, --upload  [dir]   Upload the generated source package to the AUR.
+              [file]   * If a dir is specified cd to that dir and...
+            [module]     convert PKGBUILD.tt (optional) to PKGBUILD to
+                         source package.
+                       * If a file is specified, upload it if it appears to be
+                         a source package.
+                       * If a module is specified, makepkg and upload it.
+                       * If nothing is specified, act as if the current
+                         directory was given as an argument.
+                         
 
-(Unlike GNU options, single-letter options need their own hyphen, ie: -u -d)
+ (Unlike GNU options, single-letter options need their own hyphens
+  example: -u -d)
 
 =head1 DESCRIPTION
 
