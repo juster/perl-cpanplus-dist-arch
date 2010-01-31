@@ -2,3 +2,8 @@
 \tt#*#
 META.yml
 Makefile.*
+Build
+MYMETA.yml
+_build/*
+blib/*
+*.tmp
