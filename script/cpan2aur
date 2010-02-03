@@ -12,8 +12,7 @@ use Pod::Usage;
 use 5.010;
 use Cwd;
 
-use LWP::UserAgent;
-use HTTP::Cookies;
+our $VERSION = '0.10';
 
 eval { require CPANPLUS::Dist::Arch; 1; }
     or die <<END_ERR;
