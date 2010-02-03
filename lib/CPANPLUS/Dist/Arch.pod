@@ -6,51 +6,65 @@ CPANPLUS::Dist::Arch - CPANPLUS backend for building Archlinux pacman packages
 
 =head1 VERSION
 
-Version 0.16
+Version 0.17
+
+=for readme stop
 
 =head1 SYNOPSIS
 
-  (First, setup cpan to use us automatically:)
+  (First, setup cpan to use us automatically)
   $ setupdistarch
   This script will now setup CPANPLUS to automatically package all
   modules into pacman packages when installing.
   Are you sure you want to do this? [y/N] y
   Set CPANPLUS to package all modules through CPANPLUS::Dist::Arch
 
-  (Install the module as a pacman package:)
+  (Install the module as a pacman package)
   $ cpanp -i Perl::Module::Here
 
-  (Add --verbose for more output:)
+  (Add --verbose for more output)
   $ cpanp -i Acme::Bleach --verbose
 
-  (Use cpan2dist to make a package, but don't install it:)
+  (Use cpan2dist to make a package, but don't install it)
   $ cpan2dist --verbose Acme::Bleach
 
-  (Use our included cpan2aur to make a source package in current dir:)
+  (Use our included cpan2aur to make a source package in current dir)
   $ cpan2aur CPANPLUS::Dist::Arch
 
   (Oh no!  If something doesn't autopackage, create an AUR package dir
    under our current dir.  This package dir contains a PKGBUILD we can
-   edit and then run makepkg on:)
+   edit and then run makepkg on)
   $ cpan2aur -d CPANPLUS::Dist::Arch
   Finding module CPANPLUS::Dist::Arch... done
   Created perl-cpanplus-dist-arch/PKGBUILD
   $ cd perl-cpanplus-dist-arch
-  $ emacs PKGBUILD
-  $ makepkg
-  (Get the idea? Now upload, etc)
+  $ ed PKGBUILD
+
+  (Submit it to AUR!  Will ask for a login username/password or remember
+   the last one used)
+  $ cpan2aur -u
+
+=for readme continue
+
+=head1 DESCRIPTION
+
+This module is used as a plugin of CPANPLUS to transparently package
+CPAN distribution files into pacman packages as they are installed.
+This module can also be used by programmers to build packages in more
+complex ways.  For example, it can create source packages for the AUR
+by using the included L<cpan2aur> program.
+
+=head1 REQUIREMENTS
+
+You will need to have pacman installed, of course, to create package
+and to install these new packages.  Pacman is included with Archlinux
+but can even be used on other Linux distributions.
+(see http://wiki.archlinux.org/index.php/Pacman)
 
 =head1 SETUP
 
-Setting up L<CPANPLUS> to use this module automatically is as easy as
-the example above.  See L<setupdistarch>(1) for more information about
-setupdistarch.  If you are having trouble running C<setupdistarch> or
-C<cpanp>, your C<PATH> may not be set properly, add C</usr/bin/perlbin/core>
-and C</use/bin/perlbin/vendor> to your C<.profile> file in your home
-directory.
-
-  # Example ~/.profile
-  export PATH=/usr/bin:/bin:/usr/bin/perlbin/core:/usr/bin/perlbin/vendor
+Type L<setupdistarch> at the command line to install CPAN modules
+as packages by default.
 
 =head1 WHERE IS THE PACKAGE
 
@@ -58,35 +72,42 @@ By default, packages are stored under the user's home directory in the
 .cpanplus directory.  Two seperate directories are created for
 building packages and for storing the resulting package file.
 
-=over
+I<5.10.0> represents the version of perl you used to build the package
+and I<~/.cpanplus> represents the base directory chosen in your CPANPLUS
+config.
 
-=item Build Directory
+=over 4
 
-C<~/.cpanplus/5.10.0/pacman/build>
+=item Build Directory - C<~/.cpanplus/5.10.0/pacman/build>
 
-=item Package Directory
-
-C<~/.cpanplus/5.10.0/pacman/pkg>
+=item Package Directory - C<~/.cpanplus/5.10.0/pacman/pkg>
 
 =back
 
-Where C<5.10.0> represents the version of perl you used to build the
-package and ~/.cpanplus represents the base directory chosen
-in your CPANPLUS config.
-
 =head1 CUSTOMIZATION
 
-=head2 PKGDEST
+You can change defaults settings machine-wide (for every user) or for
+one user or package.  The machine-wide settings are set in the
+I</etc/makepkg.conf> file.  The user/package customizations are set
+using environment variables.
 
-You can change the destination by setting C<PKGDEST> in your
-C</etc/makepkg.conf> file.  You can also set the C<PKGDEST> environment
-variable to a directory where you want to store all built packages.
+=over
 
-=head2 PACKAGER
+=item PKGDEST  - Override where the package files end up.
 
-The C<PACKAGER> in C</etc/makepkg.conf> is inserted into the PKGBUILD
-comment header.  If there is no PACKAGER set, then 'Anonymous' is used
-instead.  You may also use the C<PACKAGER> environment variable.
+=item PACKAGER - Override the Contributor comment line at the top of the PKGBUILD.
+
+=back
+
+=for readme stop
+
+=head2 EXAMPLE
+
+Here is how you can use environment variables to put the package files
+in our I<~/pkgs> directory for the L<ALPM> module. (along with any
+modules we have to build and install to create it)
+
+  PACKAGER='Juster <juster at cpan dot org>'> PKGDEST=~/pkgs cpanp -i ALPM
 
 =head1 COMMAND LINE OPTIONS
 
@@ -98,7 +119,7 @@ small number of these options are recognized by CPANPLUS::Dist::Arch.
 =item B<--verbose>
 
 This classic option allows for more verbose messages.  Otherwise you
-get next to no output.  Useful for debugging and neurosis.
+get next to no output.
 
 =item B<--skiptest>
 
@@ -114,9 +135,7 @@ unless you know what you are doing.
 =head1 DIST OPTIONS
 
 cpan2dist allows you specify CPANPLUS::Dist::Arch specific options on
-the command line.  I'm not sure how or if cpanp does the same.  Look
-at the source code of the L<cpan2aur> script to see how they also work
-programmatically.
+the command line using the I<--dist-opts> switch.
 
 =over
 
@@ -127,26 +146,55 @@ The default is to make a binary package.
 
 =item B<destdir>
 
-Specifies where to store the resulting package.  The default is to
-store under the C<~/.cpanp/pacman/pkg> directory, or the directory
-specified by C<PKGDEST> in the C</etc/makepkg.conf> config file.
+This overrides every other package destination specified.  Whether from
+the makepkg.conf file, environment variable, or default.
 
 =back
 
-=head1 EXPORT TAGS
+=head1 PROGRAMMERS API
+
+The rest of the document describes how a programmer can use the module.
+You can use this module with the CPANPLUS module in order to install
+distributions/packages in more complex ways.
+
+Here is a quick example of how you use C::D::A with L<CPANPLUS::Backend>.
+
+=head2 EXAMPLE
+
+  use CPANPLUS::Backend;
+  use warnings;
+  use strict;
+
+  # Create a source package in our current directory, no verbosity.
+  my $cb  = CPANPLUS::Backend->new();
+  my $mod = $cb->module_tree( 'ALPM' );
+  $mod->install( target  => 'create',
+                 format  => 'CPANPLUS::Dist::Arch',
+                 pkg     => 'src',
+                 destdir => '.',
+                 verbose => 0
+               );
+ )
+
+See also L<CPANPLUS::Module>.  The C<create_dist_arch> sub in the
+L<cpan2aur> script shows how to use CPANPLUS::Module's dist() method,
+which is a little funky.  I<(I want to submit a patch to it when I get
+the chance)>
+
+=head2 EXPORT TAGS
 
 =over 4
 
 =item B<:all>
 
 This will import the functions C<dist_pkgname> and C<dist_pkgver> into
-your package.
+your package.  These functions are not imported by default.
 
 =back
 
-=head1 EXPORTED FUNCTIONS
+=head2 EXPORTED FUNCTIONS
 
-=head2 dist_pkgname
+=head3 dist_pkgname
 
   Usage   : my $pkgname = dist_pkgname( 'Acme-Drunk' );
   Purpose : Converts a module's distribution name to an
@@ -155,7 +203,7 @@ your package.
   Returns : The Archlinux perl package name (ex: perl-acme-drunk).
             following the Archlinux packaging standards.
 
-=head2 dist_pkgver
+=head3 dist_pkgver
 
   Usage   : my $pkgver = dist_pkgver( '1.20.1_2A' );
   Purpose : Convert a module's CPAN distribution version into our more
@@ -164,30 +212,30 @@ your package.
   Returns : The Archlinux package version following the Archlinux
             packaging standards.
 
-=head1 PUBLIC METHODS
+=head2 PUBLIC METHODS
 
 When using the CPANPLUS module in a perl script to create packages,
 these public methods are available.  See the cpanpkgbuild.pl script
 included in the examples directory for an example.
 
-=head2 set_destdir
+=head3 set_destdir
 
   Usage   : $dist->set_destdir('~/pkg/perl');
   Purpose : Sets the directory to store the resulting package.
   Returns : The directory that was set.
 
-=head2 get_destdir
+=head3 get_destdir
 
   Usage   : my $dest = $dist->get_destdir;
   Returns : The directory where the package is going to end up.
 
-=head2 get_pkgpath
+=head3 get_pkgpath
 
   Usage   : my $fqp = $dist->get_pkgpath;
   Returns : The fully qualified path of the built package
             or undef if no package was built yet.
 
-=head2 get_cpandistdir
+=head3 get_cpandistdir
 
   Usage   : my $distdir = $dist->get_cpandistdir;
   Returns : The main directory name that will be inside the distribution
@@ -198,7 +246,7 @@ included in the examples directory for an example.
   Notes   : Does not actually check if the directory exists in the tarball.
             So far it always has...
 
-=head2 get_pkgvars
+=head3 get_pkgvars
 
   Usage   : my %pkgvars = $dist->get_pkgvars;
   Returns : A hash containing all the PKGBUILD variables.
@@ -212,12 +260,12 @@ included in the examples directory for an example.
             The hashref keys are packages and their values are
             required versions, or 0 if there is no required version.
 
-=head2 get_pkgvars_ref
+=head3 get_pkgvars_ref
 
   Usage    : my $pkgvars_ref = $dist->get_pkgvars_ref;
   Returns  : The same as get_pkgvars except as a hashref.
 
-=head2 get_pkgbuild
+=head3 get_pkgbuild
 
   Usage    : my $pkgbuildtext = $dist->get_pkgbuild;
   Params   : $skiptest - (optional, default is 0)
@@ -225,7 +273,7 @@ included in the examples directory for an example.
   Returns  : A scalar containing the full text of the PKGBUILD that would
              be generated in the perl pacman package.
 
-=head2 create_pkgbuild
+=head3 create_pkgbuild
 
   Usage   : $self->create_pkgbuild( '/tmp', 1 );
   Purpose : Creates a PKGBUILD file in the specified directory.
@@ -239,7 +287,7 @@ included in the examples directory for an example.
             Invalid directoy passed to create_pkgbuild: ...
   Returns : Nothing.
 
-=head2 get_pkgbuild_templ
+=head3 get_pkgbuild_templ
 
   Usage   : my $tt_text = $self->get_pkgbuild_templ();
   Purpose : Mostly just to compliment L</set_pkgbuild_templ>.
@@ -247,27 +295,26 @@ included in the examples directory for an example.
 
 See L</PKGBUILD TEMPLATE>.
 
-=head2 set_pkgbuild_templ
+=head3 set_pkgbuild_templ
 
   Usage   : my $new_tt_text = $self->set_pkgbuild_templ( $templ_text );
-  Purpose : Create PKGBUILDs based on a template.
+  Purpose : Create PKGBUILDs based on a custom template.
   Params  : $templ_text - New template text to use for creating the PKGBUILD.
   Returns : The new template text.
             
 See L</PKGBUILD TEMPLATE>.
 
-=head1 PKGBUILD TEMPLATE
+=head2 PKGBUILD TEMPLATE
 
 The template format is an extremely simplified ripoff of
 L<Template::Toolkit> syntax.  It only implements variable
-interpolation and the C<IF> directive.
-
-To insert a template variable use the syntax C<[% foo %]>.  This will
-insert the value of the variable named 'foo'.  The C<get_pkgbuild()>
-method will croak with the message I<Template variable ... was not
-provided> if the variable was not defined.  C<[% IF var_name %]>
-... C<[% FI %]> will remove what is in-between the C<IF> and C<FI>
-tags if the variable named C<var_name> is not set to a true value.
+interpolation and the C<IF> directive.  To insert a template variable
+use the syntax C<[% foo %]>.  This will insert the value of the
+variable named 'foo'.  The C<get_pkgbuild()> method will croak with
+the message I<"Template variable ... was not provided"> if the variable
+was not defined.  C<[% IF var_name %]> ... C<[% FI %]> will remove
+what is in-between the C<IF> and C<FI> tags if the variable named
+C<var_name> is not set to a true value.
 
 See L</get_pkgvars> for a list of the variables that can be used
 inside the template.
@@ -284,7 +331,7 @@ are in the L</BUGS> section.
 
 =item B<Cannot detect non-perl dependencies>
 
-As of version 0.9, CPANPLUS will I<try> to find non-perl dependencies.
+As of version 0.09, CPANPLUS will I<try> to find non-perl dependencies.
 This only works with ExtUtils::MakeMaker distributions.
 
 This means if you plan on distributing a perl module package (ie
@@ -296,7 +343,7 @@ packages.
 
 =item B<A module is installed, but pacman says it isn't>
 
-CPAN[PLUS] considers a module installed if it can be C<use>d.  That
+CPAN[PLUS] considers a module installed if it can C<use> it.  That
 is, if it is in C<@INC> somewhere on your system.
 
 I<Pacman> considers a module installed if it has been packaged and
@@ -321,18 +368,6 @@ Arch package and installs it with I<pacman> instead.
 
 You should be able to run I<pacman> under sudo for this to work properly.
 Or you could run cpan2dist as root, but I wouldn't recommend it.
-
-=item B<All module packages are installed explicitly>
-
-This has to do with how I<pacman> categorizes automatically installed
-dependencies implicitly installed package.  Explicitly installed
-packages are packages installed by the user, by request.
-
-So, logically, all pre-requisite perl modules should be installed
-implicitly but right now everything is installed explicitly.
-
-If this is a big problem, tell me and I will try to make some hackish
-solution.  I can't think of an elegant way to do this.
 
 =item B<Readline is broken and I can't use cpanplus!>
 
@@ -386,9 +421,11 @@ with cpan2dist so far.  It happened when building L<PDL>, by the way.
 
 =back
 
+=for readme continue
+
 =head1 SUPPORT
 
-Email me at C<< jrcd83 at gmail >> or message me as I<juster> on the
+Email me at C<< juster at cpan dot org >> or message me as I<juster> on the
 Archlinux BBS at L<http://bbs.archlinux.org>.
 
 To check why the build process failed, read the build logs CPANPLUS
@@ -409,7 +446,7 @@ helpful starting point to try to understand the internals of CPANPLUS.
 
 =over
 
-=item * AUR Package: perl-cpanplus-dist
+=item * AUR Package: perl-cpanplus-dist-arch
 
 L<http://aur.archlinux.org/packages.php?ID=24971>
 
@@ -437,7 +474,7 @@ L<http://search.cpan.org/dist/CPANPLUS/>
 
 =head1 AUTHOR
 
-Justin Davis, C<< <jrcd83 gmail> >>, juster on L<http://bbs.archlinux.org>
+Justin Davis C<< <juster at cpan dot org> >>
 
 =head1 COPYRIGHT & LICENSE
 

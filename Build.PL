@@ -5,7 +5,7 @@ use Module::Build;
 my $builder = Module::Build->new(
     module_name         => 'CPANPLUS::Dist::Arch',
     license             => 'perl',
-    dist_author         => 'Justin Davis <jrcd83@gmail.com>',
+    dist_author         => 'Justin Davis < juster at cpan dot org >',
     dist_version_from   => 'lib/CPANPLUS/Dist/Arch.pm',
     build_requires => {
         'Test::More' => 0,

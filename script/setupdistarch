@@ -62,6 +62,17 @@ END_ERR
         }
 
         $conf->set_conf( dist_type => ( $do_removal ? '' : $newval ));
+
+        if ( $conf->get_conf( 'prereqs' ) != 1 && !$do_force ) {
+            print 'Recursively install all module dependencies as well? [yN] ';
+            $answer = <STDIN>;
+            chomp $answer;
+
+            if ( $answer =~ /\A[yY]/ ) {
+                $conf->set_conf( 'prereqs' => 1 );
+            }
+        }
+        
         $conf->save;
     };
 
@@ -72,7 +83,7 @@ END_ERR
 
     print +( $do_removal
              ? 'Set CPANPLUS to not package modules'
-             : 'Set CPANPLUS to package all modules through CPANPLUS::Dist::Arch' ), "\n";
+             : 'Set CPANPLUS to package all modules through CPANPLUS::Dist::Arch' ), ".\n";
     exit 0;
 }
 
@@ -104,19 +115,19 @@ be owned by root.
 
 =over
 
-=item B<--help>
+=item B<-h, --help>
 
 Print a brief help message and exit.
 
-=item B<--man>
+=item B<-m, --man>
 
 Prints the manual page and exists.
 
-=item B<--remove>
+=item B<-r, --remove>
 
 Configures CPANPLUS to not use any packager when installing modules.
 
-=item B<--force>
+=item B<-f, --force>
 
 Forces the changes to CPANPLUS configuration without prompting for
 confirmation.  Might be useful when running as root uninteractively,
@@ -161,8 +172,7 @@ the following to your /home/(username)/.profile file:
 
 =head1 AUTHOR
 
-Justin Davis, C<< <jrcd83 gmail> >>, juster on
-L<http://bbs.archlinux.org>
+Justin Davis C<< <juster at cpan dot org> >>
 
 =head1 COPYRIGHT & LICENSE
 

@@ -1,129 +1,92 @@
-CPANPLUS-Dist-Arch
+NAME
+    CPANPLUS::Dist::Arch - CPANPLUS backend for building Archlinux pacman
+    packages
 
-This module is a wrapper used by CPANPLUS to install perl modules
-using the Archlinux pacman package manager.  This makes perl modules
-easier to remove, upgrade, etc.
+VERSION
+    Version 0.17
 
-You will need to have pacman installed, of course, to create package
-and to install these new packages.  Pacman is included with Archlinux
-but can even be used on other Linux distributions.
-(see http://wiki.archlinux.org/index.php/Pacman)
+DESCRIPTION
+    This module is used as a plugin of CPANPLUS to transparently package
+    CPAN distribution files into pacman packages as they are installed. This
+    module can also be used by programmers to build packages in more complex
+    ways. For example, it can create source packages for the AUR by using
+    the included cpan2aur program.
 
-INSTALLATION
+REQUIREMENTS
+    You will need to have pacman installed, of course, to create package and
+    to install these new packages. Pacman is included with Archlinux but can
+    even be used on other Linux distributions. (see
+    http://wiki.archlinux.org/index.php/Pacman)
 
-To install this module, run the following commands:
+SETUP
+    Type setupdistarch at the command line to install CPAN modules as
+    packages by default.
 
-	perl Build.PL
-	./Build
-	./Build test
-	./Build install
+WHERE IS THE PACKAGE
+    By default, packages are stored under the user's home directory in the
+    .cpanplus directory. Two seperate directories are created for building
+    packages and for storing the resulting package file.
 
-CPANPLUS SETUP
+    *5.10.0* represents the version of perl you used to build the package
+    and *~/.cpanplus* represents the base directory chosen in your CPANPLUS
+    config.
 
-This module is not meant to be used directly.  Instead you should use
-it through the cpanp shell or the cpan2dist utility that is included
-with CPANPLUS.
+    Build Directory - `~/.cpanplus/5.10.0/pacman/build'
+    Package Directory - `~/.cpanplus/5.10.0/pacman/pkg'
 
-  $ cpan2dist --format CPANPLUS::Dist::Arch Acme::Bleach
+CUSTOMIZATION
+    You can change defaults settings machine-wide (for every user) or for
+    one user or package. The machine-wide settings are set in the
+    */etc/makepkg.conf* file. The user/package customizations are set using
+    environment variables.
 
-This lengthly command line can be shortened by specifying
-CPANPLUS::Dist::Arch as the default 'Dist' type to use in CPANPLUS's
-configuration.  A utility script name 'setupdistarch' is included
-with this module that can be used to quickly enable or disable
-packaging perl modules into pacman packages:
+    PKGDEST - Override where the package files end up.
+    PACKAGER - Override the Contributor comment line at the top of the
+    PKGBUILD.
 
-  $ setupdistarch
-  This script will now setup CPANPLUS to automatically package all
-  modules into pacman packages when installing.
-  Are you sure you want to do this? [y/N] y
-  Set CPANPLUS to package all modules through CPANPLUS::Dist::Arch
-  $
+SUPPORT
+    Email me at `juster at cpan dot org' or message me as *juster* on the
+    Archlinux BBS at http://bbs.archlinux.org.
 
-See setupdistarch for more information about setupdistarch.  If you
-are having trouble running setupdistarch or cpanp, your PATH may not
-be set properly, add /usr/bin/perlbin/core and /use/bin/perlbin/vendor
-to your .profile file in your home directory.
+    To check why the build process failed, read the build logs CPANPLUS
+    keeps in `~/.cpanplus/install_logs/'. The problem may be specific to the
+    module you're building and not this module.
 
-  # Example ~/.profile
-  export PATH=/usr/bin:/bin:/usr/bin/perlbin/core:/usr/bin/perlbin/vendor
+ACKNOWLEDGEMENTS
+    This module was inspired by the perl-cpanplus-pacman package and
+    CPANPLUS::Dist::Pacman by Firmicus which is available at
+    http://aur.archlinux.org/packages.php?ID=5954.
 
-Or you can setup CPANPLUS manually:
+    This mostly started from CPANPLUS::Dist::RPM which is on Google Code at
+    http://code.google.com/p/cpanplus-dist-rpm/. This was a very helpful
+    starting point to try to understand the internals of CPANPLUS.
 
-  $ cpanp
+SEE ALSO
+    * AUR Package: perl-cpanplus-dist-arch
+        http://aur.archlinux.org/packages.php?ID=24971
 
-  ... CPANPLUS's startup output here ...
+    * Git Repository
+        http://github.com/juster/perl-cpanplus-dist-arch
 
-  CPAN Terminal> s conf dist_type CPANPLUS::Dist::Arch
+    * Archlinux Perl Package Guidelines
+        http://wiki.archlinux.org/index.php/Perl_Package_Guidelines
 
-  Key 'dist_type' was set to 'CPANPLUS::Dist::Arch'
-  CPAN Terminal> s save
+    * pacman
+        http://wiki.archlinux.org/index.php/Pacman
 
-  Configuration successfully saved to CPANPLUS::Config::User
-      (/home/<yournamehere>/.cpanplus/lib/CPANPLUS/Config/User.pm)
-  CPAN Terminal> q
+    * makepkg
+        http://wiki.archlinux.org/index.php/Makepkg
 
-  Exiting CPANPLUS shell
+    * CPANPLUS
+        http://search.cpan.org/dist/CPANPLUS/
 
-Now you do not have to use the explicit --format flag:
+AUTHOR
+    Justin Davis, `<juster at cpan dot org>', juster on
+    http://bbs.archlinux.org
 
-  $ cpan2dist Acme::Bleach
+COPYRIGHT & LICENSE
+    Copyright 2010 Justin Davis, all rights reserved.
 
-After dist_type is set, CPANPLUS will automatically package
-anything you install using cpanp.  Score!  You could then package
-and install the Acme::Bleach module like so:
-
-  $ cpanp i Acme::Bleach
-
-WHERES IS THE PACKAGE?
-
-Packages are stored under the user's home directory, (the HOME
-environment variable) under the .cpanplus directory.  Two seperate
-directories are created for building packages and for storing the
-resulting package file.
-
-Build Directory   : ~/.cpanplus/5.10.0/pacman/build
-Package Directory : ~/.cpanplus/5.10.0/pacman/pkg
-
-Where 5.10.0 represents the version of perl you used to build the
-package and ~/.cpanplus represents the base directory chosen
-in your CPANPLUS config.
-
-You can change the destination by setting PKGDEST in your
-/etc/makepkg.conf file.  You can also set the PKGDEST environment
-variable to a directory where you want to store all built packages.
-
-SUPPORT AND DOCUMENTATION
-
-After installing, you can find documentation for this module with the
-perldoc command.
-
-    perldoc CPANPLUS::Dist::Arch
-
-Email me at <jrcd83 at gmail> or message me as "juster" on the
-Archlinux BBS at http://bbs.archlinux.org.
-
-You can also look for information at:
-
-    Archlinux Forums
-        http://bbs.archlinux.org
-
-    RT, CPAN's request tracker
-        http://rt.cpan.org/NoAuth/Bugs.html?Dist=CPANPLUS-Dist-Arch
-
-    AnnoCPAN, Annotated CPAN documentation
-        http://annocpan.org/dist/CPANPLUS-Dist-Arch
-
-    CPAN Ratings
-        http://cpanratings.perl.org/d/CPANPLUS-Dist-Arch
-
-    Search CPAN
-        http://search.cpan.org/dist/CPANPLUS-Dist-Arch/
-
-
-COPYRIGHT AND LICENCE
-
-Copyright (C) 2009 Justin Davis
-
-This program is free software; you can redistribute it and/or modify it
-under the same terms as Perl itself.
+    This program is free software; you can redistribute it and/or modify it
+    under the same terms as Perl itself.
 
