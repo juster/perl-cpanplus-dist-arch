@@ -24,6 +24,7 @@ END_ERR
 
 sub PKGBUILD_ERRCODE() { 2 }
 sub TOOQUIET_ERRCODE() { 3 }
+sub NEEDLWP_ERRCODE()  { 4 }
 
 # should just make these scalars, too... hrmph
 sub AUR_LOGIN_URI()    { 'http://aur.archlinux.org/' }
@@ -148,35 +149,45 @@ sub create_aurpkgdir
     return;
 }
 
+sub hide_output_of
+{
+    my $code_ref = shift;
+
+    open my $stdout_dup, '>&STDOUT' or die "duping STDOUT: $!";
+    open my $stderr_dup, '>&STDERR' or die "duping STDOUT: $!";
+    close STDOUT;
+    close STDERR;
+
+    my $retval = eval { $code_ref->() };
+
+    # Restore output...
+    open STDOUT, ">&", $stdout_dup or die "resuming STDOUT: $!";
+    open STDERR, ">&", $stderr_dup or die "resuming STDERR: $!";
+
+    die if ( $EVAL_ERROR );
+    return $retval;
+}
+
 sub create_dist_arch
 {
     my ($mod_obj, $target) = @_;
-    my $v = !$QUIET && $VERBOSE;
 
-    $mod_obj->fetch( verbose => $v ) && $mod_obj->extract( verbose => $v )
-        or return 0;
+    my $creator = sub {
+        # Always hide fetching and extracting... spammy!
+        $mod_obj->fetch( verbose => 0 ) && $mod_obj->extract( verbose => 0 )
+            or return 0;
 
-    my ($stdout_dup, $stderr_dup);
-    if ( $QUIET ) {
-        # prepare() does not honor our 'verbose' argument.
-        # dist() does not pass our 'verbose' argument to create().
-        # time to get serious about begin quiet!
-        open $stdout_dup, '>&STDOUT' or die "duping STDOUT: $!";
-        open $stderr_dup, '>&STDERR' or die "duping STDOUT: $!";
-        close STDOUT;
-        close STDERR;
-    }
+#         hide_output_of {
+#         } or return 0;
 
-    return $mod_obj->dist( target  => $target,
-                           format  => 'CPANPLUS::Dist::Arch',
-                           args    => { verbose => $v,
-                                        pkg     => 'src',
-                                        destdir => getcwd() } );
+        $mod_obj->dist( target  => $target,
+                        format  => 'CPANPLUS::Dist::Arch',
+                        args    => { verbose => !$QUIET || $VERBOSE,
+                                     pkg     => 'src',
+                                     destdir => getcwd() })
+    };
 
-    if ( $QUIET ) {
-        open STDOUT, ">&", $stdout_dup or die "resuming STDOUT: $!";
-        open STDERR, ">&", $stderr_dup or die "resuming STDERR: $!";
-    }
+    return ( $QUIET ? hide_output_of( $creator ) : $creator->() );
 }
 
 ## AUR PACKAGE UPLOAD
@@ -285,7 +296,8 @@ sub post_upload
 sub prompt
 {
     exit TOOQUIET_ERRCODE if $QUIET;
-    return Term::ReadLine->new( 'cpan2aur' )->readline( shift );
+    print shift, q{ };
+    return Term::ReadLine->new( 'cpan2aur' )->readline();
 }
 
 sub upload_to_aur
@@ -325,6 +337,47 @@ sub upload_to_aur
     msg( "Sending package as $username... " );
     post_upload( $ua, $pkg_path );
     msg( "ok\n" );
+
+    return;
+}
+
+sub load_web_modules
+{
+    my $loaded = eval {
+        require LWP::UserAgent;
+        require HTTP::Cookies;
+        1;
+    };
+
+    unless ( $loaded ) {
+        my $answer = 1;
+
+        # Force flag will install perl-libwww without asking...
+        unless ( $FORCE ) {
+            $answer =
+                prompt( 'You need the perl-libwww package installed to upload packages
+Do you want to install it now? [Yn]');
+            $answer = ($answer !~ /\A[nN]/ );
+        }
+
+        exit NEEDLWP_ERRCODE unless ( $answer );
+
+        my $oldcwd = getcwd();
+        my $cb     = CPANPLUS::Backend->new;
+        my $modobj = $cb->module_tree( 'LWP' );
+        $modobj->install( type => 'install', format => 'CPANPLUS::Dist::Arch', );
+        chdir $oldcwd;
+
+        # Try again after we install it!
+        $loaded = eval {
+            require LWP::UserAgent;
+            require HTTP::Cookies;
+            1;
+        };
+
+        die "Unknown error, unable to load LWP::UserAgent and HTTP::Cookies"
+            unless $loaded;
+    }
 
     return;
 }
@@ -391,7 +444,7 @@ into a template" unless ( -f 'PKGBUILD' );
 
     # Depends are different, remove the quotes from inside the parenthesis.
     # Also try to preserve non-perl dependencies...
-    $pkgbuild_txt =~ s{ depends = \s* [(] (.*?) [)] }
+    $pkgbuild_txt =~ s{ ^depends = \s* [(] (.*?) [)] }
                       { q{depends=([% depends %] }
                         . ( join q{ }, grep { !/perl/ } split /\s+/, $1 )
                         . q{)} }xmse;
@@ -426,8 +479,6 @@ sub tt_to_pkgbuild
     my $templ_text = do { local $/; <$templ_file> };
     close $templ_file or die "close PKGBUILD.tt: $!";
 
-    print STDERR "*** \$distname = $distname\n";
-
     my $cb      = CPANPLUS::Backend->new();
     my $modobj  = $cb->parse_module( module => $distname );
     my $distobj = create_dist_arch( $modobj => 'prepare' );
@@ -448,6 +499,8 @@ if ( $REVERSE ) {
 
 UPLOAD_CMD:
 if ( defined $UPLOAD && !@ARGV ) {
+    load_web_modules();
+
     # A string argument was given to the -upload switch, is it a directory,
     # file, or module?  Try to DWIM.
 
@@ -477,8 +530,8 @@ There is no PKGBUILD in the directory and no module names
 specified on the command line.  Cannot upload anything.
 END_ERR
 
-    my $make_cmd = join ' ', 'makepkg', '--source', ( $FORCE ? '-f' : () ), '2>&1';
-    my $output = `$make_cmd`;
+    my $make_cmd = 'makepkg --source --force --clean';
+    my $output   = `$make_cmd`;
 
     # We can only parse the output of makepkg to find the filename...
     my @pkginfo = $output =~ /Making package: ([\w-]+) ([\d.-]+)/
@@ -528,6 +581,8 @@ for my $modname ( @ARGV ) {
     msg( "Creating source package file... " );
     my $distobj = create_dist_arch( $modobj => 'create' );
     if ( $UPLOAD ) {
+        load_web_modules();
+
         my $srcpkg_fqp = $distobj->status->dist;
         msg( $srcpkg_fqp );
     }
@@ -547,8 +602,8 @@ cd <package-directory>; cpan2aur [-r or -u]
 
  -h, --help            Brief help message.
  -m, --man             Full help manpage.
- -q, --quiet           Quiet mode.  Supress our own messages.  Answers
-                       the default to any questions.
+ -q, --quiet           Quiet mode.  Supress our own messages.
+                       Answers the default to any questions.
  -v, --verbose         Allow CPANPLUS to be verbose (spammy).
                        May be useful for debugging.
  -f, --force           Overwrite files without confirming.
@@ -556,17 +611,17 @@ cd <package-directory>; cpan2aur [-r or -u]
  -d, --directory       Create a source package directory with a PKGBUILD.
  -t, --template        Create a source package directory with a default
                        PKGBUILD.tt template file.
- -r, --reverse         Convert a PKGBUILD in the current directory to a template.
+ -r, --reverse         Convert a PKGBUILD in the current directory to a
+                       template file (PKGBUILD.tt).
  -u, --upload  [dir]   Upload the generated source package to the AUR.
               [file]   * If a dir is specified cd to that dir and...
             [module]     convert PKGBUILD.tt (optional) to PKGBUILD to
-                         source package.
-                       * If a file is specified, upload it if it appears to be
-                         a source package.
+                         source package, then upload it.
+                       * If a file is specified, upload it if it appears
+                         to be a source package.
                        * If a module is specified, makepkg and upload it.
                        * If nothing is specified, act as if the current
                          directory was given as an argument.
-                         
 
  (Unlike GNU options, single-letter options need their own hyphens
   example: -u -d)
@@ -608,7 +663,7 @@ packaging workflow:
  cd perl-alpm         ( 2. Enter it                       )
  ed PKGBUILD          ( 3. Tweak the PKGBUILD a bit       )
  cpan2aur -u          ( 4. Run makepkg and upload!        )
-                      ( 5. Done                           )
+                      ( 5. Profit!                        )
 
 =head1 SEE ALSO
 

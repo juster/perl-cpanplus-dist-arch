@@ -1,3 +1,10 @@
+2010-02-03  Justin Davis  <juster@cpan.org>
+
+	* script/cpan2aur:  Heavily updated cpan2aur.  We can now create
+	templates for AUR packages that need customization.  Then you only
+	need to generate a package from the template.  We can also upload
+	to the AUR easily from the command line.
+
 2010-01-26  Justin Davis  <jrcd83@gmail.com>
 
 	* lib/CPANPLUS/Dist/Arch.pm (create): Dependencies of modules are
