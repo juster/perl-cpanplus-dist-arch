@@ -55,6 +55,7 @@ GetOptions( 'directory' => \$DIRECTORY,
             'upload:s'  => \$UPLOAD,
             'force'     => \$FORCE,
             'quiet'     => \$QUIET,
+            'name=s'    => \$NAME,
             'man'       => \$MAN,
             'help'      => \$HELP,
            );
@@ -101,11 +102,7 @@ sub confirm_overwrite
     # Keep asking until we get a yes, no, or blank answer...
     USER_QUESTION:
     {
-        my $rl = Term::ReadLine->new( 'cpan2aur' );
-            
-        print "$file_path already exists, overwrite? [yN] ";
-        my $answer = $rl->readline();
-        
+        my $answer = prompt( "$file_path already exists, overwrite? [yN]");
         $answer ||= q{n};
         redo USER_QUESTION unless $answer =~ /\A[yn]/i;
  
@@ -173,12 +170,10 @@ sub create_dist_arch
     my ($mod_obj, $target) = @_;
 
     my $creator = sub {
-        # Always hide fetching and extracting... spammy!
-        $mod_obj->fetch( verbose => 0 ) && $mod_obj->extract( verbose => 0 )
-            or return 0;
-
-#         hide_output_of {
-#         } or return 0;
+        # Always hide fetching and extracting... they ugly.
+        hide_output_of( sub {
+            $mod_obj->fetch( verbose => 0 ) && $mod_obj->extract( verbose => 0 )
+        }) or return 0;
 
         $mod_obj->dist( target  => $target,
                         format  => 'CPANPLUS::Dist::Arch',
@@ -296,6 +291,7 @@ sub post_upload
 sub prompt
 {
     exit TOOQUIET_ERRCODE if $QUIET;
+    local $OUTPUT_AUTOFLUSH = 1;
     print shift, q{ };
     return Term::ReadLine->new( 'cpan2aur' )->readline();
 }
@@ -303,14 +299,12 @@ sub prompt
 sub upload_to_aur
 {
     my ($pkg_path) = @_;
-    local $OUTPUT_AUTOFLUSH = 1;
 
     msg "Uploading $pkg_path to AUR...\n";
 
-    my ($username, $sid) = load_last_login();
-    $username ||= prompt( 'Username:' );
-    my $ua      = LWP::UserAgent->new();
+    my ($username, $sid) = $NAME || load_last_login() || prompt( 'Username:' );
 
+    my $ua = LWP::UserAgent->new();
     # First try to reuse an old Session ID...
     if ( $sid ) {
         msg( "Sending package as $username... " );
