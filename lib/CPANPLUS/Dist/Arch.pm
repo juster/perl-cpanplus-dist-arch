@@ -322,7 +322,7 @@ Package type must be 'bin' or 'src'};
                                   '-f',
                                   ( $EUID == 0         ? '--asroot'   : () ),
                                   ( $pkg_type eq 'src' ? '--source'   : () ),
-                                  ( !$opts{verbose}    ? '>/dev/null' : () ),
+#                                   ( !$opts{verbose}    ? '>/dev/null' : () ),
                                  );
 
     # I tried to use IPC::Cmd here, but colors didn't work...

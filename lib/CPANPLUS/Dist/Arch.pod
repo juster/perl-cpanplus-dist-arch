@@ -22,11 +22,8 @@ Version 0.17
   (Install the module as a pacman package)
   $ cpanp -i Perl::Module::Here
 
-  (Add --verbose for more output)
-  $ cpanp -i Acme::Bleach --verbose
-
   (Use cpan2dist to make a package, but don't install it)
-  $ cpan2dist --verbose Acme::Bleach
+  $ cpan2dist Acme::Bleach
 
   (Use our included cpan2aur to make a source package in current dir)
   $ cpan2aur CPANPLUS::Dist::Arch
@@ -116,10 +113,9 @@ small number of these options are recognized by CPANPLUS::Dist::Arch.
 
 =over
 
-=item B<--verbose>
+=item B<--verbose> B<DISABLED>
 
-This classic option allows for more verbose messages.  Otherwise you
-get next to no output.
+We are now verbose by default!  Hope this is okay.
 
 =item B<--skiptest>
 

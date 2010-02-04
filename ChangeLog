@@ -1,5 +1,8 @@
 2010-02-03  Justin Davis  <juster@cpan.org>
 
+	* lib/CPANPLUS/Dist/Arch.pm (create): We are now verbose by
+	default so people don't think we are hanging.
+
 	* script/cpan2aur:  Heavily updated cpan2aur.  We can now create
 	templates for AUR packages that need customization.  Then you only
 	need to generate a package from the template.  We can also upload
