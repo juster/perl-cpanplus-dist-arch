@@ -42,31 +42,11 @@ my $CFGPATH        = "$ENV{HOME}/.cpan2aur";
 my $NEED_LOGIN_ERR = "ERROR\nLogin session was invalid.\n";
 my $PKG_EXISTS_ERR = "ERROR\nYou tried to submit a package you do not own.\n";
 
-## COMMAND LINE ARGUMENTS
-##############################################################################
-
+# Command line flags
 my ($DIRECTORY, $VERBOSE, $UPLOAD, $QUIET, $FORCE, $HELP, $MAN, $NAME,
     $TEMPLATE, $REVERSE);
 
-GetOptions( 'directory' => \$DIRECTORY,
-            'template'  => \$TEMPLATE,
-            'verbose'   => \$VERBOSE,
-            'reverse'   => \$REVERSE,
-            'upload:s'  => \$UPLOAD,
-            'force'     => \$FORCE,
-            'quiet'     => \$QUIET,
-            'name=s'    => \$NAME,
-            'man'       => \$MAN,
-            'help'      => \$HELP,
-           );
-
-pod2usage( -message => 'We cannot be both verbose and quiet!',
-           -verbose => 0,
-           -retval  => 1 ) if ( $VERBOSE && $QUIET);
-
-pod2usage( -verbose => 1 ) if ( $HELP );
-
-## AUR PACKAGE BUILDING
+## UTILITY FUNCTIONS
 ##############################################################################
 
 sub msg
@@ -80,6 +60,75 @@ sub msg
     }
 
     print @_;
+}
+
+sub prompt
+{
+    exit TOOQUIET_ERRCODE if $QUIET;
+    local $OUTPUT_AUTOFLUSH = 1;
+    print shift, q{ };
+    return Term::ReadLine->new( 'cpan2aur' )->readline();
+}
+
+sub create_dist_arch
+{
+    my ($mod_obj, $target) = @_;
+
+    my $creator = sub {
+        # Always hide fetching and extracting... they ugly.
+        hide_output_of( sub {
+            $mod_obj->fetch( verbose => 0 ) && $mod_obj->extract( verbose => 0 )
+        }) or return 0;
+
+        $mod_obj->dist( target  => $target,
+                        format  => 'CPANPLUS::Dist::Arch',
+                        args    => { verbose => !$QUIET || $VERBOSE,
+                                     pkg     => 'src',
+                                     destdir => getcwd() })
+    };
+
+    return ( $QUIET ? hide_output_of( $creator ) : $creator->() );
+}
+
+sub find_module
+{
+    my $modordist = shift;
+    our $CPP ||= CPANPLUS::Backend->new;
+    msg( "Looking up module for $modordist\n" );
+    my $modobj = $CPP->parse_module( module => shift );
+    # TODO: die if module not found?
+    return $modobj;
+}
+
+sub pkgdir
+{
+    my $dist_obj = shift;
+    return $dist_obj->pkgname;
+}
+
+sub pkgdir_file
+{
+    my ($dist_obj, $file) = @_;
+    return catfile( pkgdir( $dist_obj ), $file );
+}
+
+sub hide_output_of
+{
+    my $code_ref = shift;
+
+    open my $stdout_dup, '>&STDOUT' or die "duping STDOUT: $!";
+    open my $stderr_dup, '>&STDERR' or die "duping STDOUT: $!";
+    close STDOUT;
+    close STDERR;
+
+    my $retval = eval { $code_ref->() };
+
+    # Restore output...
+    open STDOUT, ">&", $stdout_dup or die "resuming STDOUT: $!";
+    open STDERR, ">&", $stderr_dup or die "resuming STDERR: $!";
+
+    die if ( $EVAL_ERROR );
+    return $retval;
 }
 
 # Check if a file exists, if so offer to delete it.
@@ -115,22 +164,28 @@ sub confirm_overwrite
     return 1;
 }
 
+## AUR PACKAGE BUILDING
+##############################################################################
+
 sub check_pkgdir_file
 {
     my ($distobj, $pkgfile) = @_;
-    my $pkgdir    = $distobj->status->pkgname;
-    my $file_path = "$pkgdir/$pkgfile";
+
+    my $pkgdir    = pkgdir ( $distobj );
+    my $file_path = pkgdir_file( $distobj, $pkgfile );
 
     if ( -f $file_path ) {
         # If the pkgfile already exists, offer to overwrite.
         return 0 unless confirm_overwrite( $file_path );
+        return 1;
     }
-    else {
-        unless ( -d $pkgdir ) {
-            mkdir $pkgdir or die qq{failed to "mkdir $file_path": $!};
-        }
-        msg( "Creating $file_path.\n" );
+
+    unless ( -d $pkgdir ) {
+        mkdir $pkgdir or die qq{failed to "mkdir $pkgdir": $!};
     }
+
+    # TODO: move this somewhere better?
+    msg( "Creating $file_path.\n" );
 
     return 1;
 }
@@ -138,80 +193,42 @@ sub check_pkgdir_file
 sub create_aurpkgdir
 {
     my $dist_obj = shift;
-    my $pkgname = $dist_obj->status->pkgname;
 
     return unless check_pkgdir_file( $dist_obj, 'PKGBUILD' );
-    
-    $dist_obj->create_pkgbuild( $pkgname );
+    $dist_obj->create_pkgbuild( src_pkgdir( $dist_obj ));
+
     return;
-}
-
-sub hide_output_of
-{
-    my $code_ref = shift;
-
-    open my $stdout_dup, '>&STDOUT' or die "duping STDOUT: $!";
-    open my $stderr_dup, '>&STDERR' or die "duping STDOUT: $!";
-    close STDOUT;
-    close STDERR;
-
-    my $retval = eval { $code_ref->() };
-
-    # Restore output...
-    open STDOUT, ">&", $stdout_dup or die "resuming STDOUT: $!";
-    open STDERR, ">&", $stderr_dup or die "resuming STDERR: $!";
-
-    die if ( $EVAL_ERROR );
-    return $retval;
-}
-
-sub create_dist_arch
-{
-    my ($mod_obj, $target) = @_;
-
-    my $creator = sub {
-        # Always hide fetching and extracting... they ugly.
-        hide_output_of( sub {
-            $mod_obj->fetch( verbose => 0 ) && $mod_obj->extract( verbose => 0 )
-        }) or return 0;
-
-        $mod_obj->dist( target  => $target,
-                        format  => 'CPANPLUS::Dist::Arch',
-                        args    => { verbose => !$QUIET || $VERBOSE,
-                                     pkg     => 'src',
-                                     destdir => getcwd() })
-    };
-
-    return ( $QUIET ? hide_output_of( $creator ) : $creator->() );
 }
 
 ## AUR PACKAGE UPLOAD
 ##############################################################################
 
-sub load_last_login
+# Loads the last login username & session ID used.
+sub _load_last_login
 {
-    return () unless ( -e $CFGPATH );
+    return () unless ( -f $CFGPATH );
 
     die q{Please 'chmod 600 ~/.cpan2aur', it is not readable}
         unless ( -r $CFGPATH );
 
-    open my $cfgfile, '<', $CFGPATH or die "open $CFGPATH: $!";
-    my ($user, $sid) = split ':', <$cfgfile>;
+    open my $cfgfile, q{<}, $CFGPATH or die "open $CFGPATH: $!";
+    my ($user, $sid) = split /:/, <$cfgfile>;
     close $cfgfile;
 
-    return () unless ( $user && $sid && $sid =~ /^[A-F0-9]+$/m );
+    return () unless ( $user && $sid && $sid =~ /\A[A-F0-9]+\Z/ );
 
     chomp $sid;
     return ($user, $sid);
 }
 
-sub save_last_login
+# Save the username & session ID for later.
+sub _save_last_login
 {
     my ($username, $sid) = @_;
 
     # Set umask to keep this file private...
-    my ($oldmask, $found) = (umask 0077, 0);
-    $username = lc $username;
+    my $oldmask = umask 0077;
+    $username   = lc $username;
 
     open my $cfgfile, '>', $CFGPATH or die "open $CFGPATH: $!";
     print $cfgfile "$username:$sid\n";
@@ -221,7 +238,13 @@ sub save_last_login
     return;
 }
 
-sub new_login_sid
+# Login to AUR to get a fresh session ID cookie.
+# Params:  $ua - LWP::UserAgent object
+#                (this gets a new cookie jar with a new session cookie)
+#          $username - Username to login AUR.
+#          $password - Password to login AUR.
+# Returns: a new session ID
+sub _new_login_sid
 {
     my ($ua, $username, $passwd) = @_;
 
@@ -249,7 +272,9 @@ sub new_login_sid
     return $sid;
 }
 
-sub mk_session_cookie
+# Params: $sid - Session ID to login the AUR with.
+# Returns: A new HTTP::Cookies object with an AUR session ID cookie.
+sub _mk_session_cookie
 {
     my ($sid) = @_;
 
@@ -265,7 +290,9 @@ sub mk_session_cookie
     return $cookie_obj;
 }
 
-sub post_upload
+# Params: $ua - LWP::UserAgent object, should have SID cookie in it.
+#         $pkg_path - Path of source package file to upload.
+sub _post_upload
 {
     my ($ua, $pkg_path) = @_;
 
@@ -286,56 +313,13 @@ sub post_upload
 
     die $NEED_LOGIN_ERR if ( $resp->content =~ /$NEED_LOGIN_MSG/ );
     die $PKG_EXISTS_ERR if ( $resp->content =~ /$PKG_EXISTS_MSG/ );
-}
-
-sub prompt
-{
-    exit TOOQUIET_ERRCODE if $QUIET;
-    local $OUTPUT_AUTOFLUSH = 1;
-    print shift, q{ };
-    return Term::ReadLine->new( 'cpan2aur' )->readline();
-}
-
-sub upload_to_aur
-{
-    my ($pkg_path) = @_;
-
-    msg "Uploading $pkg_path to AUR...\n";
-
-    my ($username, $sid) = $NAME || load_last_login() || prompt( 'Username:' );
-
-    my $ua = LWP::UserAgent->new();
-    # First try to reuse an old Session ID...
-    if ( $sid ) {
-        msg( "Sending package as $username... " );
-        $ua->cookie_jar( mk_session_cookie( $sid ));
-        eval { post_upload( $ua, $pkg_path ) };
-        unless ( $EVAL_ERROR ) {
-            msg( "ok\n" );
-            return;
-        }
-
-        # Fall through to get a new session ID if we just need to re-login...
-        die $@ unless ( $EVAL_ERROR =~ /$NEED_LOGIN_ERR/ );
-
-        msg( "old session ID failed. Starting new session.\n" );
-    }
-
-    my $passwd = prompt( 'Password:' );
-
-    # Retrieve a new session and save it...
-    $sid = new_login_sid( $ua, $username, $passwd );
-    save_last_login( $username, $sid );
-    msg( "ok\n" );
-
-    msg( "Sending package as $username... " );
-    post_upload( $ua, $pkg_path );
-    msg( "ok\n" );
 
     return;
 }
 
-sub load_web_modules
+# Make sure the libwww modules we need are loaded, if not offer to install
+# as a package.
+sub _load_web_modules
 {
     my $loaded = eval {
         require LWP::UserAgent;
@@ -357,8 +341,7 @@ Do you want to install it now? [Yn]');
         exit NEEDLWP_ERRCODE unless ( $answer );
 
         my $oldcwd = getcwd();
-        my $cb     = CPANPLUS::Backend->new;
-        my $modobj = $cb->module_tree( 'LWP' );
+        my $modobj = find_module( 'LWP' );
         $modobj->install( type => 'install', format => 'CPANPLUS::Dist::Arch', );
         chdir $oldcwd;
 
@@ -376,35 +359,71 @@ Do you want to install it now? [Yn]');
     return;
 }
 
+# Upload a package to the AUR, handle all user interaction, loading old
+# session ID's from our saved file, etc logic.
+sub upload_to_aur
+{
+    my ($pkg_path) = @_;
+
+    _load_web_modules(); # Make sure web modules are loaded/installed.
+
+    msg "Uploading $pkg_path to AUR...\n";
+
+    my ($username, $sid) = $NAME || _load_last_login() || prompt( 'Username:' );
+
+    my $ua = LWP::UserAgent->new();
+    # First try to reuse an old Session ID...
+    if ( $sid ) {
+        msg( "Sending package as $username... " );
+        $ua->cookie_jar( _mk_session_cookie( $sid ));
+        eval { _post_upload( $ua, $pkg_path ) };
+        unless ( $EVAL_ERROR ) {
+            msg( "ok\n" );
+            return;
+        }
+
+        # Fall through to get a new session ID if we just need to re-login...
+        die $EVAL_ERROR unless ( $EVAL_ERROR =~ /$NEED_LOGIN_ERR/ );
+
+        msg( "old session ID failed. Starting new session.\n" );
+    }
+
+    my $passwd = prompt( 'Password:' );
+
+    # Retrieve a new session and save it...
+    $sid = _new_login_sid( $ua, $username, $passwd );
+    _save_last_login( $username, $sid );
+    msg( "ok\n" );
+
+    msg( "Sending package as $username... " );
+    _post_upload( $ua, $pkg_path );
+    msg( "ok\n" );
+
+    return;
+}
+
 ## PKGBUILD TEMPLATES
 ##############################################################################
 
-sub has_template
-{
-    my $distobj = shift;
-    my $pkgname = $distobj->status->pkgname;
-
-    return -f "$pkgname/PKGBUILD.tt";
-}
-
-# Creates a new template file that matches C::D::A's default in the current dir.
+# Creates a new template file that matches C::D::A's default template in a
+# source package dir.
 sub new_tt_file
 {
     my ($dist_obj) = @_;
+    return unless check_pkgdir_file( $dist_obj, 'PKGBUILD.tt' );
 
-    my $pkgdir = $dist_obj->status->pkgname;
-    mkdir $pkgdir unless ( -d $pkgdir );
-
-    return unless confirm_overwrite( "$pkgdir/PKGBUILD.tt" );
-
-    open my $templ_file, '>', "$pkgdir/PKGBUILD.tt"
+    open my $templ_file, '>', pkgdir_file( $dist_obj, 'PKGBUILD.tt' )
         or die "open PKGBUILD.tt failed: $!";
+
+    # Insert the distribution name in the comments... used in tt_to_pkgbuild().
     print $templ_file $TT_DIST_PREFIX, $dist_obj->parent->package_name, "\n";
     print $templ_file $dist_obj->get_pkgbuild_templ;
+
     close $templ_file or die "close PKGBUILD.tt failed: $!";
 }
 
-# Take a PKGBUILD in current dir and create a template out of it for future versions...
+# Take a PKGBUILD in the _current_dir_ and create a template out of it for
+# future awesomeness.
 sub pkgbuild_to_tt
 {
     # Handle missing or existing files...
@@ -413,19 +432,21 @@ into a template" unless ( -f 'PKGBUILD' );
 
     return unless confirm_overwrite( 'PKGBUILD.tt' );
 
-    my $pkgbuild_txt = do { local (@ARGV, $/) = 'PKGBUILD'; <> };
+    open my $pkgbuild_file, '<', 'PKGBUILD' or die "open PKGBUILD: $!";
+    my $pkgbuild_txt = do { local $/; <$pkgbuild_file> }; # slurp!
+    close $pkgbuild_file;
 
     # Find the distribution name so we can look it up when we convert the template
-    # to the PKGBUILD...
+    # to the PKGBUILD in tt_to_pkgbuild()...
     my ($distname) =
         $pkgbuild_txt =~ m{^ source = \s* [^\n]* / ( [-\w]+ ) -\d }xms;
     
-    die "ERROR failed to determine the distribution name from the existing PKGBUILD\n"
-        unless ( $distname );
+    die "cpan2aur: Failed to determine the distribution name from the ",
+        "existing PKGBUILD\n" unless ( $distname );
 
     # Replace all bash variables values we can with template values...
-    my @var_names = qw{ pkgname pkgver pkgdesc url source md5sums source };
-    my $var_match = join '|', @var_names;
+    my $var_match = join '|',
+        qw/ pkgname pkgver pkgdesc url source md5sums source /;
 
     $pkgbuild_txt =~ s{($var_match) = \s* ["]    .*? [^\\] ["]    }
                       {$1="\[% $1 \%]"}gxms;
@@ -439,9 +460,9 @@ into a template" unless ( -f 'PKGBUILD' );
     # Depends are different, remove the quotes from inside the parenthesis.
     # Also try to preserve non-perl dependencies...
     $pkgbuild_txt =~ s{ ^depends = \s* [(] (.*?) [)] }
-                      { q{depends=([% depends %] }
-                        . ( join q{ }, grep { !/perl/ } split /\s+/, $1 )
-                        . q{)} }xmse;
+                      { ( sprintf q{depends=([%% depends %%]%s)},
+                          map { $_ ? " $_" : q{} }
+                          join q{ }, grep { !/perl/ } split /\s+/, $1 ) }xmse;
 
     # Also replace _DISTDIR or DIST_DIR if we are creating a template from
     # a C::D::A generated PKGBUILD...
@@ -467,14 +488,18 @@ sub tt_to_pkgbuild
 
     open my $templ_file, '<', 'PKGBUILD.tt' or die "open PKGBUILD.tt: $!";
     my ($distname) = ( scalar <$templ_file> ) =~ /^$TT_DIST_PREFIX(.*)$/;
-    die qq{ERROR "$TT_DIST_PREFIX" line is missing from the PKGBUILD.tt template\n}
-        unless $distname;
+    die qq{ERROR: "$TT_DIST_PREFIX" line is missing from the
+PKGBUILD.tt template.  This template file may not have been generated by
+cpan2aur.
+
+In order to use this .tt file with cpan2aur, insert the CPAN distribution's
+name into the file prefixed with the above comment in quotes.
+} unless $distname;
     
     my $templ_text = do { local $/; <$templ_file> };
     close $templ_file or die "close PKGBUILD.tt: $!";
 
-    my $cb      = CPANPLUS::Backend->new();
-    my $modobj  = $cb->parse_module( module => $distname );
+    my $modobj  = find_module( $distname );
     my $distobj = create_dist_arch( $modobj => 'prepare' );
 
     $distobj->set_pkgbuild_templ( $templ_text );
@@ -486,6 +511,24 @@ sub tt_to_pkgbuild
 ## SCRIPT START
 ##############################################################################
 
+GetOptions( 'directory' => \$DIRECTORY,
+            'template'  => \$TEMPLATE,
+            'verbose'   => \$VERBOSE,
+            'reverse'   => \$REVERSE,
+            'upload:s'  => \$UPLOAD,
+            'force'     => \$FORCE,
+            'quiet'     => \$QUIET,
+            'name=s'    => \$NAME,
+            'man'       => \$MAN,
+            'help'      => \$HELP,
+           );
+
+pod2usage( -message => 'We cannot be both verbose and quiet!',
+           -verbose => 0,
+           -retval  => 1 ) if ( $VERBOSE && $QUIET);
+
+pod2usage( -verbose => 1 ) if ( $HELP );
+
 if ( $REVERSE ) {
     pkgbuild_to_tt();
     exit 0;
@@ -493,8 +536,6 @@ if ( $REVERSE ) {
 
 UPLOAD_CMD:
 if ( defined $UPLOAD && !@ARGV ) {
-    load_web_modules();
-
     # A string argument was given to the -upload switch, is it a directory,
     # file, or module?  Try to DWIM.
 
@@ -524,27 +565,23 @@ There is no PKGBUILD in the directory and no module names
 specified on the command line.  Cannot upload anything.
 END_ERR
 
-    my $make_cmd = 'makepkg --source --force --clean';
-    my $output   = `$make_cmd`;
-
+    my $output   = `makepkg --source --force --clean`;
     # We can only parse the output of makepkg to find the filename...
     my @pkginfo = $output =~ /Making package: ([\w-]+) ([\d.-]+)/
         or die "ERROR makepkg returned unknown output";
 
-    my $pkgfile = ( join '-', @pkginfo ) . '.src.tar.gz';
+    my $pkgfile = ( join q{-}, @pkginfo ) . '.src.tar.gz';
 
     upload_to_aur( $pkgfile );
     exit 0;
 }
 
-pod2usage( -verbose => 0 ) unless ( @ARGV );
-
 PARSE_MODS:
-my $cb = CPANPLUS::Backend->new;
+pod2usage( -verbose => 0 ) unless ( @ARGV );
 
 MODULE_ARG:
 for my $modname ( @ARGV ) {
-    my $modobj = $cb->module_tree( $modname );
+    my $modobj = find_module( $modname );
 
     msg( "Finding module $modname... " );
 
@@ -556,29 +593,26 @@ for my $modname ( @ARGV ) {
 
     msg( "done\n" );
 
-    if ( $TEMPLATE ) {
-        my $distobj = create_dist_arch( $modobj => 'prepare' )
-            or die "failed to prepare module";
+    my $distobj = create_dist_arch( $modobj,
+                                    ( $TEMPLATE || $DIRECTORY
+                                      ? 'prepare'
+                                      : 'create' ))
+        or die 'cpan2aur: Failed to create CPANPLUS::Dist::Arch object';
 
+    if ( $TEMPLATE ) {
         new_tt_file( $distobj );
         next MODULE_ARG;
     }
 
     if ( $DIRECTORY ) {
-        my $distobj = create_dist_arch( $modobj => 'prepare' )
-            or die "failed to prepare module";
-
         create_aurpkgdir( $distobj );
         next MODULE_ARG;
     }
 
-    msg( "Creating source package file... " );
-    my $distobj = create_dist_arch( $modobj => 'create' );
-    if ( $UPLOAD ) {
-        load_web_modules();
+    msg( 'Created source package file.' );
 
-        my $srcpkg_fqp = $distobj->status->dist;
-        msg( $srcpkg_fqp );
+    if ( $UPLOAD ) {
+        upload_to_aur( $distobj->status->dist );
     }
 }
 
@@ -586,7 +620,7 @@ __END__
 
 =head1 NAME
 
-cpan2aur - AUR Utility for CPAN perl modules
+cpan2aur - AUR packager utility for CPAN perl modules
 
 =head1 SYNOPSIS
 
@@ -631,22 +665,10 @@ directory to contain the source package and generate a C<PKGBUILD>
 inside it.
 
 With the I<-u> or I<--upload> flag it will upload a source package to
-the AUR.  It will try to Do The Right Thing (tm) for uploading.  We
-store previous logins inside the file C<~/.cpan2aur>.  The last username
-that was used will be retried.  To specify a new name use the I<-n> or
-I<--name> flag.
-
-=over
-
-=item 1. If an argument is given to I<-u> then just try uploading that file.
-         (It must end in .pkg.tar.gz, though)
-
-=item 2. If we are inside a source package directory (with a PKGBUILD),
-         try to run 'makepkg' and then uplaod the resulting file.
-
-=item 3. Otherwise, create a vanilla .pkg.tar.gz file and then upload it.
-
-=back
+the AUR.  It will try to Do The Right Thing (tm) for arguments given
+to the flag.  We store previous logins inside the file C<~/.cpan2aur>.
+The last username that was used will be retried.  To specify a new
+name use the I<-n> or I<--name> flag (or just delete C<~/.cpan2aur>).
 
 =head1 EXAMPLE
 
