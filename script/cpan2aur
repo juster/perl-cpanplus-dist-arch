@@ -187,20 +187,7 @@ sub check_pkgdir_file
         mkdir $pkgdir or die qq{failed to "mkdir $pkgdir": $!};
     }
 
-    # TODO: move this somewhere better?
-    print "Creating $file_path.\n";
-
     return 1;
-}
-
-sub create_aurpkgdir
-{
-    my $dist_obj = shift;
-
-    return unless check_pkgdir_file( $dist_obj, 'PKGBUILD' );
-    $dist_obj->create_pkgbuild( src_pkgdir( $dist_obj ));
-
-    return;
 }
 
 ## AUR PACKAGE UPLOAD
@@ -371,7 +358,7 @@ sub upload_to_aur
 
     _load_web_modules(); # Make sure web modules are loaded/installed.
 
-    msg "Uploading $pkg_path to AUR...\n";
+    print "Uploading $pkg_path to AUR...\n";
 
     my ($username, $sid) = ( $NAME ? ( $NAME ) : _load_last_login() );
     $username ||= prompt( 'Username:' );
@@ -478,7 +465,7 @@ into a template" unless ( -f 'PKGBUILD' );
     print $templ_file $pkgbuild_txt;
     close $templ_file;
 
-    msg "Reverse-engineered PKGBUILD to PKGBUILD.tt successfully\n";
+    print "Reverse-engineered PKGBUILD to PKGBUILD.tt successfully\n";
 
     return;
 }
@@ -517,7 +504,6 @@ name into the file prefixed with the above comment in quotes.
 ##############################################################################
 
 GetOptions( 'directory' => \$DIRECTORY,
-            'template'  => \$TEMPLATE,
             'verbose'   => \$VERBOSE,
             'reverse'   => \$REVERSE,
             'upload:s'  => \$UPLOAD,
@@ -593,20 +579,14 @@ for my $modname ( @ARGV ) {
         next MODULE_LOOP;
     }
 
-    my $distobj = create_dist_arch( $modobj,
-                                    ( ($TEMPLATE || $DIRECTORY)
-                                      ? 'prepare' : 'create' ));
+    my $distobj = create_dist_arch( $modobj, ( $DIRECTORY
+                                               ? 'prepare' : 'create' ));
 
     print "*** \$distobj = $distobj\n";
     $distobj or die 'ERROR Failed to create CPANPLUS::Dist::Arch object';
 
-    if ( $TEMPLATE ) {
-        new_tt_file( $distobj );
-        next MODULE_LOOP;
-    }
-
     if ( $DIRECTORY ) {
-        create_aurpkgdir( $distobj );
+        new_tt_file( $distobj );
         next MODULE_LOOP;
     }
 
@@ -625,14 +605,12 @@ cpan2aur - AUR packager utility for CPAN perl modules
 
 =head1 SYNOPSIS
 
-cpan2aur [-qvfdtu] Module::Name [ Module::Name, ... Module::Name ]
+cpan2aur [-vfdtu] Module::Name [ Module::Name, ... Module::Name ]
 
-cd <package-directory>; cpan2aur [--reverse, --test, or --upload]
+cd <package-directory>; cpan2aur [--reverse or --upload]
 
  -h, --help            Brief help message.
  -m, --man             Full help manpage.
- -q, --quiet           Quiet mode.  Supress our own messages.
-                       Answers the default to any questions.
  -v, --verbose         Allow CPANPLUS to be verbose (spammy).
                        May be useful for debugging.
  -f, --force           Overwrite files without confirming.
@@ -642,14 +620,16 @@ cd <package-directory>; cpan2aur [--reverse, --test, or --upload]
  -r, --reverse         Convert a PKGBUILD in the current directory to a
                        template file (PKGBUILD.tt).
  -u, --upload  [dir]   Upload the generated source package to the AUR.
-              [file]   * If a dir is specified cd to that dir and...
+              [file]   * If a dir is specified cd to that dir and
             [module]     convert PKGBUILD.tt to a PKGBUILD to a
                          source package, then upload it.
                        * If a file is specified, upload it if it appears
                          to be a source package.
-                       * If a module is specified, makepkg and upload it.
-                       * If nothing is specified, act as if the current
-                         directory was given as an argument.
+                       * If a module is specified, package and upload it.
+                       * If nothing is specified, act upon the current
+                         directory.
+ -n, --name <username> Specify a different username to login to the AUR,
+                       instead of the last one used.
 
  (Unlike GNU options, single-letter options need their own hyphens
   example: -u -d)
@@ -661,31 +641,29 @@ the AUR (Archlinux User Repository).  cpan2aur's simplest usage
 creates AUR source packages in the current directory.
 
 With the I<-d> or I<--directory> flags cpan2aur will create a
-directory to contain the source package and generate a C<PKGBUILD>
-inside it.
+directory to contain the source package and generate a C<PKGBUILD.tt>
+template inside it.
 
-With the I<-u> or I<--upload> flag it will upload a source package to
-the AUR.  It will try to Do The Right Thing (tm) for arguments given
-to the flag.  We store previous logins inside the file C<~/.cpan2aur>.
-The last username that was used will be retried.  To specify a new
-name use the I<-n> or I<--name> flag (or just delete C<~/.cpan2aur>).
+Templates are a powerful way to make maintaining packages on the AUR
+easier.  Most of the time you will not have to update the PKGBUILD
+template you will just use the I<--upload> flag on a source package
+directory containing a template.
 
-=head1 COOKBOOK
-
-Here are some examples of how to use cpan2aur to fix certain problems
-you may be having while maintaing perl AUR packages.
-
-=head1 START A NEW PERL AUR PACKAGE
-
- cpan2aur -d ALPM     ( 1. We create a source package dir )
- cd perl-alpm         ( 2. Enter it                       )
- ed PKGBUILD          ( 3. Tweak the PKGBUILD a bit       )
- cpan2aur -u          ( 4. Run makepkg and upload!        )
-                      ( 5. Profit!                        )
+With the I<-u> or I<--upload> flag cpan2aur will upload a source
+package to the AUR.  It will try to Do The Right Thing (tm) for
+arguments given to the flag.  We store previous logins inside the file
+C<~/.cpan2aur>.  The last username that was used will be retried.  To
+use a different username, delete the C<~/.cpan2aur> file.
 
 =head1 SEE ALSO
 
-L<http://aur.archlinux.org>
+=over 4
+
+=item * L<CPANPLUS::Dist::Arch>
+
+=item * L<http://aur.archlinux.org>
+
+=back
 
 =head1 AUTHOR
 
