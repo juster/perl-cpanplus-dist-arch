@@ -600,15 +600,18 @@ cpan2aur - AUR packager utility for CPAN perl modules
 
 =head1 SYNOPSIS
 
-cpan2aur [-vfdtu] Module::Name [ Module::Name, ... Module::Name ]
+cpan2aur [-v -f] --directory Module::Name [Module::Name:Two] 
+
+cpan2aur [-v -f] --upload [Module::Name file-name.src.tar.gz /pkg/dir/]
+
+cpan2aur [-v -f] -r
 
 cd <package-directory>; cpan2aur [--reverse or --upload]
 
- -h, --help            Brief help message.
- -m, --man             Full help manpage.
- -v, --verbose         Allow CPANPLUS to be verbose (spammy).
-                       May be useful for debugging.
- -f, --force           Overwrite files without confirming.
+ -h, --help            Display this usage message.
+ -m, --man             Display full help manual page.
+ -v, --verbose         Allow CPANPLUS to be more verbose.
+ -f, --force           Overwrite files without asking.
 
  -d, --directory       Create a source package directory with a standard
                        PKGBUILD.tt template file.
