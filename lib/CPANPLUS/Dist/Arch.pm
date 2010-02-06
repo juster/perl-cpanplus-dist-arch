@@ -317,28 +317,25 @@ Package type must be 'bin' or 'src'};
     # Package it up!
     local $ENV{PKGDEST} = $destdir;
     chdir $status->pkgbase or die "chdir: $OS_ERROR";
-    my $makepkg_cmd = join ' ', ( 'makepkg',
-                                  # XXX: should we force rebuilding?
-                                  '-f',
-                                  ( $EUID == 0         ? '--asroot'   : () ),
-                                  ( $pkg_type eq 'src' ? '--source'   : () ),
-#                                   ( !$opts{verbose}    ? '>/dev/null' : () ),
-                                 );
+    my $makepkg_cmd = join q{ }, ( 'makepkg',
+                                   '-f', # should we force rebuilding?
+                                   ( $EUID == 0         ? '--asroot' : () ),
+                                   ( $pkg_type eq 'src' ? '--source' : () ),
+                                  );
 
     # I tried to use IPC::Cmd here, but colors didn't work...
     system $makepkg_cmd;
 
-    if ($CHILD_ERROR) {
+    if ( $CHILD_ERROR ) {
         error ( $CHILD_ERROR & 127
                 ? sprintf "makepkg failed with signal %d", $CHILD_ERROR & 127
                 : sprintf "makepkg returned abnormal status: %d",
-                          $CHILD_ERROR >> 8
-               );
+                          $CHILD_ERROR >> 8 );
         return 0;
     }
 
-    $status->dist($destfile_fqp);
-    return $status->created(1);
+    $status->dist( $destfile_fqp );
+    return $status->created( 1 );
 }
 
 #---INTERFACE METHOD---
