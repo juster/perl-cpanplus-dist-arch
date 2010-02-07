@@ -5,10 +5,10 @@ use strict;
 
 use File::Spec::Functions qw(catfile splitpath);
 use CPANPLUS::Backend;
-use Term::ReadLine;
 use Getopt::Long;
-use English qw(no_match_vars);
 use Pod::Usage;
+use English qw(no_match_vars);
+use POSIX qw();
 use Cwd;
 
 our $VERSION = '0.10';
@@ -52,7 +52,9 @@ sub prompt
 {
     local $OUTPUT_AUTOFLUSH = 1;
     print shift, q{ };
-    return Term::ReadLine->new( 'cpan2aur' )->readline();
+    my $line = <STDIN>;
+    chomp $line;
+    return $line;
 }
 
 sub prompt_yn
@@ -77,6 +79,25 @@ sub prompt_yn
     return 1;
 }
 
+sub prompt_password
+{
+    my $termios = POSIX::Termios->new;
+    $termios->getattr( 0 ); # STDIN
+
+    my $c_lflag = $termios->getlflag;
+    $termios->setlflag( $c_lflag & ~POSIX::ECHO );
+    $termios->setattr( 0, POSIX::TCSANOW );
+
+    my $passwd = prompt( 'Password:' );
+
+    $termios->setlflag( $c_lflag );
+    $termios->setattr( 0, POSIX::TCSANOW );
+
+    print "\n";
+
+    return $passwd;
+}
+
 sub pkgdir
 {
     my $dist_obj = shift;
@@ -93,7 +114,7 @@ sub find_module
 {
     my $mod_or_dist = shift;
     our $CB ||= CPANPLUS::Backend->new;
-    print "Looking up module for $mod_or_dist...\n";
+    print "Looking up module for $mod_or_dist on CPAN...\n";
     my $modobj = $CB->parse_module( module => $mod_or_dist );
     # TODO: die if module not found?
     return $modobj;
@@ -139,15 +160,6 @@ sub new_pkgdir_file
     }
 
     return 1;
-}
-
-sub type_of_thing
-{
-    my ($thing) = @_;
-
-    return ( -f $thing ? 'file' :
-             -d $thing ? 'dir'  :
-             'module' );
 }
 
 sub create_dist_arch
@@ -358,7 +370,7 @@ sub upload_pkgfile
         print "old session ID failed. Starting new session.\n";
     }
 
-    my $passwd = prompt( 'Password:' );
+    my $passwd = prompt_password();
 
     # Retrieve a new session and save it...
     $sid = _new_login_sid( $ua, $username, $passwd );
@@ -366,6 +378,7 @@ sub upload_pkgfile
 
     print "Sending package as $username...\n";
     _post_upload( $ua, $pkg_path );
+    print "Success.\n";
 
     return;
 }
@@ -383,8 +396,8 @@ sub upload_pkgdir
     tt_to_pkgbuild() if ( -f 'PKGBUILD.tt' );
 
     die <<'END_ERR' unless ( -f 'PKGBUILD' );
-There is no PKGBUILD in the directory and no module names
-specified on the command line.  Cannot upload anything.
+There is no PKGBUILD in the directory and no file or module names specified on
+the command line.  Unable to upload anything.
 END_ERR
 
     print "Creating source package with makepkg...\n";
@@ -450,8 +463,10 @@ sub new_tt_file
 sub pkgbuild_to_tt
 {
     # Handle missing or existing files...
-    die "ERROR There is no PKGBUILD in current directory that we can reverse
-into a template" unless ( -f 'PKGBUILD' );
+    die <<'END_ERR' unless ( -f 'PKGBUILD' );
+There is no PKGBUILD in the current directory that we can reverse into a
+template.
+END_ERR
 
     return unless confirm_overwrite( 'PKGBUILD.tt' );
 
@@ -560,15 +575,15 @@ if ( $REVERSE ) {
 }
 
 # If no arguments are given to upload default to the current directory.
-if ( $UPLOAD && !@ARGV ) {
-    upload_thing( q{.} );
+if ( defined $UPLOAD && !@ARGV ) {
+    push @ARGV, ( length $UPLOAD ? $UPLOAD : q{.} );
 }
 
 pod2usage( -verbose => 0 ) unless ( @ARGV );
 
 ARG_LOOP:
 for my $arg ( @ARGV ) {
-    if ( $UPLOAD ) {
+    if ( defined $UPLOAD ) {
         upload_thing( $arg );
         next ARG_LOOP;
     }
@@ -584,7 +599,7 @@ for my $arg ( @ARGV ) {
                                                ? 'prepare' : 'create' ))
         or die 'ERROR Failed to create CPANPLUS::Dist::Arch object';
 
-    if ( $DIRECTORY ) {
+    if ( defined $DIRECTORY ) {
         new_tt_file( $distobj );
         next ARG_LOOP;
     }
