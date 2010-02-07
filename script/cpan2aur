@@ -596,8 +596,8 @@ for my $arg ( @ARGV ) {
     my $modobj = find_module( $arg );
 
     unless ( $modobj ) {
-        warn "cpan2aur: Failed to find a module named $arg\n";
-        next MODULE_LOOP;
+        warn "Failed to find a module named $arg\n";
+        next ARG_LOOP;
     }
 
     my $distobj = create_dist_arch( $modobj, ( $DIRECTORY
