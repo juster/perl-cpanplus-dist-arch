@@ -22,8 +22,7 @@ END_ERR
 ##############################################################################
 
 sub PKGBUILD_ERRCODE() { 2 }
-sub TOOQUIET_ERRCODE() { 3 }
-sub NEEDLWP_ERRCODE()  { 4 }
+sub NEEDLWP_ERRCODE()  { 3 }
 
 # should just make these scalars, too... hrmph
 sub AUR_LOGIN_URI()    { 'http://aur.archlinux.org/' }
@@ -57,6 +56,8 @@ sub prompt
     return $line;
 }
 
+# Params: $message - Yes or no question to ask user.
+#         $default - Whether 'yes' or 'no' is the default.
 sub prompt_yn
 {
     die 'Invalid arguments to prompt_yn' unless ( @_ == 2 );
@@ -79,6 +80,7 @@ sub prompt_yn
     return 1;
 }
 
+# Prompt without echoing user input to screen.
 sub prompt_password
 {
     my $termios = POSIX::Termios->new;
@@ -195,7 +197,7 @@ sub _load_last_login
     return () unless ( $user && $sid && $sid =~ /\A[A-F0-9]+\Z/ );
 
     # If the user specified a --name flag, make sure it matches the cached...
-    return () unless ( lc $user eq lc $NAME );
+    return () if ( $NAME && ( lc $user ne lc $NAME ));
 
     chomp $sid;
     return ($user, $sid);
@@ -356,18 +358,18 @@ sub upload_pkgfile
     my $ua = LWP::UserAgent->new();
     # First try to reuse an old Session ID...
     if ( $sid ) {
-        print "Sending package as $username... ";
+        print "Sending package as $username...\n";
         $ua->cookie_jar( _mk_session_cookie( $sid ));
         eval { _post_upload( $ua, $pkg_path ) };
         unless ( $EVAL_ERROR ) {
-            print "ok\n";
+            print "Success.\n";
             return;
         }
 
         # Fall through to get a new session ID if we just need to re-login...
         die $EVAL_ERROR unless ( $EVAL_ERROR =~ /$NEED_LOGIN_ERR/ );
 
-        print "old session ID failed. Starting new session.\n";
+        print "Old session ID failed. Starting new session.\n";
     }
 
     my $passwd = prompt_password();
@@ -554,14 +556,17 @@ name into the file prefixed with the above comment in quotes.
 GetOptions( 'directory' => \$DIRECTORY,
             'verbose'   => \$VERBOSE,
             'reverse'   => \$REVERSE,
-            'upload:s'  => \$UPLOAD,
+            'upload'    => \$UPLOAD,
             'force'     => \$FORCE,
             'name=s'    => \$NAME,
             'man'       => \$MAN,
             'help'      => \$HELP,
            );
 
-$VERBOSE //= 0;
+$VERBOSE = 0 unless ( defined $VERBOSE );
+
+pod2usage( -message => '-u[pload] and -d[irectory cannot be used together' )
+    if ( $UPLOAD && $DIRECTORY );
 
 pod2usage( -message => 'The -r[everse] flag must be used by itself.' )
     if ( $REVERSE && ( $UPLOAD || $DIRECTORY ));
@@ -574,16 +579,16 @@ if ( $REVERSE ) {
     exit 0;
 }
 
-# If no arguments are given to upload default to the current directory.
-if ( defined $UPLOAD && !@ARGV ) {
-    push @ARGV, ( length $UPLOAD ? $UPLOAD : q{.} );
+# If no arguments are given, upload the current directory's package.
+if ( $UPLOAD && !@ARGV ) {
+    push @ARGV, q{.};
 }
 
 pod2usage( -verbose => 0 ) unless ( @ARGV );
 
 ARG_LOOP:
 for my $arg ( @ARGV ) {
-    if ( defined $UPLOAD ) {
+    if ( $UPLOAD ) {
         upload_thing( $arg );
         next ARG_LOOP;
     }
@@ -599,7 +604,7 @@ for my $arg ( @ARGV ) {
                                                ? 'prepare' : 'create' ))
         or die 'ERROR Failed to create CPANPLUS::Dist::Arch object';
 
-    if ( defined $DIRECTORY ) {
+    if ( $DIRECTORY ) {
         new_tt_file( $distobj );
         next ARG_LOOP;
     }
