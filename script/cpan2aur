@@ -2,11 +2,13 @@
 
 use warnings;
 use strict;
+use 5.010;
 
 use File::Spec::Functions qw(catfile splitpath splitdir);
-use Archive::Tar          qw();
 use CPANPLUS::Dist::Arch  qw(dist_pkgver);
 use CPANPLUS::Backend     qw();
+use Term::ANSIColor       qw(color);
+use Archive::Tar          qw();
 use Getopt::Long          qw(GetOptions);
 use Pod::Usage            qw(pod2usage);
 use English               qw(no_match_vars);
@@ -97,6 +99,31 @@ sub prompt_password
 
     return $passwd;
 }
+
+sub status
+{
+    say color( 'BOLD GREEN' ), q{==> }, color( 'BOLD WHITE' ), shift,
+        color( 'RESET' );
+}
+
+sub substatus
+{
+    say color( 'BOLD BLUE' ), q{  -> }, color( 'BOLD WHITE' ), shift,
+        color( 'RESET' );
+}
+
+sub warning
+{
+    say color( 'BOLD YELLOW' ), q{==> WARNING: }, color( 'BOLD WHITE' ), shift,
+        color( 'RESET' );
+}
+
+sub error
+{
+    say color( 'BOLD RED' ), q{==> ERROR: }, color( 'BOLD WHITE' ), shift,
+        color( 'RESET' );
+}
+error( 'foo!' );
 
 sub pkgdir
 {
@@ -606,7 +633,7 @@ sub get_pkgdir_info
     }
 
     # Next is the PKGBUILD file itself...
-    die "ERROR $pkg_dir does not contain a PKGBUILD file\n"
+    die "Error: $pkg_dir does not contain a PKGBUILD file\n"
         unless ( -f "$pkg_dir/PKGBUILD" );
 
     open my $pkgbuild_file, '<', "$pkg_dir/PKGBUILD"
@@ -648,6 +675,7 @@ END_ERROR
     if ( $cpan_ver < $dist_ver ) {
         warn <<"END_WARN";
 Warning: CPAN version $cpan_ver is less than package version $dist_ver!
+Skipped $thing.
 END_WARN
         return;
     }
