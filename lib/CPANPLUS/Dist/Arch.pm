@@ -321,8 +321,11 @@ Package type must be 'bin' or 'src'};
     chdir $status->pkgbase or die "chdir: $OS_ERROR";
     my $makepkg_cmd = join q{ }, ( 'makepkg',
                                    '-f', # should we force rebuilding?
-                                   ( $EUID == 0         ? '--asroot' : () ),
-                                   ( $pkg_type eq 'src' ? '--source' : () ),
+                                   ( $EUID == 0         ? '--asroot'  : () ),
+                                   ( $pkg_type eq 'src' ? '--source'  : () ),
+                                   ( $opts{nocolor}     ? '--nocolor' : () ),
+                                   ( $opts{quiet}       ? '2>&1 >/dev/null'
+                                                        : () ),
                                   );
 
     # I tried to use IPC::Cmd here, but colors didn't work...

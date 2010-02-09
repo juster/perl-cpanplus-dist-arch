@@ -131,7 +131,8 @@ unless you know what you are doing.
 =head1 DIST OPTIONS
 
 cpan2dist allows you specify CPANPLUS::Dist::Arch specific options on
-the command line using the I<--dist-opts> switch.
+the command line using the I<--dist-opts> switch.  You can also pass
+these arguments when using CPANPLUS::Module methods like dist().
 
 =over
 
@@ -144,6 +145,15 @@ The default is to make a binary package.
 
 This overrides every other package destination specified.  Whether from
 the makepkg.conf file, environment variable, or default.
+
+=item B<quiet>
+
+If set to a true value, pipe makepkg output to /dev/null.
+
+=item B<nocolor>
+
+If set to a true value, disable colorized output from makepkg.  Use monochrome
+output only.
 
 =back
 
