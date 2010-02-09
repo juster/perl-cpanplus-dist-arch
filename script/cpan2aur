@@ -808,9 +808,9 @@ cd <package-directory>; cpan2aur [--reverse or --upload]
                        * If a module is specified, package and upload it.
                        * If nothing is specified, act upon the current
                          directory.
- -c, --check   [dir]   Check if a source package or directory (with
-                       source package in it) is outdated.
-              [file]   If so, then --upload a new version.
+ -c, --check   [dir]   Check if a source package or directory (with a
+              [file]   source package or PGKBUILD in it) is outdated.
+                       If so, then --upload a new version.
  -n, --name <username> Specify a different username to login to the AUR,
                        instead of the last one used.
 
@@ -820,23 +820,73 @@ cd <package-directory>; cpan2aur [--reverse or --upload]
 =head1 DESCRIPTION
 
 This is a utility made for creating and uploading perl packages for
-the AUR (Archlinux User Repository).  cpan2aur's simplest usage
-creates AUR source packages in the current directory.
+the AUR (Archlinux User Repository).  cpan2aur's simplest usage,
+without any flags, creates AUR source packages in the current
+directory.
 
-With the I<-d> or I<--directory> flags cpan2aur will create a
+With the I<-d> or I<--directory> flag cpan2aur will create a
 directory to contain the source package and generate a C<PKGBUILD.tt>
-template inside it.
+template inside it.  This is best when starting to maintain a new
+AUR package that requires manual PKGBUILD tweaking.
 
 Templates are a powerful way to make maintaining packages on the AUR
-easier.  Most of the time you will not have to update the PKGBUILD
-template you will just use the I<--upload> flag on a source package
-directory containing a template.
+easier.  Most of the time you will not have to update the PKGBUILD.tt
+template, you will just use the I<--upload> flag on a source package
+directory containing a template.  This will convert the template
+to a PKGBUILD by filling in the new info for the new CPAN version.
 
 With the I<-u> or I<--upload> flag cpan2aur will upload a source
 package to the AUR.  It will try to Do The Right Thing (tm) for
-arguments given to the flag.  We store previous logins inside the file
-C<~/.cpan2aur>.  The last username that was used will be retried.  To
-use a different username, delete the C<~/.cpan2aur> file.
+command line arguments.  Arguments can be source package files,
+directories for source packages, or module/distribution names.
+
+We store previous logins inside the file C<~/.cpan2aur>.  The last
+username that was used will be retried.  To use a different username,
+use the I<-n> or I<--name> flag or delete the C<~/.cpan2aur> file.
+
+You can even use the I<--check> flag to check if a new version
+of the perl distribution is available on CPAN.  If it is, cpan2aur
+will go through the I<--upload> process.
+
+=head1 EXAMPLE
+
+For example, I keep a copy of the source packages I maintain inside my
+C<~/aur> directory.  Some of these packages I have created directories
+and PKGBUILD.tt files for, because they require more customization.
+
+  [juster@virtuarch ~]$ cd ~/aur
+  [juster@virtuarch aur]$ ls
+  perl-alpm-0.05-1.src.tar.gz  perl-text-csv-xs-0.70-1.src.tar.gz
+  perl-sepia                   perl-text-xsv-0.21-1.src.tar.gz
+  perl-text-csv                perl-tkx
+  [juster@virtuarch aur]$
+
+Now to check and see if any of these packages need updating, I just use the
+--check flag to find new versions and upload them automatically.
+
+  [juster@virtuarch aur]$ cpan2aur --check perl-*
+  ==> Checking if perl-alpm-0.05-1.src.tar.gz is up to date...
+  ==> Looking up module for ALPM on CPAN...
+  perl-alpm-0.05-1.src.tar.gz is up to date.
+  ==> Checking if perl-sepia is up to date...
+  ==> Looking up module for Sepia on CPAN...
+  perl-sepia is up to date.
+  ==> Checking if perl-text-csv is up to date...
+  ==> Looking up module for Text-CSV on CPAN...
+  perl-text-csv is up to date.
+  ==> Checking if perl-text-csv-xs-0.70-1.src.tar.gz is up to date...
+  ==> Looking up module for Text-CSV_XS on CPAN...
+  perl-text-csv-xs-0.70-1.src.tar.gz is up to date.
+  ==> Checking if perl-text-xsv-0.21-1.src.tar.gz is up to date...
+  ==> Looking up module for Text-xSV on CPAN...
+  perl-text-xsv-0.21-1.src.tar.gz is up to date.
+  ==> Checking if perl-tkx is up to date...
+  ==> Looking up module for Tkx on CPAN...
+  perl-tkx is up to date.
+  [juster@virtuarch aur]$ 
+
+It's kind of boring since I don't have anything outdated to upload but
+I hope you get the idea...
 
 =head1 SEE ALSO
 
