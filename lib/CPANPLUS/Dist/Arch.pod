@@ -8,8 +8,6 @@ CPANPLUS::Dist::Arch - CPANPLUS backend for building Archlinux pacman packages
 
 Version 0.17
 
-=for readme stop
-
 =head1 SYNOPSIS
 
   (First, setup cpan to use us automatically)
@@ -28,20 +26,24 @@ Version 0.17
   (Use our included cpan2aur to make a source package in current dir)
   $ cpan2aur CPANPLUS::Dist::Arch
 
-  (Oh no!  If something doesn't autopackage, create an AUR package dir
-   under our current dir.  This package dir contains a PKGBUILD we can
-   edit and then run makepkg on)
+  (In case we need to customize our package build, create a directory
+   with a template we can use for future versions.)
   $ cpan2aur -d CPANPLUS::Dist::Arch
-  Finding module CPANPLUS::Dist::Arch... done
-  Created perl-cpanplus-dist-arch/PKGBUILD
+  ==> Creating new directory for CPANPLUS::Dist::Arch...
+    -> Looking up module for CPANPLUS::Dist::Arch on CPAN...
+  Running [/usr/bin/perl /usr/bin/perlbin/core/cpanp-run-perl /home/juster/.cpanplus/5.10.1/build/CPANPLUS-Dist-Arch-0.16/Makefile.PL INSTALLDIRS=site]...
+  Writing Makefile for CPANPLUS::Dist::Arch
+    -> Creating new PKGBUILD.tt template file...
+  ==> Created perl-cpanplus-dist-arch source package directory.
+
+  (Customize the template... add a optdepends, library depends, etc.
+   Just leave the rest of it alone.)
   $ cd perl-cpanplus-dist-arch
-  $ ed PKGBUILD
+  $ ed PKGBUILD.tt
 
   (Submit it to AUR!  Will ask for a login username/password or remember
    the last one used)
   $ cpan2aur -u
-
-=for readme continue
 
 =head1 DESCRIPTION
 
@@ -69,15 +71,15 @@ By default, packages are stored under the user's home directory in the
 .cpanplus directory.  Two seperate directories are created for
 building packages and for storing the resulting package file.
 
-I<5.10.0> represents the version of perl you used to build the package
+I<5.10.1> represents the version of perl you used to build the package
 and I<~/.cpanplus> represents the base directory chosen in your CPANPLUS
 config.
 
 =over 4
 
-=item Build Directory - C<~/.cpanplus/5.10.0/pacman/build>
+=item Build Directory - C<~/.cpanplus/5.10.1/pacman/build>
 
-=item Package Directory - C<~/.cpanplus/5.10.0/pacman/pkg>
+=item Package Directory - C<~/.cpanplus/5.10.1/pacman/pkg>
 
 =back
 
@@ -180,7 +182,6 @@ Here is a quick example of how you use C::D::A with L<CPANPLUS::Backend>.
                  destdir => '.',
                  verbose => 0
                );
- )
 
 See also L<CPANPLUS::Module>.  The C<create_dist_arch> sub in the
 L<cpan2aur> script shows how to use CPANPLUS::Module's dist() method,
