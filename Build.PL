@@ -27,6 +27,15 @@ my $builder = Module::Build->new(
         'File::Spec::Functions' => 0,
         'Carp'                  => 0,
 
+        # cpan2aur
+        'Term::ANSIColor'       => 0,
+        'Archive::Tar'          => 0,
+        'Text::Wrap'            => 0,
+        'IO::Zlib'              => 0,
+        'version'               => 0,
+        'POSIX'                 => 0,
+        'Cwd'                   => 0,
+
         'Getopt::Long'          => 0, # for the setupdistarch script
         'Pod::Usage'            => 0,
     },
