@@ -2,8 +2,6 @@
 
 use warnings;
 use strict;
-use 5.010;
-use feature qw(say);
 
 use File::Spec::Functions qw(catfile splitpath splitdir);
 use CPANPLUS::Dist::Arch  qw(dist_pkgver);
@@ -121,17 +119,17 @@ sub _color_wrap
 sub msg
 {
     my $prefix = q{ } x 4;
-    say wrap( $prefix, $prefix, shift );
+    print wrap( $prefix, $prefix, shift ), "\n";
 }
 
 sub status
 {
-    say _color_wrap( 'GREEN', q{==> }, shift );
+    print _color_wrap( 'GREEN', q{==> }, shift ), "\n";
 }
 
 sub substatus
 {
-    say _color_wrap( 'BLUE', q{  -> }, shift );
+    print _color_wrap( 'BLUE', q{  -> }, shift ), "\n";
 }
 
 sub warning
@@ -875,7 +873,7 @@ cpan2aur - AUR maintainer utility for CPAN perl modules
                        If so, then --upload a new version.
  -n, --name <username> Specify a different username to login to the AUR,
                        instead of the last one used.
- -m, --nocolor         Disable color output, use monochrome black/white.
+ -m, --mono            Disable color output, use monochrome black/white.
 
  (Unlike GNU options, single-letter options need their own hyphens
   example: -u -d)
