@@ -32,7 +32,7 @@ sub AUR_UPLOAD_URI()   { 'http://aur.archlinux.org/pkgsubmit.php' }
 sub COOKIE_NAME()      { 'AURSID' }
 sub CAT_LIB()          { 10 };
 
-my $TT_DIST_PREFIX = '# CPAN Dist. : ';
+my $TT_DIST_PREFIX = '# CPAN Name  : ';
 
 my $BAD_LOGIN_MSG  = 'Bad username or password.';
 my $NEED_LOGIN_MSG = 'You must create an account before you can upload packages.';
@@ -115,6 +115,12 @@ sub _color_wrap
     return $result;
 }
 
+sub msg
+{
+    my $prefix = q{ } x 4;
+    say wrap( $prefix, $prefix, shift );
+}
+
 sub status
 {
     say _color_wrap( 'GREEN', q{==> }, shift );
@@ -155,9 +161,11 @@ sub find_module
 {
     my $mod_or_dist = shift;
     our $CB ||= CPANPLUS::Backend->new;
-    status "Looking up module for $mod_or_dist on CPAN...";
+    substatus "Looking up module for $mod_or_dist on CPAN...";
     my $modobj = $CB->parse_module( module => $mod_or_dist );
-    # TODO: die if module not found?
+
+    warning( "Unable to find $mod_or_dist on CPAN" ) unless ( $modobj );
+
     return $modobj;
 }
 
@@ -363,6 +371,7 @@ END_PROMPT
 
         exit NEEDLWP_ERRCODE unless ( $answer );
 
+        status 'Installing perl-libwww for uploads to the AUR...';
         my $oldcwd = getcwd();
         my $modobj = find_module( 'LWP' );
         $modobj->install( type => 'install', format => 'CPANPLUS::Dist::Arch', );
@@ -375,7 +384,7 @@ END_PROMPT
             1;
         };
 
-        die "Unknown error, unable to load LWP::UserAgent and HTTP::Cookies"
+        die error( "Unable to load LWP::UserAgent and HTTP::Cookies" )
             unless $loaded;
     }
 
@@ -402,7 +411,7 @@ sub upload_pkgfile
         $ua->cookie_jar( _mk_session_cookie( $sid ));
         eval { _post_upload( $ua, $pkg_path ) };
         unless ( $EVAL_ERROR ) {
-            print 'Success.';
+            msg 'Success.';
             return;
         }
 
@@ -420,7 +429,7 @@ sub upload_pkgfile
 
     substatus "Sending package as $username...";
     _post_upload( $ua, $pkg_path );
-    substatus 'Success.';
+    msg 'Success.';
 
     return;
 }
@@ -525,6 +534,13 @@ END_ERR
     
     die error( "Failed to determine the distribution name from the " .
                "existing PKGBUILD" ) unless ( $distname );
+
+    # Replace our comment header with fresher template values...
+    # (if the PKGBUILD was made with C::D::A that is)
+    $pkgbuild_txt =~ s{^# CPAN Name  :.*?\n}{}ms; # remove possible conflict
+    $pkgbuild_txt =~ s{^# Contributor:.*?$}{# Contributor: [% packager %]}m;
+    $pkgbuild_txt =~ s{^# Generator  :.*?$}
+                      {# Generator  : CPANPLUS::Dist::Arch [% version %]}m;
 
     # Replace all bash variables values we can with template values...
     my $var_match = join '|',
@@ -681,8 +697,8 @@ END_ERROR
                                    $type eq 'dir'  ? get_pkgdir_info( $thing )  :
                                    die );
 
-    my $mod_obj  = find_module( $dist_name )
-        or die error( "Unable to find $dist_name on CPAN!" );
+    my $mod_obj  = find_module( $dist_name );
+    return unless ( $mod_obj );
 
     my $cpan_ver = version->new( dist_pkgver( $mod_obj->version ));
     $dist_ver    = version->new( $dist_ver );
@@ -695,7 +711,7 @@ END_WARN
         return;
     }
     elsif ( $cpan_ver == $dist_ver ) {
-        print "$thing is up to date.\n";
+        msg "$thing is up to date.\n";
         return;
     }
 
@@ -749,8 +765,7 @@ pod2usage( -verbose => 0 ) unless ( @ARGV );
 ARG_LOOP:
 for my $arg ( @ARGV ) {
     if ( $CHECK ) {
-        eval { upload_if_old( $arg ) };
-        print STDERR $EVAL_ERROR if ( $EVAL_ERROR );
+        upload_if_old( $arg );
         next ARG_LOOP;
     }
 
@@ -759,13 +774,10 @@ for my $arg ( @ARGV ) {
         next ARG_LOOP;
     }
 
-    my $modobj = find_module( $arg );
+    status sprintf 'Creating new %s for %s...',
+        ( $DIRECTORY ? 'directory' : 'source package' ), $arg;
 
-    unless ( $modobj ) {
-        warning( "Failed to find a module named $arg" );
-        next ARG_LOOP;
-    }
-
+    my $modobj  = find_module( $arg ) or next ARG_LOOP;
     my $distobj = create_dist_arch( $modobj, ( $DIRECTORY
                                                ? 'prepare' : 'create' ))
         or die error( 'Failed to create CPANPLUS::Dist::Arch object' );
