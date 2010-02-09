@@ -51,7 +51,7 @@ my ($DIRECTORY, $VERBOSE, $UPLOAD, $FORCE, $HELP, $MAN, $NAME,
 ## UTILITY FUNCTIONS
 ##############################################################################
 
-sub prompt
+sub prompt_ask
 {
     local $OUTPUT_AUTOFLUSH = 1;
     printf '    %s ', shift;
@@ -74,7 +74,7 @@ sub prompt_yn
 
     my $answer;
     QUESTION: {
-        $answer = prompt( $message );
+        $answer = prompt_ask( $message );
 
         return $default if ( length $answer == 0 );
         redo QUESTION unless $answer =~ /\A[yYnN]/;
@@ -94,7 +94,7 @@ sub prompt_password
     $termios->setlflag( $c_lflag & ~POSIX::ECHO );
     $termios->setattr( 0, POSIX::TCSANOW );
 
-    my $passwd = prompt( 'Password:' );
+    my $passwd = prompt_ask( 'Password:' );
 
     $termios->setlflag( $c_lflag );
     $termios->setattr( 0, POSIX::TCSANOW );
@@ -107,6 +107,7 @@ sub prompt_password
 sub _color_wrap
 {
     my ($color, $prefix, $msg) = @_;
+    $msg =~ s/\s*\n\s*/ /g;
     my $result = wrap( $prefix, q{ } x length( $prefix ), $msg );
     my $prefix_match = quotemeta $prefix;
     $result =~ s{ \A $prefix_match }
@@ -211,6 +212,8 @@ sub new_pkgdir_file
     return 1;
 }
 
+# Create a source package or just prepare a C::D::A object for doing
+# something fancier...
 sub create_dist_arch
 {
     my ($mod_obj, $target) = @_;
@@ -224,6 +227,47 @@ sub create_dist_arch
                                                 pkg     => 'src',
                                                 destdir => getcwd() });
     return $dist_obj;
+}
+
+# Create a source package inside a package directory...
+sub create_pkgdir_pkg
+{
+    my $pkgdir = shift;
+    my $oldcwd = getcwd();
+
+    # Hopefully this is a package directory...
+    chdir $pkgdir unless ( $pkgdir eq q{.} );
+
+    status sprintf 'Creating source package for %s directory...',
+        getcwd();
+
+    my $pkgpath;
+    eval {
+        # Convert template to PKGBUILD if one exists in the directory.
+        tt_to_pkgbuild() if ( -f 'PKGBUILD.tt' );
+
+        error( <<'END_ERR' ) unless ( -f 'PKGBUILD' );
+There is no PKGBUILD in the directory and no file or module names specified on
+the command line.  Unable to upload anything.
+END_ERR
+
+        substatus "Running makepkg...";
+        my $output = `makepkg --source --force --clean 2>&1`;
+
+        # We can only parse the output of makepkg to find the filename...
+        my @pkginfo = $output =~ /Making package: ([\w-]+) ([\d.-]+)/
+            or error( "makepkg returned unexpected output" );
+
+        $pkgpath = ( join q{-}, @pkginfo ) . '.src.tar.gz';
+    };
+
+    # Make sure we restore the cwd...
+    chdir $oldcwd;
+    die $EVAL_ERROR if ( $EVAL_ERROR );
+
+    status "Created $pkgdir/$pkgpath source package...";
+
+    return $pkgpath;
 }
 
 ## AUR PACKAGE UPLOAD
@@ -372,10 +416,8 @@ END_PROMPT
         exit NEEDLWP_ERRCODE unless ( $answer );
 
         status 'Installing perl-libwww for uploads to the AUR...';
-        my $oldcwd = getcwd();
         my $modobj = find_module( 'LWP' );
         $modobj->install( type => 'install', format => 'CPANPLUS::Dist::Arch', );
-        chdir $oldcwd;
 
         # Try again after we install it!
         $loaded = eval {
@@ -399,10 +441,10 @@ sub upload_pkgfile
 
     _load_web_modules();
 
-    status "Uploading $pkg_path to AUR...";
+    status "Uploading $pkg_path to the AUR...";
 
     my ($username, $sid) = _load_last_login();
-    $username ||= $NAME || prompt( 'Username:' );
+    $username ||= $NAME || prompt_ask( 'Username:' );
 
     my $ua = LWP::UserAgent->new();
     # First try to reuse an old Session ID...
@@ -440,29 +482,10 @@ sub upload_pkgdir
 {
     my ($pkgdir) = @_;
 
-    # Hopefully this is a package directory...
-#     printf "Uploading package from %s directory...\n",
-#         ( $pkgdir eq q{.} ? 'current' : $pkgdir );
-    chdir $pkgdir unless ( $pkgdir eq q{.} );
+    status "Uploading package directory $pkgdir...";
+    my $srcpkg_path = create_pkgdir_pkg( $pkgdir );
+    upload_pkgdir( $srcpkg_path );
 
-    # Convert template to PKGBUILD if one exists in the directory.
-    tt_to_pkgbuild() if ( -f 'PKGBUILD.tt' );
-
-    error( <<'END_ERR' ) unless ( -f 'PKGBUILD' );
-There is no PKGBUILD in the directory and no file or module names specified on
-the command line.  Unable to upload anything.
-END_ERR
-
-    status "Creating source package with makepkg...";
-    my $output = `makepkg --source --force --clean 2>&1`;
-
-    # We can only parse the output of makepkg to find the filename...
-    my @pkginfo = $output =~ /Making package: ([\w-]+) ([\d.-]+)/
-        or error( "makepkg returned unexpected output" );
-
-    my $pkgfile = ( join q{-}, @pkginfo ) . '.src.tar.gz';
-
-    upload_pkgfile( $pkgfile );
     return;
 }
 
@@ -485,7 +508,8 @@ sub upload_thing
     }
 
     # Last resort is that argument is a module...
-    my $dist_obj = create_dist_arch( $thing );
+    my $mod_obj  = find_module( $thing );
+    my $dist_obj = create_dist_arch( $mod_obj );
     upload_pkgfile( $dist_obj->status->dist );
 
     return;
@@ -499,7 +523,10 @@ sub upload_thing
 sub new_tt_file
 {
     my ($dist_obj) = @_;
-    return unless new_pkgdir_file( $dist_obj, 'PKGBUILD.tt' );
+
+    substatus( 'Creating new PKGBUILD.tt template file...' );
+
+    error( 'Aborted.' ) unless new_pkgdir_file( $dist_obj, 'PKGBUILD.tt' );
 
     open my $templ_file, '>', pkgdir_file( $dist_obj, 'PKGBUILD.tt' )
         or die "open PKGBUILD.tt failed: $!";
@@ -584,7 +611,7 @@ END_ERR
 # Returns: A CPANPLUS::Dist::Arch object of the PKGBUILD's package.
 sub tt_to_pkgbuild
 {
-    status "Converting PKGBUILD.tt template to PKGBUILD...";
+    substatus "Converting PKGBUILD.tt template to PKGBUILD...";
     return unless confirm_overwrite( 'PKGBUILD' );
 
     open my $templ_file, '<', 'PKGBUILD.tt' or die "open PKGBUILD.tt: $!";
@@ -666,7 +693,7 @@ sub get_pkgdir_info
     }
 
     # Next is the PKGBUILD file itself...
-    error( "$pkg_dir does not contain a PKGBUILD file" )
+    error( "$pkg_dir does not contain a PKGBUILD or source package file." )
         unless ( -f "$pkg_dir/PKGBUILD" );
 
     open my $pkgbuild_file, '<', "$pkg_dir/PKGBUILD"
@@ -778,16 +805,27 @@ for my $arg ( @ARGV ) {
         next ARG_LOOP;
     }
 
+    if ( -d $arg ) {
+        eval { create_pkgdir_pkg( $arg ) };
+        print $EVAL_ERROR if ( $EVAL_ERROR );
+        next ARG_LOOP;
+    }
+
     status sprintf 'Creating new %s for %s...',
         ( $DIRECTORY ? 'directory' : 'source package' ), $arg;
 
     my $modobj  = find_module( $arg ) or next ARG_LOOP;
     my $distobj = create_dist_arch( $modobj, ( $DIRECTORY
                                                ? 'prepare' : 'create' ))
-        or error( 'Failed to create CPANPLUS::Dist::Arch object' );
+        or die 'Failed to create CPANPLUS::Dist::Arch object';
 
     if ( $DIRECTORY ) {
-        new_tt_file( $distobj );
+        eval { new_tt_file( $distobj ) };
+        if ( $EVAL_ERROR ) { print $EVAL_ERROR; }
+        else {
+            status sprintf 'Created %s source package directory.',
+                pkgdir( $distobj );
+        }
         next ARG_LOOP;
     }
 }
@@ -796,15 +834,19 @@ __END__
 
 =head1 NAME
 
-cpan2aur - AUR packager utility for CPAN perl modules
+cpan2aur - AUR maintainer utility for CPAN perl modules
 
 =head1 SYNOPSIS
 
-cpan2aur [-v -f] --directory Module::Name [Module::Name:Two] 
+cpan2aur [-v -f] <Module::Names /pkg/dirs/>
 
-cpan2aur [-v -f] --upload [Module::Name file-name.src.tar.gz /pkg/dir/]
+cpan2aur [-v -f] --directory <Module::Names>
 
-cd <package-directory>; cpan2aur [--reverse or --upload]
+cpan2aur [-v -f] --upload [Module::Names file-names.src.tar.gz /pkg/dirs/]
+
+cpan2aur [-v -f] --check <file-names.src.tar.gz /pkg/dirs/>
+
+cd <package-directory>; cpan2aur <--reverse or --upload>
 
  -h, --help            Display this usage message.
  -m, --man             Display full help manual page.
@@ -838,8 +880,19 @@ cd <package-directory>; cpan2aur [--reverse or --upload]
 
 This is a utility made for creating and uploading perl packages for
 the AUR (Archlinux User Repository).  cpan2aur's simplest usage,
-without any flags, creates AUR source packages in the current
-directory.
+without any flags, creates AUR source packages:
+
+=over 4
+
+=item * If you specify a I<Module::Name> we create a source package file in
+the current directory.
+
+=item * If you specify a I<directory> we will generate that template
+directory's source package.
+
+=back
+
+=head2 TEMPLATES
 
 With the I<-d> or I<--directory> flag cpan2aur will create a
 directory to contain the source package and generate a C<PKGBUILD.tt>
@@ -852,6 +905,8 @@ template, you will just use the I<--upload> flag on a source package
 directory containing a template.  This will convert the template
 to a PKGBUILD by filling in the new info for the new CPAN version.
 
+=head2 UPLOADING
+
 With the I<-u> or I<--upload> flag cpan2aur will upload a source
 package to the AUR.  It will try to Do The Right Thing (tm) for
 command line arguments.  Arguments can be source package files,
@@ -861,9 +916,12 @@ We store previous logins inside the file C<~/.cpan2aur>.  The last
 username that was used will be retried.  To use a different username,
 use the I<-n> or I<--name> flag or delete the C<~/.cpan2aur> file.
 
+=head2 AUTOMATIC UPDATING
+
 You can even use the I<--check> flag to check if a new version
 of the perl distribution is available on CPAN.  If it is, cpan2aur
-will go through the I<--upload> process.
+will go through the I<--upload> process.  This is done by checking
+the versions of previously build .src.tar.gz files or PKGBUILDs.
 
 =head1 EXAMPLE
 
