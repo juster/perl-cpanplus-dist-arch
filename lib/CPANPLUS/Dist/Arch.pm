@@ -316,6 +316,8 @@ Package type must be 'bin' or 'src'};
 
     # Package it up!
     local $ENV{PKGDEST} = $destdir;
+
+    my $oldcwd = Cwd::getcwd();
     chdir $status->pkgbase or die "chdir: $OS_ERROR";
     my $makepkg_cmd = join q{ }, ( 'makepkg',
                                    '-f', # should we force rebuilding?
@@ -333,6 +335,8 @@ Package type must be 'bin' or 'src'};
                           $CHILD_ERROR >> 8 );
         return 0;
     }
+
+    chdir $oldcwd or die "chdir: $OS_ERROR";
 
     $status->dist( $destfile_fqp );
     return $status->created( 1 );
