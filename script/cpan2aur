@@ -838,15 +838,16 @@ cpan2aur - AUR maintainer utility for CPAN perl modules
 
 =head1 SYNOPSIS
 
-cpan2aur [-v -f] <Module::Names /pkg/dirs/>
+ cpan2aur [-v -f] <Module::Names /pkg/dirs/>
 
-cpan2aur [-v -f] --directory <Module::Names>
+ cpan2aur [-v -f] --directory <Module::Names>
 
-cpan2aur [-v -f] --upload [Module::Names file-names.src.tar.gz /pkg/dirs/]
+ cpan2aur [-v -f] --upload [Module::Names filenames.src.tar.gz
+                            /pkg/dirs/]
 
-cpan2aur [-v -f] --check <file-names.src.tar.gz /pkg/dirs/>
+ cpan2aur [-v -f] --check <file-names.src.tar.gz /pkg/dirs/>
 
-cd <package-directory>; cpan2aur <--reverse or --upload>
+ cd <package-directory>; cpan2aur <--reverse or --upload>
 
  -h, --help            Display this usage message.
  -m, --man             Display full help manual page.
@@ -866,8 +867,8 @@ cd <package-directory>; cpan2aur <--reverse or --upload>
                        * If a module is specified, package and upload it.
                        * If nothing is specified, act upon the current
                          directory.
- -c, --check   [dir]   Check if a source package or directory (with a
-              [file]   source package or PGKBUILD in it) is outdated.
+ -c, --check   <dir>   Check if a source package or directory (with a
+              <file>   source package or PGKBUILD in it) is outdated.
                        If so, then --upload a new version.
  -n, --name <username> Specify a different username to login to the AUR,
                        instead of the last one used.
