@@ -6,17 +6,11 @@ use strict;
 use Test::More;
 use CPANPLUS::Backend;
 use CPANPLUS::Dist::Arch;
-use Net::Ping;
 
 my $TEST_MODULE =  'Acme::Bleach';
 
 plan skip_all => 'build testing requires pacman & makepkg installed'
     unless ( CPANPLUS::Dist::Arch::format_available );
-
-# my $p = Net::Ping->new('icmp');
-# plan skip_all => 'must be able to connect to CPAN for these tests'
-#     unless ( $p->ping( 'google.com' ) );
-# $p->close();
 
 diag 'You must be connected to the Internet for this test to succeed';
 
