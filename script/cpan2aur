@@ -45,7 +45,7 @@ my $NEED_LOGIN_ERR = 'Login session was invalid.';
 my $PKG_EXISTS_ERR = 'You tried to submit a package you do not own.';
 
 # Command line flags
-my ($DIRECTORY, $VERBOSE, $UPLOAD, $FORCE, $HELP, $MAN, $NAME,
+my ($DIRECTORY, $VERBOSE, $UPLOAD, $FORCE, $HELP, $NAME,
     $REVERSE, $CHECK, $MONO);
 
 ## UTILITY FUNCTIONS
@@ -110,9 +110,11 @@ sub _color_wrap
     $msg =~ s/\s*\n\s*/ /g;
     my $result = wrap( $prefix, q{ } x length( $prefix ), $msg );
     my $prefix_match = quotemeta $prefix;
-    $result =~ s{ \A $prefix_match }
-                { color( "BOLD $color" ) . $prefix . "\033[0;1m" }exms;
-    $result .= color( 'RESET' );
+    unless ( $MONO ) {
+        $result =~ s{ \A $prefix_match }
+                    { color( "BOLD $color" ) . $prefix . "\033[0;1m" }exms;
+        $result .= color( 'RESET' );
+    }
     return $result;
 }
 
@@ -225,7 +227,9 @@ sub create_dist_arch
                                    format  => 'CPANPLUS::Dist::Arch',
                                    args    => { verbose => $VERBOSE,
                                                 pkg     => 'src',
-                                                destdir => getcwd() });
+                                                destdir => getcwd(),
+                                                nocolor => ( $MONO ? 1 : 0 ),
+                                               });
     return $dist_obj;
 }
 
@@ -764,7 +768,7 @@ GetOptions( 'directory' => \$DIRECTORY,
             'force'     => \$FORCE,
             'check'     => \$CHECK,
             'name=s'    => \$NAME,
-            'man'       => \$MAN,
+            'mono'      => \$MONO,
             'help'      => \$HELP,
            );
 
@@ -777,7 +781,6 @@ pod2usage( -message => 'The -r[everse] flag must be used by itself.' )
     if ( $REVERSE && ( $UPLOAD || $DIRECTORY ));
 
 pod2usage( -verbose => 1 ) if ( $HELP );
-pod2usage( -verbose => 2 ) if ( $MAN  );
 
 if ( $REVERSE ) {
     pkgbuild_to_tt();
