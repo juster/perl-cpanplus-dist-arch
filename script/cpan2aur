@@ -17,7 +17,7 @@ use version               qw();
 use POSIX                 qw();
 use Cwd                   qw(getcwd);
 
-our $VERSION = '1.00';
+our $VERSION = '1.01';
 
 ## CONSTANTS
 ##############################################################################
