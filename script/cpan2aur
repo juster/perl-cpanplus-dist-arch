@@ -745,11 +745,14 @@ sub upload_if_old
 
     status "Checking if $thing is up to date...";
 
-    my $type = ( -f $thing ? 'file' : -d $thing ? 'dir' : error( <<"END_ERROR" ));
+    my $type = ( -f $thing ? 'file' : -d $thing ? 'dir' : undef );
+    unless ( $type ) {
+        error( <<"END_ERROR" );
 $thing does not seem to be a source package file or directory!
 END_ERROR
+    }
 
-    # Check if the "thing" has a newer version on CPAN.
+    # Check if the "thing" has a newer version on CPAN...
     my ($dist_name, $dist_ver) = ( $type eq 'file' ? get_pkgfile_info( $thing ) :
                                    $type eq 'dir'  ? get_pkgdir_info( $thing )  :
                                    die );
@@ -761,11 +764,9 @@ END_ERROR
     $dist_ver    = version->new( $dist_ver );
 
     if ( $cpan_ver < $dist_ver ) {
-        warn <<"END_WARN";
-Warning: CPAN version $cpan_ver is less than package version $dist_ver!
-Skipped $thing.
+        error( <<"END_WARN" );
+CPAN version $cpan_ver is less than package version $dist_ver!
 END_WARN
-        return;
     }
     elsif ( $cpan_ver == $dist_ver ) {
         msg "$thing is up to date.";
@@ -774,10 +775,15 @@ END_WARN
 
     if ( $type eq 'file' ) {
         # If this is a source package file, make a new one!
-        create_dist_arch( $mod_obj => 'create' );
+        my $dist_obj = create_dist_arch( $mod_obj => 'create' );
+        my $pkg_path = $dist_obj->status->dist
+            or die 'Unable to find path of created source package';
+        upload_pkgfile( $pkg_path );
         return;
     }
-    
+
+    # upload_pkgdir() will automatically update the directory
+    # TODO: perhaps we should turn force on?
     upload_pkgdir( $thing );
     return;
 }
