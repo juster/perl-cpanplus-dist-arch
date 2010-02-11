@@ -1,3 +1,12 @@
+2010-02-14  Justin Davis  <juster@cpan.org>
+
+	* 0.17 (RELEASE)
+
+	* lib/CPANPLUS/Dist/Arch.pm (create): Added the 'quiet' and
+	'verbose' dist options.
+	(create): Fixed bug where we chdir to create a package and do not
+	chdir back.  Messed up calling programs cwd.
+
 2010-02-03  Justin Davis  <juster@cpan.org>
 
 	* lib/CPANPLUS/Dist/Arch.pm (create): We are now verbose by
