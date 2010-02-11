@@ -5,6 +5,42 @@ NAME
 VERSION
     Version 0.17
 
+SYNOPSIS
+      (First, setup cpan to use us automatically)
+      $ setupdistarch
+      This script will now setup CPANPLUS to automatically package all
+      modules into pacman packages when installing.
+      Are you sure you want to do this? [y/N] y
+      Set CPANPLUS to package all modules through CPANPLUS::Dist::Arch
+
+      (Install the module as a pacman package)
+      $ cpanp -i Perl::Module::Here
+
+      (Use cpan2dist to make a package, but don't install it)
+      $ cpan2dist Acme::Bleach
+
+      (Use our included cpan2aur to make a source package in current dir)
+      $ cpan2aur CPANPLUS::Dist::Arch
+
+      (In case we need to customize our package build, create a directory
+       with a template we can use for future versions.)
+      $ cpan2aur -d CPANPLUS::Dist::Arch
+      ==> Creating new directory for CPANPLUS::Dist::Arch...
+        -> Looking up module for CPANPLUS::Dist::Arch on CPAN...
+      Running [/usr/bin/perl /usr/bin/perlbin/core/cpanp-run-perl /home/juster/.cpanplus/5.10.1/build/CPANPLUS-Dist-Arch-0.16/Makefile.PL INSTALLDIRS=site]...
+      Writing Makefile for CPANPLUS::Dist::Arch
+        -> Creating new PKGBUILD.tt template file...
+      ==> Created perl-cpanplus-dist-arch source package directory.
+
+      (Customize the template... add a optdepends, library depends, etc.
+       Just leave the rest of it alone.)
+      $ cd perl-cpanplus-dist-arch
+      $ ed PKGBUILD.tt
+
+      (Submit it to AUR!  Will ask for a login username/password or remember
+       the last one used)
+      $ cpan2aur -u
+
 DESCRIPTION
     This module is used as a plugin of CPANPLUS to transparently package
     CPAN distribution files into pacman packages as they are installed. This
@@ -27,12 +63,12 @@ WHERE IS THE PACKAGE
     .cpanplus directory. Two seperate directories are created for building
     packages and for storing the resulting package file.
 
-    *5.10.0* represents the version of perl you used to build the package
+    *5.10.1* represents the version of perl you used to build the package
     and *~/.cpanplus* represents the base directory chosen in your CPANPLUS
     config.
 
-    Build Directory - `~/.cpanplus/5.10.0/pacman/build'
-    Package Directory - `~/.cpanplus/5.10.0/pacman/pkg'
+    Build Directory - `~/.cpanplus/5.10.1/pacman/build'
+    Package Directory - `~/.cpanplus/5.10.1/pacman/pkg'
 
 CUSTOMIZATION
     You can change defaults settings machine-wide (for every user) or for
@@ -81,8 +117,7 @@ SEE ALSO
         http://search.cpan.org/dist/CPANPLUS/
 
 AUTHOR
-    Justin Davis, `<juster at cpan dot org>', juster on
-    http://bbs.archlinux.org
+    Justin Davis `<juster at cpan dot org>'
 
 COPYRIGHT & LICENSE
     Copyright 2010 Justin Davis, all rights reserved.
