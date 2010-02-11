@@ -1,3 +1,9 @@
+2010-02-17  Justin Davis  <juster@cpan.org>
+
+	* script/cpan2aur (confirm_overwrite): Fixed bug where the
+	overwrite confirmation prompt answered yes no matter what.
+	Reported by Xenoterracide.
+
 2010-02-14  Justin Davis  <juster@cpan.org>
 
 	* 0.17 (RELEASE)
@@ -33,13 +39,15 @@
 	* lib/CPANPLUS/Dist/Arch.pm (_translate_xs_deps): Fixed bug
 	with detecting XS deps for Module::Build distributions.
 	It never seemed to work right anyways, and would sometimes
-	cause a fatal error.  (thanks Xenoterracide)
+	cause a fatal error.
+	Reported by Xenoterracide
 
 2010-01-07  Justin Davis  <jrcd83@gmail.com>
 
 	* lib/CPANPLUS/Dist/Arch.pm (dist_pkgver): Fixed bug where
 	underscores in developer releases were not preserved as they
-	were supposed to be.  (thanks Xenoterracide for telling me)
+	were supposed to be.
+	Reported by Xenoterracide
 
 2010-01-02  Justin Davis  <jrcd83@gmail.com>
 

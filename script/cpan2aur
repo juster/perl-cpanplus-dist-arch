@@ -192,9 +192,9 @@ sub confirm_overwrite
         return 1;
     }
 
-    # Keep asking until we get a yes, no, or blank answer...
-        my $answer = prompt_yn( "$file_path already exists, overwrite?" => 'yes' );
-
+    my $answer = prompt_yn( "$file_path already exists, overwrite?" => 'yes' );
+    return 0 if ( $answer == 0 );
+    
     unlink $file_path or die qq{Failed to "rm $file_path": $!};
     return 1;
 }
