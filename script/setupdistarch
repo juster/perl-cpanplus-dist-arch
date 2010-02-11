@@ -4,10 +4,14 @@ use warnings;
 use strict;
 use English           qw(no_match_vars);
 
+use CPANPLUS::Internals::Constants qw(CONFIG_USER);
+use File::Basename              qw[dirname];
+
 use CPANPLUS::Backend;
 use Getopt::Long;
 use Pod::Usage;
 use IPC::Cmd          qw(can_run);
+use Carp              qw(croak);
 
 ## CONSTANTS
 ##############################################################################
@@ -30,26 +34,129 @@ my $SUDO_WARNING = <<'END_WARNING';
 
 END_WARNING
 
+## GLOBALS
+##############################################################################
+
+my ($DO_REMOVAL, $DO_FORCE);
+
+# Params: $message - Yes or no question to ask user.
+#         $default - Whether 'yes' or 'no' is the default.
+sub prompt_yn
 {
-    my ($show_help, $show_man, $do_removal, $do_force);
+    die 'Invalid arguments to prompt_yn' unless ( @_ == 2 );
+    my ($message, $default) = @_;
+
+    my $first = lc substr $default, 0, 1;
+    $default = ( $first eq 'y' ? 1 : $first eq 'n' ? 0 : 1 );
+    
+    chomp $message;
+    $message .= q{ } . ( $default ? '[Yn]' : '[yN]' ) . q{ };
+
+    my $answer;
+    QUESTION: {
+        local $OUTPUT_AUTOFLUSH = 1;
+        print $message;
+        $answer = <STDIN>;
+        chomp $answer;
+
+        return $default if ( length $answer == 0 );
+        redo QUESTION unless $answer =~ /\A[yYnN]/;
+    }
+
+    return 0 if $answer =~ /\A[nN]/;
+    return 1;
+}
+
+my @Config_fixups;
+
+sub add_cfg_fixup
+{
+    croak 'Params for add_cfg_fixup must be a hash' unless @_ % 2 == 0;
+    my %fixup = @_;
+
+    croak q{You must specify 'checker', 'prompt', 'fixer', and 'success'
+in the hash parameters to add_cfg_fixup} unless 4 == grep { defined }
+    my ($checker_ref, $prompt, $fixer_ref, $success) =
+        @fixup{ qw/checker prompt fixer success/ };
+
+    my $prompter_ref = sub { prompt_yn( $prompt => 'Y' ) };
+    chomp $success;
+
+    push @Config_fixups, [ $checker_ref, $prompter_ref, $fixer_ref, $success ];
+    return;
+}
+
+sub run_cfg_fixups
+{
+    my $cfg_obj = CPANPLUS::Backend->new->configure_object;
+    my $fixedup = 0;
+
+    FIXUP_LOOP:
+    for my $fixup ( @Config_fixups ) {
+        my ($checker_ref, $prompter_ref, $fixer_ref, $success) = @$fixup;
+
+        next FIXUP_LOOP unless ( $checker_ref->( $cfg_obj )     );
+        next FIXUP_LOOP unless ( $DO_FORCE || $prompter_ref->() );
+
+        $fixer_ref->( $cfg_obj );
+
+        print $success, "\n" if ( $success );
+        ++$fixedup;
+    }
+
+    $cfg_obj->save;
+
+    return $fixedup;
+}
+
+{
+    my ($show_help, $show_man);
     GetOptions( help   => \$show_help,
                 man    => \$show_man,
-                remove => \$do_removal,
-                force  => \$do_force );
+                remove => \$DO_REMOVAL,
+                force  => \$DO_FORCE );
 
     pod2usage( verbose => 2 ) if $show_man;
     pod2usage( verbose => 1 ) if $show_help;
 
-    goto CONFIRM_BYPASS if ( $do_force );
+    if ( $DO_REMOVAL ) {
+        my $prompt = <<'END_PROMPT';
+Are you sure you want to stop packaging CPAN installs?
+END_PROMPT
 
-    print $do_removal ? <<'END_REM_MSG' : <<'END_ADD_MSG';
-This script will now setup CPANPLUS to not package modules.
+        add_cfg_fixup
+            ( checker => sub { 1 },
+              fixer   => sub { shift->set_conf( 'dist_type' => q{} ) },
+              prompt  => $prompt,
+              success => 'CPANPLUS will no longer auto-package modules.',
+             );
+    }
+    else {
+        add_cfg_fixup
+            ( checker => sub {
+                  shift->get_conf( 'dist_type' ) ne 'CPANPLUS::Dist::Arch';
+              },
+              fixer   => sub {
+                  shift->set_conf( 'dist_type' => 'CPANPLUS::Dist::Arch' );
+              },
+              prompt  => 'Are you sure you want to auto-package CPAN installs?',
+              success => 'CPANPLUS will now auto-package modules.',
+             );
 
-END_REM_MSG
-This script will now setup CPANPLUS to automatically package all
-modules into pacman packages when installing.
+        my $prompt = <<'END_PROMPT';
+Would you like to automatically install module pre-requisites?
+END_PROMPT
+        my $success = <<'END_SUCCESS';
+CPANPLUS will install pre-requisite modules without asking.
+END_SUCCESS
 
-END_ADD_MSG
+        add_cfg_fixup
+            ( checker => sub { shift->get_conf( 'prereqs' ) != 1   },
+              fixer   => sub { shift->set_conf( 'prereqs' => 1 ) },
+              prompt  => $prompt,
+              success => $success,
+             );
+    }
 
     if ( $UID == $ROOT_UID ) {
         print $ROOT_WARNING;
@@ -59,50 +166,11 @@ END_ADD_MSG
         print $SUDO_WARNING;
     }
 
-    print "Are you sure you want to do this? [y/N] ";
-    my $answer = <STDIN>;
-    chomp $answer;
-
-    exit 1 if ( $answer !~ /\A[yY]/ );
-
-    CONFIRM_BYPASS:
-
-    eval {
-        my $cb = CPANPLUS::Backend->new;
-        my $conf = $cb->configure_object;
-
-        my $newval = 'CPANPLUS::Dist::Arch';
-
-        if ( $do_removal && !$do_force ) {
-            my $oldval = $conf->get_conf('dist_type');
-            die <<"END_ERR" if ($oldval && $oldval ne $newval)
-The previous packager was set to '$oldval', not CPANPLUS::Dist::Arch.
-Use the -f or --force option to force its removal.
-END_ERR
-        }
-
-        $conf->set_conf( dist_type => ( $do_removal ? '' : $newval ));
-
-        if ( $conf->get_conf( 'prereqs' ) != 1 && !$do_force ) {
-            print 'Recursively install all module dependencies as well? [yN] ';
-            $answer = <STDIN>;
-            chomp $answer;
-
-            if ( $answer =~ /\A[yY]/ ) {
-                $conf->set_conf( 'prereqs' => 1 );
-            }
-        }
-        
-        $conf->save;
-    };
-
-    if ($EVAL_ERROR) {
-        warn "An ERROR occurred while configuring CPANPLUS:\n$EVAL_ERROR";
-        exit 1;
+    my $count = run_cfg_fixups();
+    if ( $count == 0 ) {
+        print "CPANPLUS is already setup correctly.\n";
     }
 
-    printf 'CPANPLUS is now setup to%s package modules using '.
-        "CPANPLUS::Dist::Arch\n", ( $do_removal ? ' NOT' : q{} );
     exit 0;
 }
 
@@ -116,13 +184,18 @@ setupdistarch - Script to set CPANPLUS::Dist::Arch as the default packager for C
 
 Run this script from your command shell to set CPANPLUS to package all
 modules through CPANPLUS::Dist::Arch by default or to disable
-automatic packaging in CPANPLUS.
+automatic packaging in CPANPLUS.  setupdistarch also turns on recursive
+package installation and warns if sudo is not installed.
 
-  $ setupdistarch
-  Set CPANPLUS to package all modules through CPANPLUS::Dist::Arch
+  $ ./setupdistarch
+  Are you sure you want to auto-package CPAN installs? [Yn] 
+  CPANPLUS will now auto-package modules.
 
-  $ setupdistarch --remove
-  Set CPANPLUS to not package modules.
+  $ ./setupdistarch --force
+  CPANPLUS will now auto-package modules.
+
+  $ setupdistarch --remove --force
+  CPANPLUS will no longer auto-package modules.
 
   $ setupdistarch -h
   (Displays this usage information.)
@@ -157,11 +230,13 @@ for example.
 =head1 DESCRIPTION
 
 This script was created to make setting up or disabling
-CPANPLUS::Dist::Arch a little easier.  Without using the force option,
-the user must confirm they want to change CPANPLUS's configuration.
+L<CPANPLUS::Dist::Arch> a little easier.  Without using the force
+option, the user must confirm they want to change CPANPLUS's
+configuration.
 
-If you run this script as root, it will change the *System-Wide*
-default for all CPANPLUS users.  A warning message is displayed.
+If you run this script as root, it will change the B<SYSTEM-WIDE>
+default for all CPANPLUS users.  A warning message is displayed
+when run as root.
 
 =head1 TROUBLESHOOTING
 
@@ -176,6 +251,8 @@ on your configuration file.  For example:
   sudo chown <yourname>.<yourgroup> ~/.cpanplus/lib/CPANPLUS/Config/User.pm
 
 =item B<PATH>
+
+I<This problem has been fixed in recent versions of Archlinux.>
 
 Archlinux currently installs binaries from perl modules (like this one
 here) under the C</usr/bin/perlbin/vendor> directory.  Make sure this
