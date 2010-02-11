@@ -8,10 +8,6 @@ VERSION
 SYNOPSIS
       (First, setup cpan to use us automatically)
       $ setupdistarch
-      This script will now setup CPANPLUS to automatically package all
-      modules into pacman packages when installing.
-      Are you sure you want to do this? [y/N] y
-      Set CPANPLUS to package all modules through CPANPLUS::Dist::Arch
 
       (Install the module as a pacman package)
       $ cpanp -i Perl::Module::Here
