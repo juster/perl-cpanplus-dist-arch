@@ -613,6 +613,15 @@ Directory does not exist or is not writeable}
 # PRIVATE INSTANCE METHODS
 #-----------------------------------------------------------------------------
 
+#---HELPER FUNCTION---
+sub _is_main_module
+{
+    my ($mod_name, $dist_name) = @_;
+
+    $mod_name =~ tr/:/-/s;
+    return (lc $mod_name) eq (lc $dist_name);
+}
+
 #---INSTANCE METHOD---
 # Usage    : my $deps_str = $self->_translate_cpan_deps()
 # Purpose  : Convert CPAN prerequisites into pacman package dependencies
@@ -642,22 +651,26 @@ sub _translate_cpan_deps
         }
 
         # Ignore modules included with this version of perl...
-        # XXX: This checks the version of perl being run, not necessarily
-        #      the latest perl version.
         # NOTE: If 'provides' are given version numbers in the perl
         #       package we won't need to check this.
-        my $bundled_version = $Module::CoreList::version{0+$]}->{$modname};
+        #       (But we still do, owell.  It avoids redundancy.)
+        my $bundled_version = $Module::CoreList::version{ 0+$] }->{$modname};
         if ( defined $bundled_version ) {
             next CPAN_DEP_LOOP if ( qv($bundled_version) >= qv($depver) );
         }
 
         # Translate the module's distribution name into a package name...
-        my $modobj  = $backend->parse_module( module => $modname )
+        my $modobj  = $backend->module_tree( $modname )
             or next CPAN_DEP_LOOP;
         my $pkgname = dist_pkgname( $modobj->package_name );
 
-        $pkgdeps{$pkgname} = ( $depver eq '0'
-                               ? $depver
+        # If two module prereqs are in the same distribution ("package") file
+        # then try to choose the one with the same name as the file...
+        if ( exists $pkgdeps{$pkgname} ) {
+            next CPAN_DEP_LOOP unless _is_main_module( $modname, $pkgname );
+        }
+
+        $pkgdeps{$pkgname} = ( $depver eq '0' ? $depver
                                : dist_pkgver( $depver ) );
     }
 
