@@ -2,15 +2,35 @@
 
 use warnings;
 use strict;
+use English           qw(no_match_vars);
 
-use English '-no_match_vars';
 use CPANPLUS::Backend;
-use Pod::Usage;
 use Getopt::Long;
+use Pod::Usage;
+use IPC::Cmd          qw(can_run);
+
+## CONSTANTS
+##############################################################################
+
+my $ROOT_UID = 0;
+my $ROOT_WARNING = <<'END_WARNING';
+*** Warning: Running this script as root (without sudo) will set the
+***          system-wide default for ALL users.
+***
+***          DO NOT run this script with sudo or your config file
+***          will become owned by root.
+
+END_WARNING
+my $SUDO_WARNING = <<'END_WARNING';
+*** Warning: You must have sudo or some similar program in order to
+***          install packages as a non-root user.
+***
+***          This is preferable to building packages as root which might
+***          be dangerous.
+
+END_WARNING
 
 {
-    my $ROOT_UID = 0;
-
     my ($show_help, $show_man, $do_removal, $do_force);
     GetOptions( help   => \$show_help,
                 man    => \$show_man,
@@ -24,19 +44,19 @@ use Getopt::Long;
 
     print $do_removal ? <<'END_REM_MSG' : <<'END_ADD_MSG';
 This script will now setup CPANPLUS to not package modules.
+
 END_REM_MSG
 This script will now setup CPANPLUS to automatically package all
 modules into pacman packages when installing.
+
 END_ADD_MSG
 
     if ( $UID == $ROOT_UID ) {
-        print <<'END_WARNING';
-*** Warning: Running this script as root (without sudo) will set the
-***          system-wide default for ALL users.
-***
-***          DO NOT run this script with sudo or your config file
-***          will become owned by root.
-END_WARNING
+        print $ROOT_WARNING;
+    }
+
+    unless ( can_run( 'sudo' )) {
+        print $SUDO_WARNING;
     }
 
     print "Are you sure you want to do this? [y/N] ";
@@ -81,9 +101,8 @@ END_ERR
         exit 1;
     }
 
-    print +( $do_removal
-             ? 'Set CPANPLUS to not package modules'
-             : 'Set CPANPLUS to package all modules through CPANPLUS::Dist::Arch' ), ".\n";
+    printf 'CPANPLUS is now setup to%s package modules using '.
+        "CPANPLUS::Dist::Arch\n", ( $do_removal ? ' NOT' : q{} );
     exit 0;
 }
 
