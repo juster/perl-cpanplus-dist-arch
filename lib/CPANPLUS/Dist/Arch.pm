@@ -80,7 +80,7 @@ my $PKGBUILD_TEMPL = <<'END_TEMPL';
 # Generator  : CPANPLUS::Dist::Arch [% version %]
 pkgname='[% pkgname %]'
 pkgver='[% pkgver %]'
-pkgrel='1'
+pkgrel='[% pkgrel %]'
 pkgdesc="[% pkgdesc %]"
 arch=('i686' 'x86_64')
 license=('PerlArtistic' 'GPL')
@@ -201,7 +201,7 @@ sub init
     my $self = shift;
 
     $self->status->mk_accessors( qw{ pkgname  pkgver  pkgbase pkgdesc
-                                     pkgurl   pkgsize pkgarch
+                                     pkgurl   pkgsize pkgarch pkgrel
                                      builddir destdir pkgbuild_templ  } );
     return 1;
 }
@@ -507,6 +507,18 @@ sub get_cpandistdir
     return $distdir;
 }
 
+sub get_pkgrel
+{
+    my ($self) = @_;
+    return $self->status->pkgrel;
+}
+
+sub set_pkgrel
+{
+    my ($self, $new_pkgrel) = @_;
+    return $self->status->pkgrel( $new_pkgrel );
+}
+
 sub get_pkgvars
 {
     croak 'Invalid arguments to get_pkgvars' if ( @_ != 1 );
@@ -519,6 +531,7 @@ sub get_pkgvars
 
     return ( pkgname  => $status->pkgname,
              pkgver   => $status->pkgver,
+             pkgrel   => $status->pkgrel,
              pkgdesc  => $status->pkgdesc,
              depends  => scalar $self->_translate_cpan_deps,
 
@@ -845,6 +858,7 @@ sub _prepare_status
     $status->pkgver ($pkgver );
     $status->pkgbase($pkgbase);
     $status->pkgarch($pkgarch);
+    $status->pkgrel (   1    );
 
     $self->_prepare_pkgdesc();
 
