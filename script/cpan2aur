@@ -31,7 +31,7 @@ sub AUR_UPLOAD_URI()   { 'http://aur.archlinux.org/pkgsubmit.php' }
 sub COOKIE_NAME()      { 'AURSID' }
 sub CAT_LIB()          { 10 };
 
-my $TT_DIST_PREFIX = '# CPAN Name  : ';
+my $TT_NAME_PREFIX = '# CPAN Name  : ';
 
 my $BAD_LOGIN_MSG  = 'Bad username or password.';
 my $NEED_LOGIN_MSG = 'You must create an account before you can upload packages.';
@@ -560,7 +560,7 @@ sub new_tt_file
         or die "open PKGBUILD.tt failed: $!";
 
     # Insert the distribution name in the comments... used in tt_to_pkgbuild().
-    print $templ_file $TT_DIST_PREFIX, $dist_obj->parent->package_name, "\n";
+    print $templ_file $TT_NAME_PREFIX, $dist_obj->parent->package_name, "\n";
     print $templ_file $dist_obj->get_pkgbuild_templ;
 
     close $templ_file or die "close PKGBUILD.tt failed: $!";
@@ -594,7 +594,7 @@ END_ERR
 
     # Replace our comment header with fresher template values...
     # (if the PKGBUILD was made with C::D::A that is)
-    $pkgbuild_txt =~ s{^# CPAN Name  :.*?\n}{}ms; # remove possible conflict
+    $pkgbuild_txt =~ s{^$TT_NAME_PREFIX.*?\n}{}ms; # remove possible conflict
     $pkgbuild_txt =~ s{^# Contributor:.*?$}{# Contributor: [% packager %]}m;
     $pkgbuild_txt =~ s{^# Generator  :.*?$}
                       {# Generator  : CPANPLUS::Dist::Arch [% version %]}m;
@@ -626,7 +626,7 @@ END_ERR
     # Change _DISTDIR for backwards compatibility...
 
     open my $templ_file, '>', 'PKGBUILD.tt' or die "open PKGBUILD.tt: $!";
-    print $templ_file $TT_DIST_PREFIX, $distname, "\n";
+    print $templ_file $TT_NAME_PREFIX, $distname, "\n";
     print $templ_file $pkgbuild_txt;
     close $templ_file;
 
