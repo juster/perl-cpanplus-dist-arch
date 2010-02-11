@@ -507,6 +507,16 @@ sub get_cpandistdir
     return $distdir;
 }
 
+sub get_pkgname
+{
+    return shift->status->pkgname;
+}
+
+sub get_pkgver
+{
+    return shift->status->pkgver;
+}
+
 sub get_pkgrel
 {
     my ($self) = @_;
