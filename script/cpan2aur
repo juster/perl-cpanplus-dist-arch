@@ -621,7 +621,7 @@ END_ERR
 
     # Also replace _DISTDIR or DIST_DIR if we are creating a template from
     # a C::D::A generated PKGBUILD...
-    $pkgbuild_txt =~ s{(DIST|_DIST)DIR=".*?"}{DIST_DIR="\${srcdir}/[% distdir %]"};
+    $pkgbuild_txt =~ s{(DIST_|_DIST)DIR=".*?"}{DIST_DIR="\${srcdir}/[% distdir %]"};
     $pkgbuild_txt =~ s{\$_DISTDIR}{\$DIST_DIR}g;
     # Change _DISTDIR for backwards compatibility...
 
