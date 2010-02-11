@@ -105,10 +105,11 @@ sub prompt_password
 
 sub _color_wrap
 {
-    my ($color, $prefix, $msg) = @_;
+    my ($color, $prefix, @messages) = @_;
 
     # Wrap the uncolored first because ANSI color chars mess up wrap()
     # (it doesn't know the ANSI color codes are invisible)
+    my $msg          = join q{}, @messages;
     $msg             =~ s/\s*\n\s*/ /g;
     my $result       = wrap( $prefix, q{ } x length( $prefix ), $msg );
     my $prefix_match = quotemeta $prefix;
@@ -126,31 +127,31 @@ sub _color_wrap
 sub msg
 {
     my $prefix = q{ } x 4;
-    print wrap( $prefix, $prefix, shift ), "\n";
+    print wrap( $prefix, $prefix, @_ ), "\n";
 }
 
 sub status
 {
-    print _color_wrap( 'GREEN' => q{==> }, shift ), "\n";
+    print _color_wrap( 'GREEN' => q{==> }, @_ ), "\n";
 }
 
 sub substatus
 {
-    print _color_wrap( 'BLUE' => q{  -> }, shift ), "\n";
+    print _color_wrap( 'BLUE' => q{  -> }, @_ ), "\n";
 }
 
 sub warning
 {
-    my $msg = shift;
-    chomp $msg;
-    warn _color_wrap( 'YELLOW' => q{==> WARNING: }, $msg ), "\n";
+    my @args = @_;
+    chomp $args[-1];
+    warn _color_wrap( 'YELLOW' => q{==> WARNING: }, @args ), "\n";
 }
 
 sub error
 {
-    my $msg = shift;
-    chomp $msg;
-    die _color_wrap( 'RED' => q{==> ERROR: }, $msg ), "\n";
+    my @args = @_;
+    chomp $args[-1];
+    die _color_wrap( 'RED' => q{==> ERROR: }, @args ), "\n";
 }
 
 sub pkgdir
@@ -262,12 +263,13 @@ There is no PKGBUILD in the directory and no file or module names specified on
 the command line.  Unable to upload anything.
 END_ERR
 
-        substatus "Running makepkg...";
-        my $output = `makepkg --source --force --clean 2>&1`;
+        my $makepkg_cmd = 'makepkg --source --force --clean';
+        substatus qq{Running '$makepkg_cmd'...};
+        my $output = `$makepkg_cmd 2>&1`;
 
         # We can only parse the output of makepkg to find the filename...
         my @pkginfo = $output =~ /Making package: ([\w-]+) ([\d.-]+)/
-            or error( "makepkg returned unexpected output" );
+            or error( "makepkg returned unexpected output: $output" );
 
         $pkgpath = ( join q{-}, @pkginfo ) . '.src.tar.gz';
     };
