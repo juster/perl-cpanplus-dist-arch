@@ -9,6 +9,7 @@ use CPANPLUS::Backend     qw();
 use Term::ANSIColor       qw(color);
 use Archive::Tar          qw();
 use Getopt::Long          qw(GetOptions);
+use List::Util            qw(first);
 use Pod::Usage            qw(pod2usage);
 use Text::Wrap            qw(wrap);
 use English               qw(no_match_vars);
@@ -105,14 +106,20 @@ sub prompt_password
 sub _color_wrap
 {
     my ($color, $prefix, $msg) = @_;
-    $msg =~ s/\s*\n\s*/ /g;
-    my $result = wrap( $prefix, q{ } x length( $prefix ), $msg );
+
+    # Wrap the uncolored first because ANSI color chars mess up wrap()
+    # (it doesn't know the ANSI color codes are invisible)
+    $msg             =~ s/\s*\n\s*/ /g;
+    my $result       = wrap( $prefix, q{ } x length( $prefix ), $msg );
     my $prefix_match = quotemeta $prefix;
-    unless ( $MONO ) {
-        $result =~ s{ \A $prefix_match }
-                    { color( "BOLD $color" ) . $prefix . "\033[0;1m" }exms;
-        $result .= color( 'RESET' );
-    }
+
+    return $result if ( $MONO );
+
+    # Now colorize the prefix and stuff...
+    $result =~ s{ \A $prefix_match } # Use \033[0;1m cuz Term::ANSIColor
+                { color( "BOLD $color" ) . $prefix . "\033[0;1m" }exms;
+    $result .= color( 'RESET' );     # ... doesnt have very bright white!
+
     return $result;
 }
 
@@ -124,26 +131,26 @@ sub msg
 
 sub status
 {
-    print _color_wrap( 'GREEN', q{==> }, shift ), "\n";
+    print _color_wrap( 'GREEN' => q{==> }, shift ), "\n";
 }
 
 sub substatus
 {
-    print _color_wrap( 'BLUE', q{  -> }, shift ), "\n";
+    print _color_wrap( 'BLUE' => q{  -> }, shift ), "\n";
 }
 
 sub warning
 {
     my $msg = shift;
     chomp $msg;
-    warn _color_wrap( 'YELLOW', q{==> WARNING: }, $msg ), "\n";
+    warn _color_wrap( 'YELLOW' => q{==> WARNING: }, $msg ), "\n";
 }
 
 sub error
 {
     my $msg = shift;
     chomp $msg;
-    die _color_wrap( 'RED', q{==> ERROR: }, $msg ), "\n";
+    die _color_wrap( 'RED' => q{==> ERROR: }, $msg ), "\n";
 }
 
 sub pkgdir
@@ -227,7 +234,9 @@ sub create_dist_arch
                                                 pkg     => 'src',
                                                 destdir => getcwd(),
                                                 nocolor => ( $MONO ? 1 : 0 ),
-                                               });
+                                               })
+        or die "Failed to create CPANPLUS::Dist::Arch object";
+
     return $dist_obj;
 }
 
@@ -267,9 +276,26 @@ END_ERR
     chdir $oldcwd;
     die $EVAL_ERROR if ( $EVAL_ERROR );
 
-    status "Created $pkgdir/$pkgpath source package...";
+    $pkgpath = "$pkgdir/$pkgpath";
+    status "Created $pkgpath source package...";
 
     return $pkgpath;
+}
+
+sub create_new_pkgdir
+{
+    my $mod_name = shift;
+
+    status "Creating a new package directory for $mod_name...";
+
+    my $mod_obj  = find_module( $mod_name ) or return;
+    my $dist_obj = create_dist_arch( $mod_obj, 'prepare' );
+
+    new_tt_file( $dist_obj );
+    status( sprintf 'Created %s source package directory.',
+            pkgdir( $dist_obj ));
+
+    return;
 }
 
 ## AUR PACKAGE UPLOAD
@@ -486,7 +512,7 @@ sub upload_pkgdir
 
     status "Uploading package directory $pkgdir...";
     my $srcpkg_path = create_pkgdir_pkg( $pkgdir );
-    upload_pkgdir( $srcpkg_path );
+    upload_pkgfile( $srcpkg_path );
 
     return;
 }
@@ -792,43 +818,34 @@ if ( $UPLOAD && !@ARGV ) {
 
 pod2usage( -verbose => 0 ) unless ( @ARGV );
 
+# A list of actions, each is an aref of arg test and arg action.
+my @flagacts = ( [ sub { $CHECK     }, \&upload_if_old     ],
+                 [ sub { $UPLOAD    }, \&upload_thing      ],
+                 [ sub { $DIRECTORY }, \&create_new_pkgdir ],
+                 [ sub { -d shift   }, \&create_pkgdir_pkg ],
+                );
+
+sub find_action
+{
+    my $thing = shift;
+    my $match = first { $_->[0]->( $thing ) } @flagacts;
+    return $match->[1];
+}
+
 ARG_LOOP:
 for my $arg ( @ARGV ) {
-    if ( $CHECK ) {
-        eval { upload_if_old( $arg ) };
+    my $action = find_action( $arg );
+    if ( $action ) {
+        eval { $action->($arg) };
         print $EVAL_ERROR if ( $EVAL_ERROR );
         next ARG_LOOP;
     }
-
-    if ( $UPLOAD ) {
-        eval { upload_thing( $arg ) };
-        print $EVAL_ERROR if ( $EVAL_ERROR );
-        next ARG_LOOP;
-    }
-
-    if ( -d $arg ) {
-        eval { create_pkgdir_pkg( $arg ) };
-        print $EVAL_ERROR if ( $EVAL_ERROR );
-        next ARG_LOOP;
-    }
-
-    status sprintf 'Creating new %s for %s...',
-        ( $DIRECTORY ? 'directory' : 'source package' ), $arg;
-
+    
+    status( 'Creating new source package for ' . $arg . '...' );
     my $modobj  = find_module( $arg ) or next ARG_LOOP;
     my $distobj = create_dist_arch( $modobj, ( $DIRECTORY
                                                ? 'prepare' : 'create' ))
         or die 'Failed to create CPANPLUS::Dist::Arch object';
-
-    if ( $DIRECTORY ) {
-        eval { new_tt_file( $distobj ) };
-        if ( $EVAL_ERROR ) { print $EVAL_ERROR; }
-        else {
-            status sprintf 'Created %s source package directory.',
-                pkgdir( $distobj );
-        }
-        next ARG_LOOP;
-    }
 }
 
 __END__
@@ -847,8 +864,6 @@ cpan2aur - AUR maintainer utility for CPAN perl modules
                             /pkg/dirs/]
 
  cpan2aur [-v -f] --check <file-names.src.tar.gz /pkg/dirs/>
-
- cd <package-directory>; cpan2aur <--reverse or --upload>
 
  -h, --help            Display this usage message.
  -m, --man             Display full help manual page.
