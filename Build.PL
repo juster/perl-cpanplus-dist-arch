@@ -36,13 +36,14 @@ my $builder = Module::Build->new(
         'POSIX'                 => 0,
         'Cwd'                   => 0,
 
-        'Getopt::Long'          => 0, # for the setupdistarch script
+        # cpan2aur and setupdistarch
+        'Getopt::Long'          => 0,
         'Pod::Usage'            => 0,
     },
     meta_add => { resources =>
                   { repository =>
                     'http://github.com/juster/perl-cpanplus-dist-arch' }},
-    script_files => [ qw{ script/cpan2aur script/setupdistarch } ],
+    script_files        => [ qw{ script/cpan2aur script/setupdistarch } ],
     add_to_cleanup      => [ 'CPANPLUS-Dist-Arch-*' ],
     create_makefile_pl  => 'traditional',
 );
