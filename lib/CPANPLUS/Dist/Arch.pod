@@ -221,6 +221,28 @@ When using the CPANPLUS module in a perl script to create packages,
 these public methods are available.  See the cpanpkgbuild.pl script
 included in the examples directory for an example.
 
+=head3 get_pkgname
+
+  Usage   : say $dist->get_pkgname;
+  Returns : The name of the package.
+
+=head3 get_pkgver
+
+  Usage   : say $dist->get_pkgver;
+  Returns : The version of the package.
+
+=head3 get_pkgrel
+
+  Usage   : say "Release: ", $dist->get_pkgrel;
+  Notes   : Default is 1, unless set_pkgrel is used.
+  Returns : The package release number.
+
+=head3 set_pkgrel
+
+  Usage   : $newrel = $dist->set_pkgrel( 2 );
+  Params  : $new_relnum - Croaks if this is not a number.
+  Returns : The new release number.
+
 =head3 set_destdir
 
   Usage   : $dist->set_destdir('~/pkg/perl');

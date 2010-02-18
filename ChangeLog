@@ -1,3 +1,11 @@
+2010-02-18  Justin Davis  <juster@cpan.org>
+
+	* lib/CPANPLUS/Dist/Arch.pm (get_pkgname): Added method.
+	(get_pkgver): Added method.
+	(get_pkgrel): Added method.
+	(set_pkgrel): Added method.
+	(get_pkgvars): Added 'pkgrel' as a new template variable.
+
 2010-02-17  Justin Davis  <juster@cpan.org>
 
 	* script/cpan2aur (confirm_overwrite): Fixed bug where the
