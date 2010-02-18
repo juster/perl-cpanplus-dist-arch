@@ -1,3 +1,11 @@
+2010-02-21  Justin Davis  <juster@cpan.org>
+
+	* lib/CPANPLUS/Dist/Arch.pm (_shell_expand): Created helper
+	function for reading PKGDEST from /etc/makepkg.conf entries.
+	Fixed bug when PKGDEST in makepkg.conf contains environment
+	variables or tildes that need shell expansion.
+	Reported by Isaac Good
+
 2010-02-18  Justin Davis  <juster@cpan.org>
 
 	* lib/CPANPLUS/Dist/Arch.pm (get_pkgname): Added method.

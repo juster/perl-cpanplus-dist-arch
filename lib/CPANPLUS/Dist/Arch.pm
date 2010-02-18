@@ -129,6 +129,20 @@ our ($Is_dependency, $PKGDEST, $PACKAGER);
 
 $PACKAGER = 'Anonymous';
 
+#---HELPER FUNCTION---
+# Purpose: Expand environment variables and tildes like bash would.
+#---------------------
+sub _shell_expand
+{
+    my $dir = shift;
+    $dir =~ s/ \A ~             / $ENV{HOME}      /xmse;  # tilde = homedir
+    $dir =~ s/ (?<!\\) \$ (\w+) / $ENV{$1} || q{} /xmseg; # expand env vars
+    $dir =~ s/ \\ [a-zA-Z]      /                 /xmsg;
+    $dir =~ s/ \\ (.)           / $1              /xmsg;  # escaped special
+                                                          # chars
+    return $dir;
+}
+
 READ_CONF:
 {
     # Read makepkg.conf to see if there are system-wide settings
@@ -151,13 +165,9 @@ READ_CONF:
                 ( $value =~ m/\A"(.*)"\z/ ?
                   do {
                       $value = $1;
-                      $value =~ tr/\\//d;
-                      $value;
-                  } :
-
-                  $value =~ m/\A'(.*)'\z/ ? $1 :
-
-                  $value );
+                      _shell_expand( $1 )
+                  } : ( $value =~ m/\A'(.*)'\z/ ? $1 : # dont expand ''s
+                        _shell_expand( $value )));
         }
     }
     close $mkpkgconf or error "close on makepkg.conf: $!";
