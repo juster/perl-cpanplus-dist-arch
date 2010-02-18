@@ -10,7 +10,7 @@ use Module::CoreList       qw();
 use CPANPLUS::Error        qw(error msg);
 use Digest::MD5            qw();
 use Pod::Select            qw();
-use File::Path             qw(mkpath);
+use File::Path             qw(make_path);
 use File::Copy             qw(copy);
 use File::stat             qw(stat);
 use DynaLoader             qw();
@@ -247,16 +247,15 @@ sub create
                                                  # CPANPLUS::Dist::Build
 
     # Create directories for building and delivering the new package.
+    MKDIR_LOOP:
     for my $dir ( $status->pkgbase, $status->destdir ) {
         if ( -e $dir ) {
-            die "$dir exists but is not a directory!" if ( ! -d _ );
-            die "$dir exists but is read-only!"       if ( ! -w _ );
+            die "$dir exists but is not a directory!" unless ( -d _ );
+            die "$dir exists but is read-only!"       unless ( -w _ );
+            next MKDIR_LOOP;
         }
-        else {
-            mkpath $dir
-                or die qq{failed to create directory '$dir': $OS_ERROR};
-            if ( $opts{verbose} ) { msg "Created directory $dir" }
-        }
+
+        make_path( $dir, { verbose => $opts{verbose} ? 1 : 0 });
     }
 
     my $pkg_type = $opts{pkg} || $opts{pkgtype} || 'bin';
