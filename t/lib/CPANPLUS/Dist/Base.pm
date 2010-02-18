@@ -20,6 +20,10 @@ sub parse_module {
     
 }
 
+sub module_tree {
+
+}
+
 1;
 
 package CPANPLUS::Module::Test;
