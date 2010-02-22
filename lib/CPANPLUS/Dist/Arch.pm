@@ -702,8 +702,8 @@ sub _translate_cpan_deps
             next CPAN_DEP_LOOP unless _is_main_module( $modname, $pkgname );
         }
 
-        $pkgdeps{$pkgname} = ( $depver eq '0' ? $depver
-                               : dist_pkgver( $depver ) );
+        $pkgdeps{$pkgname} = ( eval { $depver == '0' } ?
+                               $depver : dist_pkgver( $depver ));
     }
 
     # Always require perl.
