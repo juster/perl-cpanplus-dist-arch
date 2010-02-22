@@ -38,8 +38,6 @@ my $NEED_LOGIN_MSG = 'You must create an account before you can upload packages.
 my $PKG_EXISTS_MSG = qr{You are not allowed to overwrite the <b>.*?</b> package.};
 my $CFGPATH        = "$ENV{HOME}/.cpan2aur";
 
-sub error;
-
 my $NEED_LOGIN_ERR = 'Login session was invalid.';
 my $PKG_EXISTS_ERR = 'You tried to submit a package you do not own.';
 
