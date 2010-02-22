@@ -1,3 +1,10 @@
+2010-03-03  Justin Davis  <juster@cpan.org>
+
+	* lib/CPANPLUS/Dist/Arch.pm (_prepare_pkgdesc): Fix bug where
+	pkgdesc is blank when the .pm/.pod file is in a non-standard
+	location.  We now search more places for the files.
+	Reported by Xenoterracide
+
 2010-02-21  Justin Davis  <juster@cpan.org>
 
 	* lib/CPANPLUS/Dist/Arch.pm (_shell_expand): Created helper

@@ -10,6 +10,7 @@ use Module::CoreList       qw();
 use CPANPLUS::Error        qw(error msg);
 use Digest::MD5            qw();
 use Pod::Select            qw();
+use List::Util             qw(first);
 use File::Path             qw(make_path);
 use File::Copy             qw(copy);
 use File::stat             qw(stat);
@@ -125,9 +126,14 @@ problem.
 # CLASS GLOBALS
 #----------------------------------------------------------------------
 
-our ($Is_dependency, $PKGDEST, $PACKAGER);
+our ($Is_dependency, $PKGDEST, $PACKAGER, $DEBUG);
 
 $PACKAGER = 'Anonymous';
+
+sub _DEBUG
+{
+    print STDERR '***DEBUG*** ', @_, "\n" if $DEBUG;
+}
 
 #---HELPER FUNCTION---
 # Purpose: Expand environment variables and tildes like bash would.
@@ -727,6 +733,126 @@ sub _translate_cpan_deps
              sort keys %pkgdeps );
 }
 
+#---HELPER FUNCTION---
+sub _metayml_pkgdesc
+{
+    my ($mod_obj) = @_;
+    my $metayml;
+
+    unless ( open $metayml, '<',
+             catfile( $mod_obj->status->extract, 'META.yml' )) {
+        _DEBUG( "Could not open META.yml to get pkgdesc: $!" );
+        return undef;
+    }
+
+    while ( <$metayml> ) {
+        chomp;
+        if ( my ($pkgdesc) = /^abstract:\s*(.+)/) {
+            _DEBUG qq{Found pkgdesc "$pkgdesc" in META.yml};
+
+            # Ignore enclosing quotes...
+            $pkgdesc = $2 if ( $pkgdesc =~ / \A (['"]) (.*) \1 \z /xms );
+
+            # ~ (tilde) represents the empty value in YAML...
+            return undef if $pkgdesc eq '~';
+            return $pkgdesc;
+        }
+    }
+
+    return undef;
+}
+
+#---HELPER FUNCTION---
+sub _pod_pkgdesc
+{
+    my ($mod_obj) = @_;
+    my $podselect = Pod::Select->new;
+    my $modname   = $mod_obj->name;
+    $podselect->select('NAME');
+
+=for POD Search
+    We use the package name because there is usually a module file
+    with the exact same name as the package file.
+    
+    We want the main module's description, just in case the user requested
+    a lesser module in the same package file.
+    
+    Assume the main .pm or .pod file is under lib/Module/Name/Here.pm
+=cut
+
+    my $mainmod_path = $mod_obj->package_name;
+    $mainmod_path    =~ tr{-}{/}s;
+
+    my $mainmod_file = $mainmod_path;
+    $mainmod_file    =~ s{\A.*/}{};
+    $mainmod_path    =~ s{/$mainmod_file}{};
+
+    my $base_path = $mod_obj->status->extract;
+
+    my @possible_pods = ( # check directly inside the extracted folder
+                          # and deep inside the directory tree
+                          map { ( "${base_path}/${_}",
+                                  "${base_path}/${mainmod_path}/${_}" ) }
+                          # .pm files and .pod files
+                          map { "${mainmod_file}.$_" }
+                          qw/pod pm/ );
+
+    PODSEARCH:
+    for my $podfile_path ( @possible_pods ) {
+        next PODSEARCH unless ( -e $podfile_path );
+
+        my $name_section = q{};
+
+        open my $podfile, '<', $podfile_path
+            or next PODSEARCH;
+
+        open my $podout, '>', \$name_section
+            or die "failed open on filehandle to string: $!";
+        $podselect->parse_from_filehandle( $podfile, $podout );
+
+        close $podfile;
+        close $podout or die "failed close on filehandle to string: $!";
+
+        next PODSEARCH unless ( $name_section );
+
+        # Remove formatting codes.
+        $name_section =~ s{ [IBCLEFSXZ]  <(.*?)>  }{$1}gxms;
+        $name_section =~ s{ [IBCLEFSXZ] <<(.*?)>> }{$1}gxms;
+
+        # The short desc is on a line beginning with 'Module::Name - '
+        if ( $name_section =~ / ^ \s* $modname [ -]+ ([^\n]+) /xms ) {
+            _DEBUG qq{Found pkgdesc "$1" in POD};            
+            return $1;
+        }
+    }
+
+    return undef;
+}
+
+#---HELPER FUNCTION---
+sub _readme_pkgdesc
+{
+    my ($mod_obj) = @_;
+    my $mod_name  = $mod_obj->name;
+
+    open my $readme, '<', catfile( $mod_obj->status->extract, 'README' )
+        or return undef;
+
+    LINE:
+    while ( <$readme> ) {
+        chomp;
+
+        # limit ourselves to a NAME section
+        next LINE unless ( (/^NAME/ ... /^[A-Z]+/) &&
+                           / ^ \s* ${mod_name} [\s\-]+ (.+) $ /oxms );
+        
+        _DEBUG qq{Found pkgdesc "$1" in README};
+        return $1;
+    }
+
+    return undef;
+}
+
 #---INSTANCE METHOD---
 # Usage    : $pkgdesc = $self->_prepare_pkgdesc();
 # Purpose  : Tries to find a module's "abstract" short description for
@@ -740,101 +866,32 @@ sub _translate_cpan_deps
 sub _prepare_pkgdesc
 {
     croak 'Invalid arguments to _prepare_pkgdesc method' if @_ != 1;
+
     my ($self) = @_;
     my ($status, $module, $pkgdesc) = ($self->status, $self->parent);
 
-    # Registered modules have their description stored in the object.
-    return $status->pkgdesc( $module->description )
-        if ( $module->description );
+    my @pkgdesc_srcs =
+        (
+         # Registered modules have their description stored in the object.
+         sub { $module->description },
 
-    # First, try to find the short description in the META.yml file.
-    METAYML:
-    {
-        my $metayml;
-        unless ( open $metayml, '<', $module->status->extract().'/META.yml' ) {
-            #error "Could not open META.yml to get pkgdesc: $!";
-            last METAYML;
-        }
+         # First, try to find the short description in the META.yml file...
+         \&_metayml_pkgdesc,
+          
+         # Next, parse the source file or pod file for a NAME section...
+         \&_pod_pkgdesc,
 
-        while ( <$metayml> ) {
-            chomp;
-            if ( ($pkgdesc) = /^abstract:\s*(.+)/) {
-                close $metayml;
+         # Last, try to find it in in the README file...
+         \&_readme_pkgdesc,
 
-                $pkgdesc = $2 if ( $pkgdesc =~ / \A (['"]) (.*) \1 \z /xms );
+         );
 
-                # Descriptions of ~ pop up in metafiles, rarely...
-                last METAYML if $pkgdesc eq '~';
-
-                return $status->pkgdesc($pkgdesc);
-            }
-        }
-        close $metayml;
+    PKGDESC_LOOP:
+    for my $pkgdesc_src ( @pkgdesc_srcs ) {
+        $pkgdesc = $pkgdesc_src->( $module ) and last PKGDESC_LOOP;
     }
 
-    # Next, parse the source file or pod file for a NAME section...
-    my $podselect = Pod::Select->new;
-    $podselect->select('NAME');
-    my $modname   = $module->name;
-
-    # We use the package name because there is usually a module file
-    # with the exact same name as the package file.
-    #
-    # We want the main module's description, just in case the user requested
-    # a lesser module in the same package file.
-    #
-    # Assume the main .pm or .pod file is under lib/Module/Name/Here.pm
-    my $mainmod_file = $module->package_name;
-
-    $mainmod_file =~ tr{-}{/}s;
-    $mainmod_file = catfile( $module->status->extract, 'lib', $mainmod_file );
-
-    PODSEARCH:
-    for my $podfile_path ( map { "$mainmod_file.$_" } qw/pm pod/ ) {
-        my $name_section = '';
-
-        next PODSEARCH unless ( -e $podfile_path );
-        open my $podfile, '<', $podfile_path
-            or next PODSEARCH;
-
-        open my $podout, '>', \$name_section
-            or die "failed open on filehandle to string: $!";
-        $podselect->parse_from_filehandle( $podfile, $podout );
-
-        close $podfile;
-        close $podout
-            or die "failed close on filehandle to string: $!";
-
-        next PODSEARCH unless ($name_section);
-
-        # Remove formatting codes.
-        $name_section =~ s{ [IBCLEFSXZ]  <(.*?)>  }{$1}gxms;
-        $name_section =~ s{ [IBCLEFSXZ] <<(.*?)>> }{$1}gxms;
-
-        # The short desc is on a line beginning with 'Module::Name - '
-        return $status->pkgdesc($pkgdesc)
-            if ($pkgdesc) =
-                $name_section =~ / ^ \s* $modname [ -]+ ([^\n]+) /xms;
-    }
-
-    # Last, try to find it in in the README file
-    README:
-    {
-        open my $readme, '<', $module->status->extract . '/README'
-            or last README;
-        #   error( "Could not open README to get pkgdesc: $!" ), return undef;
-
-        my $modname = $module->name;
-        while ( <$readme> ) {
-            chomp;
-            if ( (/^NAME/ ... /^[A-Z]+/) # limit ourselves to a NAME section
-                 && ( ($pkgdesc) = / ^ \s* ${modname} [\s\-]+ (.+) $ /oxms) ) {
-                return $status->pkgdesc($pkgdesc);
-            }
-        }
-    }
-
-    return $status->pkgdesc(q{});
+    return $status->pkgdesc( $pkgdesc || q{} );
 }
 
 #---INSTANCE METHOD---
@@ -848,6 +905,7 @@ sub _prepare_pkgdesc
 sub _prepare_status
 {
     croak 'Invalid arguments to _prepare_status method' if @_ != 1;
+
     my $self     = shift;
     my $status   = $self->status; # Private hash
     my $module   = $self->parent; # CPANPLUS::Module
