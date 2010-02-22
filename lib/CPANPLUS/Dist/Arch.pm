@@ -158,17 +158,17 @@ READ_CONF:
     my $cfg_field_match = sprintf $CFG_VALUE_MATCH,
         join '|', keys %cfg_vars;
 
+    CFG_LINE:
     while (<$mkpkgconf>) {
         chomp;
-        if ( my ($name, $value) = /$cfg_field_match/xmso ) {
-            ${$cfg_vars{$name}} =
-                ( $value =~ m/\A"(.*)"\z/ ?
-                  do {
-                      $value = $1;
-                      _shell_expand( $1 )
-                  } : ( $value =~ m/\A'(.*)'\z/ ? $1 : # dont expand ''s
-                        _shell_expand( $value )));
-        }
+        next CFG_LINE unless ( my ($name, $value) = /$cfg_field_match/xmso );
+
+        ${ $cfg_vars{$name} } =
+            ( $value =~ m/\A"(.*)"\z/
+              ? _shell_expand( $1 ) # expand double quotes
+              : ( $value =~ m/\A'(.*)'\z/
+                  ? $1              # dont single quotes
+                  : _shell_expand( $value )));
     }
     close $mkpkgconf or error "close on makepkg.conf: $!";
 }
@@ -702,8 +702,7 @@ sub _translate_cpan_deps
             next CPAN_DEP_LOOP unless _is_main_module( $modname, $pkgname );
         }
 
-        $pkgdeps{$pkgname} = ( eval { $depver == '0' } ?
-                               $depver : dist_pkgver( $depver ));
+        $pkgdeps{$pkgname} = ( qv($depver) == 0 ? 0 : dist_pkgver( $depver ));
     }
 
     # Always require perl.
