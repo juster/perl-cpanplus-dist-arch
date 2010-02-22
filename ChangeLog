@@ -5,6 +5,9 @@
 	Fixed bug when PKGDEST in makepkg.conf contains environment
 	variables or tildes that need shell expansion.
 	Reported by Isaac Good
+	(_prepare_pkgdesc): Fix bug where META.yml contains double-quoted
+	text (not-single quotes) in the pkgdesc.  These double quotes
+	would not be removed and show up in the pkgdesc.
 
 2010-02-18  Justin Davis  <juster@cpan.org>
 

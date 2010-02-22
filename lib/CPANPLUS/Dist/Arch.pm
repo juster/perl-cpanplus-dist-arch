@@ -760,8 +760,9 @@ sub _prepare_pkgdesc
         while ( <$metayml> ) {
             chomp;
             if ( ($pkgdesc) = /^abstract:\s*(.+)/) {
-                $pkgdesc = $1 if ( $pkgdesc =~ /\A'(.*)'\z/ );
                 close $metayml;
+
+                $pkgdesc = $2 if ( $pkgdesc =~ / \A (['"]) (.*) \1 \z /xms );
 
                 # Descriptions of ~ pop up in metafiles, rarely...
                 last METAYML if $pkgdesc eq '~';
