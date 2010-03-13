@@ -687,14 +687,14 @@ name into the file prefixed with the above comment in quotes.
         last REL_CHECK unless ( $old_ver == $new_ver );
 
         my $new_pkgrel = $old_info{pkgrel} + 1;
-        last REL_CHECK unless
-            prompt_yn( "A PKGBUILD already exists for this version ($old_info{pkgver})."
-                       . " Would you like to increment the pkgrel to $new_pkgrel?"
-                       => 'Y' );
 
-        $distobj->set_pkgrel( $new_pkgrel );
+        my $answer = prompt_yn( "A PKGBUILD already exists for this version ($new_ver)."
+                                . " Would you like to increment the pkgrel to $new_pkgrel?"
+                                => 'Y' );
+        
+        $distobj->set_pkgrel( $answer ? $new_pkgrel : $old_info{pkgrel} );
     }
-            
+
     $distobj->set_pkgbuild_templ( $templ_text );
     $distobj->create_pkgbuild( q{.} );
 
