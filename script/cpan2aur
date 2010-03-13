@@ -783,7 +783,7 @@ END_ERROR
     return %info;
 }
 
-sub upload_if_old
+sub update_if_old
 {
     my ($thing) = @_;
 
@@ -869,7 +869,7 @@ if ( $UPLOAD && !@ARGV ) {
 pod2usage( -verbose => 0 ) unless ( @ARGV );
 
 # A list of actions, each is an aref of arg test and arg action.
-my @flagacts = ( [ sub { $CHECK     }, \&upload_if_old     ],
+my @flagacts = ( [ sub { $CHECK     }, \&update_if_old     ],
                  [ sub { $UPLOAD    }, \&upload_thing      ],
                  [ sub { $DIRECTORY }, \&create_new_pkgdir ],
                  [ sub { -d shift   }, \&create_pkgdir_pkg ],
