@@ -747,22 +747,26 @@ END_ERROR
     return %info;
 }
 
-sub get_pkgdir_info
+sub pkgdir_srcpkg
 {
     my ($pkg_dir) = @_;
 
-    my ($dist_name, $dist_ver);
-
-    # A source package file in the package dir has the highest precedence...
     my ($pkg_name) = reverse splitdir( $pkg_dir )
         or error( "Failed to extract pkgname from dir $pkg_dir" );
 
     # Choose the package with the latest version number...
-    my ($srcpkg) = reverse sort glob "$pkg_dir/$pkg_name-*.src.tar.gz";
+    my ($src_pkgpath) = reverse sort glob "$pkg_dir/$pkg_name-*.src.tar.gz";
 
-    if ( $srcpkg ) {
-        return get_pkgfile_info( $srcpkg );
-    }
+    return $src_pkgpath;
+}
+
+sub get_pkgdir_info
+{
+    my ($pkg_dir) = @_;
+
+    # Return a source package file's info if one exists in the dir...
+    my $srcpkg = pkgdir_srcpkg( $pkg_dir );
+    return get_pkgfile_info( $srcpkg ) if ( $srcpkg );
 
     # Next is the PKGBUILD file itself...
     error( "$pkg_dir does not contain a PKGBUILD or source package file." )
@@ -822,6 +826,9 @@ END_WARN
         my $dist_obj = create_dist_arch( $mod_obj => 'create' );
         my $pkg_path = $dist_obj->status->dist
             or die 'Unable to find path of created source package';
+
+        status "Deleting old package file: $thing";
+        unlink $thing or warning( "Failed to delete $thing ($!)" );
         upload_pkgfile( $pkg_path );
         return;
     }
