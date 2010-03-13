@@ -48,31 +48,41 @@ my ($DIRECTORY, $VERBOSE, $UPLOAD, $FORCE, $HELP, $NAME,
 ## UTILITY FUNCTIONS
 ##############################################################################
 
+# Params : @questions - Questions to concatenate and print together.
+# Returns: The answer! (sans newline)
 sub prompt_ask
 {
+    my $question = join q{}, @_;
+    chomp $question;
+    $question .= q{ };
+
     local $OUTPUT_AUTOFLUSH = 1;
     my $prefix = q{ } x 4;
-    print wrap( $prefix, $prefix, join q{}, @_, q{ } );
+    print wrap( $prefix, $prefix, $question );
+
     my $line = <STDIN>;
     chomp $line;
     return $line;
 }
 
-# Params: $message - Yes or no question to ask user.
-#         $default - Whether 'yes' or 'no' is the default.
+# Params: $question - Yes or no question to ask user.
+#         $default  - Whether 'yes' or 'no' is the default.
+#                     (default for $default is Yes!)
+# Returns: 1 for yes 0 for no
 sub prompt_yn
 {
-    die 'Invalid arguments to prompt_yn' unless ( @_ == 2 );
-    my ($message, $default) = @_;
+    my ($question, $default) = @_;
+    $default ||= 'y';
 
     my $first = lc substr $default, 0, 1;
     $default = ( $first eq 'y' ? 1 : $first eq 'n' ? 0 : 1 );
-    
-    $message .= q{ } . ( $default ? '[Yn]' : '[yN]' );
+
+    chomp $question;
+    $question .= q{ } . ( $default ? '[Yn]' : '[yN]' );
 
     my $answer;
     QUESTION: {
-        $answer = prompt_ask( $message );
+        $answer = prompt_ask( $question );
 
         return $default if ( length $answer == 0 );
         redo QUESTION unless $answer =~ /\A[yYnN]/;
