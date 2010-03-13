@@ -52,7 +52,7 @@ sub prompt_ask
 {
     local $OUTPUT_AUTOFLUSH = 1;
     my $prefix = q{ } x 4;
-    print wrap( $prefix, $prefix, join q{}, @_ );
+    print wrap( $prefix, $prefix, join q{}, @_, q{ } );
     my $line = <STDIN>;
     chomp $line;
     return $line;
@@ -827,8 +827,10 @@ END_WARN
         my $pkg_path = $dist_obj->status->dist
             or die 'Unable to find path of created source package';
 
-        status "Deleting old package file: $thing";
-        unlink $thing or warning( "Failed to delete $thing ($!)" );
+        if ( prompt_yn( 'Delete the old package file?' => 'yes' )) {
+            status "Deleting old package file: $thing";
+            unlink $thing or warning( "Failed to delete $thing ($!)" );
+        }
         upload_pkgfile( $pkg_path );
         return;
     }
