@@ -698,9 +698,10 @@ name into the file prefixed with the above comment in quotes.
 
         my $new_pkgrel = $old_info{pkgrel} + 1;
 
-        my $answer = prompt_yn( "A PKGBUILD already exists for this version ($new_ver)."
-                                . " Would you like to increment the pkgrel to $new_pkgrel?"
-                                => 'Y' );
+        my $answer = prompt_yn( <<"END_QUESTION" );
+A PKGBUILD already exists for this version ($new_ver).
+Would you like to increment the pkgrel to $new_pkgrel?
+END_QUESTION
         
         $distobj->set_pkgrel( $answer ? $new_pkgrel : $old_info{pkgrel} );
     }
