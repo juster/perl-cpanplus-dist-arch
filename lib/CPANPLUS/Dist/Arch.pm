@@ -18,7 +18,7 @@ use DynaLoader             qw();
 use IPC::Cmd               qw(can_run);
 use version                qw(qv);
 use English                qw(-no_match_vars);
-use Carp                   qw(carp croak);
+use Carp                   qw(carp croak confess);
 use Cwd                    qw();
 
 our $VERSION     = '0.18';
@@ -75,6 +75,10 @@ shorewall-perl = shorewall-perl
 
 END_OVERRIDES
 
+# This var tells us whether to use a template module or our internal code:
+my $TT_MOD_NAME;
+my @TT_MOD_SEARCH = qw/ Template::Toolkit Template::Alloy Template::Tiny /;
+
 # Crude template for our PKGBUILD script
 my $PKGBUILD_TEMPL = <<'END_TEMPL';
 # Contributor: [% packager %]
@@ -100,13 +104,13 @@ build() {
     make &&
     [% IF skiptest %]#[% FI %]make test &&
     make DESTDIR="$pkgdir" install;
-[% FI %]
+[% END %]
 [% IF is_modulebuild %]
     perl Build.PL --installdirs=vendor --destdir="$pkgdir" &&
     perl Build &&
     [% IF skiptest %]#[% FI %]perl Build test &&
     perl Build install;
-[% FI %]
+[% END %]
   } || return 1;
 
   find "$pkgdir" -name .packlist -o -name perllocal.pod -delete
@@ -218,7 +222,10 @@ sub init
 
     $self->status->mk_accessors( qw{ pkgname  pkgver  pkgbase pkgdesc
                                      pkgurl   pkgsize pkgarch pkgrel
-                                     builddir destdir pkgbuild_templ  } );
+                                     builddir destdir
+
+                                     pkgbuild_templ tt_init_args } );
+
     return 1;
 }
 
@@ -937,6 +944,8 @@ sub _prepare_status
     $status->pkgarch($pkgarch);
     $status->pkgrel (   1    );
 
+    $status->tt_init_args( {} );
+
     $self->_prepare_pkgdesc();
 
     return $status;
@@ -1050,7 +1059,7 @@ sub _prune_if_blocks
 {
     my ($templ, $templ_vars) = @_;
 
-    while ( my ($varname) = $templ =~ /\[%\s*IF (\w*)\s*%\]/ ) {
+    while ( my ($varname) = $templ =~ /\[%\s+IF\s+(\w+)\s+%\]/ ) {
         croak 'Invalid template given, must provide a variable name in IF block'
             unless ( $varname );
 
@@ -1058,14 +1067,52 @@ sub _prune_if_blocks
             unless ( exists $templ_vars->{$varname} );
 
         my @chunks = _extract_nested( $templ,
-                                      qr/\[% IF \w+ %\]\n?/,
-                                      qr/\[% FI %\]\n?/ );
+                                      qr/\[%\s+IF\s+\w+\s+%\]\n?/,
+                                      qr/\[%\s+END\s+%\]\n?/ );
 
         if ( ! $templ_vars->{$varname} ) { splice @chunks, 1, 1; }
         $templ = join q{}, @chunks;
     }
 
     return $templ;
+}
+
+#---HELPER FUNCTION---
+sub _load_tt_module
+{
+    _DEBUG "Searching for template modules...";
+    TT_SEARCH:
+    for my $ttmod ( @TT_MOD_SEARCH ) {
+        eval "require $ttmod; 1;" or next TT_SEARCH;
+        _DEBUG "Loaded template module: $ttmod";
+        $TT_MOD_NAME = $ttmod;
+        return;
+    }
+
+    _DEBUG "None found!";
+    $TT_MOD_NAME = 0;
+    return;
+}
+
+#---HELPER METHOD---
+sub _tt_process
+{
+    my ($self, $templ, $templ_vars) = @_;
+
+    confess 'Internal Error: $TT_MOD_NAME not set' unless $TT_MOD_NAME;
+
+    _DEBUG "Processing template using $TT_MOD_NAME";
+
+    my ($tt_obj, $tt_output, %tt_init_args);
+    %tt_init_args = %{ $self->status->tt_init_args() };
+    $tt_obj       = $TT_MOD_NAME->new( %tt_init_args );
+    $tt_output    = q{};
+    $tt_obj->process( \$templ, $templ_vars, \$tt_output );
+
+    croak "$TT_MOD_NAME failed to process PKGBUILD template:\n"
+        . $tt_obj->error if ( eval { $tt_obj->error } );
+
+    return $tt_output;
 }
 
 #---INSTANCE METHOD---
@@ -1082,18 +1129,27 @@ sub _prune_if_blocks
 #---------------------
 sub _process_template
 {
-    croak "Invalid arguments to _template_out" if @_ != 3;
+    croak "Invalid arguments to _process_template" if @_ != 3;
     my ($self, $templ, $templ_vars) = @_;
 
     croak 'templ_var parameter must be a hashref'
         if ( ref $templ_vars ne 'HASH' );
 
-    $templ = _prune_if_blocks( $templ, $templ_vars );
+    # Try to find a TT module if this is our first time called...
+    _load_tt_module() unless defined $TT_MOD_NAME;
 
+    # Use the TT module if we have found one earlier...
+    return $self->_tt_process( $templ, $templ_vars ) if $TT_MOD_NAME;
+
+    _DEBUG "Processing PKGBUILD template with built-in code...";
+
+    # Fall back on our own primitive little template engine...
+    $templ = _prune_if_blocks( $templ, $templ_vars );
     $templ =~ s{ \[% \s* (\w+) \s* %\] }
-               { ( defined $templ_vars->{$1}
-                   ? $templ_vars->{$1}
-                   : croak "Template variable $1 was not provided" )
+               {
+                   ( defined $templ_vars->{$1}
+                     ? $templ_vars->{$1}
+                     : croak "Template variable $1 was not provided" )
                }xmseg;
 
     return $templ;
