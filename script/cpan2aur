@@ -866,7 +866,7 @@ GetOptions( 'directory' => \$DIRECTORY,
             'help'      => \$HELP,
            );
 
-$VERBOSE //= 0;
+$VERBOSE ||= 0;
 
 pod2usage( -message => '-u[pload] and -d[irectory cannot be used together' )
     if ( $UPLOAD && $DIRECTORY );
