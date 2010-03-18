@@ -329,17 +329,48 @@ See L</PKGBUILD TEMPLATE>.
             
 See L</PKGBUILD TEMPLATE>.
 
+=head3 set_tt_init_args
+
+  Usage   : $self->set_tt_init_args( INCLUDE_PATH => '/home/juster/aur/tt',
+                                     EVAL_PERL    => 1 );
+  Purpose : Change arguments that are given to the template module's
+            constructor when we create an object to process templates.
+  Params  : %init_args - A hash of config key/value pairs.
+  Returns : A hash reference to %init_args.
+
+What config value are supported depends on what template module is
+being used.  You'll have to look at the module's docs to be sure.
+
 =head2 PKGBUILD TEMPLATE
 
-The template format is an extremely simplified ripoff of
+Since version 1.00 we now use template modules if they are available.
+So if any of the following modules are installed and can be used,
+they will be used instead of our builtin template engine:
+
+=over
+
+=item 1. L<Template::Toolkit>
+
+=item 2. L<Template::Alloy>
+
+=item 3. L<Template::Tiny>
+
+=back
+
+The modules have the priority listed above.  We go through the list
+sequentially and use the first module that we find.
+
+=head3 BUILTIN TEMPLATE FORMAT
+
+The builtin template format is an extremely simplified ripoff of
 L<Template::Toolkit> syntax.  It only implements variable
 interpolation and the C<IF> directive.  To insert a template variable
 use the syntax C<[% foo %]>.  This will insert the value of the
 variable named 'foo'.  The C<get_pkgbuild()> method will croak with
-the message I<"Template variable ... was not provided"> if the variable
-was not defined.  C<[% IF var_name %]> ... C<[% FI %]> will remove
-what is in-between the C<IF> and C<FI> tags if the variable named
-C<var_name> is not set to a true value.
+the message I<"Template variable ... was not provided"> if the
+variable was not defined.  C<[% IF var_name %] ... [% END %]> will
+remove what is in-between the C<IF> and C<END> tags if the variable
+named C<var_name> is not set to a true value.
 
 See L</get_pkgvars> for a list of the variables that can be used
 inside the template.

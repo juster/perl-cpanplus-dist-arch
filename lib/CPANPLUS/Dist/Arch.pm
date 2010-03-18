@@ -583,6 +583,16 @@ sub get_pkgvars_ref
     return { $self->get_pkgvars };
 }
 
+sub set_tt_init_args
+{
+    my $self = shift;
+
+    croak 'set_tt_init_args() must be given a hash as an argument'
+        unless @_ % 2 == 0;
+
+    return $self->status->tt_init_args( { @_ } );
+}
+
 sub set_pkgbuild_templ
 {
     my ($self, $template) = @_;
