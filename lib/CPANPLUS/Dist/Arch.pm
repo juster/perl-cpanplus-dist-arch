@@ -1088,6 +1088,10 @@ sub _prune_if_blocks
 }
 
 #---HELPER FUNCTION---
+# Purpose  : Load a template module and store its name for later use.
+# Postcond : Stores the template name into $TT_MOD_NAME.
+# Returns  : Nothing.
+#---------------------
 sub _load_tt_module
 {
     _DEBUG "Searching for template modules...";
@@ -1105,6 +1109,12 @@ sub _load_tt_module
 }
 
 #---HELPER METHOD---
+# Purpose : Create our template module object and process our template text.
+# Params  : $templ      - A string of template text.
+#           $templ_vars - A hashref of template variable names and their
+#                         values.
+# Returns : The template module's processed text.
+#-------------------
 sub _tt_process
 {
     my ($self, $templ, $templ_vars) = @_;
@@ -1113,10 +1123,13 @@ sub _tt_process
 
     _DEBUG "Processing template using $TT_MOD_NAME";
 
-    my ($tt_obj, $tt_output, %tt_init_args);
-    %tt_init_args = %{ $self->status->tt_init_args() };
-    $tt_obj       = $TT_MOD_NAME->new( %tt_init_args );
+    my ($tt_obj, $tt_output, $tt_init_args);
+    $tt_init_args = $self->status->tt_init_args();
     $tt_output    = q{};
+    $tt_obj       = $TT_MOD_NAME->new( $TT_MOD_NAME eq 'Template::Toolkit'
+                                       ? $tt_init_args : %$tt_init_args );
+                                # TT takes a hashref, others take the hash
+
     $tt_obj->process( \$templ, $templ_vars, \$tt_output );
 
     croak "$TT_MOD_NAME failed to process PKGBUILD template:\n"
@@ -1127,9 +1140,9 @@ sub _tt_process
 
 #---INSTANCE METHOD---
 # Usage    : $self->_process_template( $templ, $templ_vars );
-# Purpose  : Processes IF blocks and fills in a template with supplied
-#            variables.
-# Params   : templ       - A scalar variable containing the template
+# Purpose  : Process template text with a template module or our builtin
+#            template code.
+# Params   : templ       - A string containing the template text.
 #            templ_vars  - A hashref of template variables that you can refer to
 #                          in the template to insert the variable's value.
 # Throws   : 'Template variable %s was not provided' is thrown if a template
