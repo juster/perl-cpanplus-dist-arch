@@ -102,13 +102,13 @@ build() {
 [% IF is_makemaker %]
     perl Makefile.PL INSTALLDIRS=vendor &&
     make &&
-    [% IF skiptest %]#[% FI %]make test &&
+    [% IF skiptest %]#[% END %]make test &&
     make DESTDIR="$pkgdir" install;
 [% END %]
 [% IF is_modulebuild %]
     perl Build.PL --installdirs=vendor --destdir="$pkgdir" &&
     perl Build &&
-    [% IF skiptest %]#[% FI %]perl Build test &&
+    [% IF skiptest %]#[% END %]perl Build test &&
     perl Build install;
 [% END %]
   } || return 1;
