@@ -806,17 +806,20 @@ sub _pod_pkgdesc
 
     my $base_path = $mod_obj->status->extract;
 
-    my @possible_pods = ( # check directly inside the extracted folder
-                          # and deep inside the directory tree
-                          map { ( "${base_path}/${_}",
-                                  "${base_path}/${mainmod_path}/${_}" ) }
-                          # .pm files and .pod files
-                          map { "${mainmod_file}.$_" }
-                          qw/pod pm/ );
+    my @possible_pods = (# check directly inside the extracted folder
+                         # and deep inside the lib directory
+                         map { ( catfile( $base_path, 'lib', $_ ),
+                                 catfile( $base_path, $_ )) }
+                         map { ( catfile( $mainmod_path, $_ ), $_ ) }
+                         # .pm files and .pod files
+                         map { "${mainmod_file}.$_" }
+                         qw/pod pm/ );
 
     PODSEARCH:
     for my $podfile_path ( @possible_pods ) {
         next PODSEARCH unless ( -e $podfile_path );
+
+        _DEBUG "Searching the POD inside $podfile_path for pkgdesc...";
 
         my $name_section = q{};
 
