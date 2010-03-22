@@ -247,6 +247,8 @@ sub create_dist_arch
                                                })
         or die "Failed to create CPANPLUS::Dist::Arch object";
 
+    $dist_obj->set_tt_init_args( RELATIVE => 1 );
+
     return $dist_obj;
 }
 
