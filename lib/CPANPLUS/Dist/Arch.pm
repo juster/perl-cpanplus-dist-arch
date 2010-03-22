@@ -77,7 +77,7 @@ END_OVERRIDES
 
 # This var tells us whether to use a template module or our internal code:
 my $TT_MOD_NAME;
-my @TT_MOD_SEARCH = qw/ Template::Toolkit Template::Alloy Template::Tiny /;
+my @TT_MOD_SEARCH = qw/ Template Template::Alloy Template::Tiny /;
 
 # Crude template for our PKGBUILD script
 my $PKGBUILD_TEMPL = <<'END_TEMPL';
@@ -1129,7 +1129,7 @@ sub _tt_process
     my ($tt_obj, $tt_output, $tt_init_args);
     $tt_init_args = $self->status->tt_init_args();
     $tt_output    = q{};
-    $tt_obj       = $TT_MOD_NAME->new( $TT_MOD_NAME eq 'Template::Toolkit'
+    $tt_obj       = $TT_MOD_NAME->new( $TT_MOD_NAME eq 'Template'
                                        ? $tt_init_args : %$tt_init_args );
                                 # TT takes a hashref, others take the hash
 
