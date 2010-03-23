@@ -1,3 +1,11 @@
+2010-03-22  Justin Davis  <juster@cpan.org>
+
+	* lib/CPANPLUS/Dist/Arch.pm (_metayml_pkgdesc): Fix bug where the
+	abstract description inside the META.yml was left to its default
+	entry by a lazy module author.  This caused the pkgdesc to be:
+	Module abstract (<= 44 characters) goes here
+	Reported by Xenoterracide
+
 2010-03-03  Justin Davis  <juster@cpan.org>
 
 	* lib/CPANPLUS/Dist/Arch.pm (_prepare_pkgdesc): Fix bug where

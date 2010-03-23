@@ -44,6 +44,10 @@ you must have a sudo-like command specified in your CPANPLUS
 configuration.
 END_MSG
 
+# META.yml abstract entries we should ignore.
+my @BAD_METAYML_ABSTRACTS
+    = ( q{~}, 'Module abstract (<= 44 characters) goes here' );
+
 # Patterns to use when using pacman for finding library owners.
 my $PACMAN_FINDOWN     = qr/\A[^ ]+ is owned by ([\w-]+) ([\w.-]+)/;
 my $PACMAN_FINDOWN_ERR = qr/\Aerror:/;
@@ -764,14 +768,17 @@ sub _metayml_pkgdesc
 
     while ( <$metayml> ) {
         chomp;
-        if ( my ($pkgdesc) = /^abstract:\s*(.+)/) {
+        if ( my ($pkgdesc) = / \A abstract: \s* (.+) \s* \z /xms ) {
             _DEBUG qq{Found pkgdesc "$pkgdesc" in META.yml};
 
             # Ignore enclosing quotes...
             $pkgdesc = $2 if ( $pkgdesc =~ / \A (['"]) (.*) \1 \z /xms );
 
-            # ~ (tilde) represents the empty value in YAML...
-            return undef if $pkgdesc eq '~';
+            # Ignore certain values we don't like...
+            for my $bad ( @BAD_METAYML_ABSTRACTS ) {
+                return undef if $pkgdesc eq $bad;
+            }
+
             return $pkgdesc;
         }
     }
