@@ -958,11 +958,11 @@ sub _prepare_status
         die "A package variable is invalid" unless defined;
     }
 
-    $status->pkgname($pkgname);
-    $status->pkgver ($pkgver );
-    $status->pkgbase($pkgbase);
-    $status->pkgarch($pkgarch);
-    $status->pkgrel (   1    );
+    $status->pkgname( $pkgname );
+    $status->pkgver ( $pkgver  );
+    $status->pkgbase( $pkgbase );
+    $status->pkgarch( $pkgarch );
+    $status->pkgrel (    1     );
 
     $status->tt_init_args( {} );
 
@@ -1153,8 +1153,9 @@ sub _tt_process
 # Purpose  : Process template text with a template module or our builtin
 #            template code.
 # Params   : templ       - A string containing the template text.
-#            templ_vars  - A hashref of template variables that you can refer to
-#                          in the template to insert the variable's value.
+#            templ_vars  - A hashref of template variables that you can
+#                          refer to in the template to insert the
+#                          variable's value.
 # Throws   : 'Template variable %s was not provided' is thrown if a template
 #            variable is used in $templ but not provided in $templ_vars,
 #            OR IF IT IS UNDEF!
@@ -1179,10 +1180,9 @@ sub _process_template
     # Fall back on our own primitive little template engine...
     $templ = _prune_if_blocks( $templ, $templ_vars );
     $templ =~ s{ \[% \s* (\w+) \s* %\] }
-               {
-                   ( defined $templ_vars->{$1}
-                     ? $templ_vars->{$1}
-                     : croak "Template variable $1 was not provided" )
+               { ( defined $templ_vars->{$1}
+                   ? $templ_vars->{$1}
+                   : croak "Template variable $1 was not provided" )
                }xmseg;
 
     return $templ;
@@ -1239,7 +1239,8 @@ sub _get_lib_pkg
     chomp $result;
 
     if ( $result =~ /$PACMAN_FINDOWN_ERR/ ) {
-        error qq{Could not find owner of linked library "$libname", ignoring.};
+        error qq{Could not find owner of linked library }
+            . qq{"$libname", ignoring.};
         return ();
     }
 
