@@ -1,3 +1,7 @@
+2010-04-08  Justin Davis  <juster@cpan.org>
+
+	* lib/CPANPLUS/Dist/Arch.pm (get_tt_module): Added new method.
+
 2010-03-22  Justin Davis  <juster@cpan.org>
 
 	* lib/CPANPLUS/Dist/Arch.pm (_metayml_pkgdesc): Fix bug where the

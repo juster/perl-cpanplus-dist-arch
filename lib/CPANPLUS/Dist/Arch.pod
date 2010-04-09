@@ -341,6 +341,13 @@ See L</PKGBUILD TEMPLATE>.
 What config value are supported depends on what template module is
 being used.  You'll have to look at the module's docs to be sure.
 
+=head3 get_tt_module
+
+  Usage   : my $modname = $obj->get_tt_module();
+            my $modname = CPANPLUS::Dist::Arch->get_tt_module();
+  Returns : The name of the template module that is being used or 0
+            if we are using our own internal template engine.
+
 =head2 PKGBUILD TEMPLATE
 
 Since version 1.00 we now use template modules if they are available.

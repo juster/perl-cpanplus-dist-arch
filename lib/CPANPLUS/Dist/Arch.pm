@@ -597,6 +597,13 @@ sub set_tt_init_args
     return $self->status->tt_init_args( { @_ } );
 }
 
+sub get_tt_module
+{
+    _load_tt_module() unless defined $TT_MOD_NAME;
+
+    return $TT_MOD_NAME;
+}
+
 sub set_pkgbuild_templ
 {
     my ($self, $template) = @_;
