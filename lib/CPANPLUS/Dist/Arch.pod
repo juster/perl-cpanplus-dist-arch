@@ -64,7 +64,7 @@ as packages by default.
 =head1 WHERE IS THE PACKAGE
 
 By default, packages are stored under the user's home directory in the
-.cpanplus directory.  Two seperate directories are created for
+I<.cpanplus> directory.  Two seperate directories are created for
 building packages and for storing the resulting package file.
 
 I<5.10.1> represents the version of perl you used to build the package
@@ -350,7 +350,7 @@ being used.  You'll have to look at the module's docs to be sure.
 
 =head2 PKGBUILD TEMPLATE
 
-Since version 1.00 we now use template modules if they are available.
+Since version 0.19 we now use template modules if they are available.
 So if any of the following modules are installed and can be used,
 they will be used instead of our builtin template engine:
 
@@ -450,9 +450,9 @@ PERL_RL environment variable:
 
 =head1 BUGS
 
-Please email me or report any bugs or feature requests to
-C<bug-cpanplus-dist-arch at rt.cpan.org>, or through the web interface
-at
+Please email me or report any bugs or feature requests to C<<
+<bug-cpanplus-dist-arch at rt.cpan.org> >>, or through the web
+interface at
 L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=CPANPLUS-Dist-Arch>.
 I will be notified, and then you'll automatically be notified of
 progress on your bug as I make changes.
@@ -488,7 +488,7 @@ with cpan2dist so far.  It happened when building L<PDL>, by the way.
 
 =head1 SUPPORT
 
-Email me at C<< juster at cpan dot org >> or message me as I<juster> on the
+Email me at C<< <juster at cpan dot org> >> or message me as I<juster> on the
 Archlinux BBS at L<http://bbs.archlinux.org>.
 
 To check why the build process failed, read the build logs CPANPLUS
