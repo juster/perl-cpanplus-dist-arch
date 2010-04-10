@@ -17,8 +17,8 @@ my $builder = Module::Build->new(
 
         'CPANPLUS'              => 0,
         'Digest::MD5'           => 0,
-        'File::Path'            => 0, # I'm not sure which versions
-        'File::Copy'            => 0, # are necessary?
+        'File::Path'            => '2.06_05', # for make_path and remove_tree
+        'File::Copy'            => 0,
         'File::stat'            => 0,
         'IPC::Cmd'              => 0,
         'DynaLoader'            => 0,
