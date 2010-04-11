@@ -1,3 +1,10 @@
+2010-04-11  Justin Davis  <juster@cpan.org>
+
+	* lib/CPANPLUS/Dist/Arch.pm (get_pkgbuild): Fix bug where
+	exclaimation marks (!) in pkgdesc are displayed with the leading
+	quoting backslash (\).  Turns out quoting exclaimation marks with
+	backslashes doesn't work in bash.  We use "..."'!'"..." instead!
+
 2010-04-08  Justin Davis  <juster@cpan.org>
 
 	* lib/CPANPLUS/Dist/Arch.pm (get_tt_module): Added new method.

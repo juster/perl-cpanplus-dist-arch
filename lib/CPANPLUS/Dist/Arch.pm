@@ -633,7 +633,10 @@ sub get_pkgbuild
     my %pkgvars = $self->get_pkgvars;
 
     # Quote our package desc for bash.
-    $pkgvars{pkgdesc} =~ s/ ([\$\"\`\!]) / \\$1 /gxms;
+    $pkgvars{pkgdesc} =~ s/ ([\$\"\`]) / \\$1 /gxms;
+    
+    # !'s are much more annoying...
+    $pkgvars{pkgdesc} =~ s/ \! / "'!'" /xms;
 
     my $templ_vars = { packager  => $ENV{PACKAGER} || $PACKAGER,
                        version   => $VERSION,
