@@ -636,7 +636,7 @@ sub get_pkgbuild
     $pkgvars{pkgdesc} =~ s/ ([\$\"\`]) / \\$1 /gxms;
     
     # !'s are much more annoying...
-    $pkgvars{pkgdesc} =~ s/ \! / "'!'" /xms;
+    $pkgvars{pkgdesc} =~ s/ \! /"'!'"/xms;
 
     my $templ_vars = { packager  => $ENV{PACKAGER} || $PACKAGER,
                        version   => $VERSION,

@@ -2,7 +2,7 @@
 
 use warnings;
 use strict;
-use Test::More tests => 4;
+use Test::More tests => 5;
 
 BEGIN {
     # The ::Test class is under out test directory.
@@ -27,3 +27,14 @@ $cda_obj->set_pkgbuild_templ( $templ );
 is( $cda_obj->get_pkgbuild_templ, $templ );
 
 is( $cda_obj->get_pkgbuild(), "perl-fake-package\n31337\n" );
+
+## TEST EXCLAIMATION MARK QUOTING
+##############################################################################
+
+$cda_obj = CPANPLUS::Dist::Arch::Test->new( name    => 'Foo-Bar',
+                                            version => '007',
+                                            desc    => q{Foo you!},
+                                           );
+$cda_obj->set_pkgbuild_templ( q{"[% pkgdesc %]"} );
+
+is( $cda_obj->get_pkgbuild(), q{"Foo you"'!'""} );
