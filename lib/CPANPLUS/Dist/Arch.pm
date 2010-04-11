@@ -137,6 +137,7 @@ problem.
 our ($Is_dependency, $PKGDEST, $PACKAGER, $DEBUG);
 
 $PACKAGER = 'Anonymous';
+$DEBUG    = $ENV{DIST_ARCH_DEBUG};
 
 sub _DEBUG
 {
