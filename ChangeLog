@@ -1,3 +1,10 @@
+2010-04-13  Justin Davis  <juster@cpan.org>
+
+	* lib/CPANPLUS/Dist/Arch.pm (create): Fix bug where I assumed
+	makepkg creates a .pkg.tar.gz.  Nowadays makepkg creates
+	.pkg.tar.xz files (but it may still create .pkg.tar.gz if the user
+	tells it to in /etc/makepkg.conf... right?)
+
 2010-04-11  Justin Davis  <juster@cpan.org>
 
 	* lib/CPANPLUS/Dist/Arch.pm (get_pkgbuild): Fix bug where

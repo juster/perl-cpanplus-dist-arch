@@ -260,6 +260,35 @@ sub prepare
     return $self->SUPER::prepare(@_);
 }
 
+#---HELPER FUNCTION---
+sub _find_built_pkg
+{
+    my ($self, $pkg_type, $destdir) = @_;
+    my $status = $self->status;
+
+    my $pkgfile = catfile( $destdir,
+                           join '-',
+                           ( $status->pkgname,
+                             $status->pkgver,
+                             $status->pkgrel,
+                             join '.',
+                             ( $pkg_type eq q{bin}
+                               ? ( $status->pkgarch, 'pkg' )
+                               : 'src' ),
+                             'tar',
+                            ));
+
+    _DEBUG "Searching for file starting with $pkgfile";
+
+    my ($found) =
+        ( grep { -f $_ }
+          map { "$pkgfile.$_" } qw/ xz gz / );
+
+    _DEBUG ( $found ? "Found $found" : "No package file found!" );
+
+    return $found;
+}
+
 #---INTERFACE METHOD---
 # Purpose  : Creates the pacman package using the 'makepkg' command.
 #----------------------
@@ -315,21 +344,11 @@ Package type must be 'bin' or 'src'};
     }
 
     # Prepare our file name paths for pkgfile and source tarball...
-    my $pkgfile = join '-', ( qq{${\$status->pkgname}},
-                              qq{${\$status->pkgver}},
-                              ( $pkg_type eq q{bin}
-                                ? ( q{1},
-                                    qq{${\$status->pkgarch}.pkg.tar.gz} )
-                                : q{1.src.tar.gz} )
-                             );
-
     my $srcfile_fqp = $status->pkgbase . '/' . $module->package;
-    my $pkgfile_fqp = $status->pkgbase . "/$pkgfile";
 
     $status->destdir( $opts{destdir} ) if $opts{destdir};
     my $destdir = $status->destdir;
     $destdir = Cwd::abs_path( $destdir );
-    my $destfile_fqp = catfile( $destdir, $pkgfile );
 
     # Prepare our 'makepkg' package building directory,
     # namely the PKGBUILD and source tarball files...
@@ -368,7 +387,7 @@ Package type must be 'bin' or 'src'};
 
     chdir $oldcwd or die "chdir: $OS_ERROR";
 
-    $status->dist( $destfile_fqp );
+    $status->dist( $self->_find_built_pkg( $pkg_type, $destdir ));
     return $status->created( 1 );
 }
 
@@ -813,6 +832,7 @@ sub _pod_pkgdesc
     a lesser module in the same package file.
     
     Assume the main .pm or .pod file is under lib/Module/Name/Here.pm
+
 =cut
 
     my $mainmod_path = $mod_obj->package_name;
