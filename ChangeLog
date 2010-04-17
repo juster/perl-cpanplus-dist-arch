@@ -1,3 +1,11 @@
+2010-04-17  Justin Davis  <juster@cpan.org>
+
+	* lib/CPANPLUS/Dist/Arch.pm: Fix bug where installing packages
+	from the AUR runs Module::AutoInstall inside the PKGBUILD.
+	Module::AutoInstall installed packages while running _inside_ the
+	PKGBUILD.  Maybe all AUR packages created by cpan2aur who used
+	Module::Install were broken!  Reported by Xenoterracide
+
 2010-04-13  Justin Davis  <juster@cpan.org>
 
 	* lib/CPANPLUS/Dist/Arch.pm (create): Fix bug where I assumed

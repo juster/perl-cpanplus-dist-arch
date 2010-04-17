@@ -101,7 +101,7 @@ md5sums=('[% md5sums %]')
 
 build() {
   DIST_DIR="${srcdir}/[% distdir %]"
-  export PERL_MM_USE_DEFAULT=1
+  export PERL_AUTOINSTALL=--skipdeps PERL_MM_USE_DEFAULT=1
   { cd "$DIST_DIR" &&
 [% IF is_makemaker %]
     perl Makefile.PL INSTALLDIRS=vendor &&
