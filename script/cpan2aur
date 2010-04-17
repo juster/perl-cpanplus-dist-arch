@@ -824,7 +824,7 @@ END_ERROR
     my $mod_obj  = find_module( $pkg_info{ dist_name } );
     return unless ( $mod_obj );
 
-    my $cpan_ver = version->new( dist_pkgver( $mod_obj->version ));
+    my $cpan_ver = version->new( dist_pkgver( $mod_obj->package_version ));
     my $dist_ver = version->new( $pkg_info{ dist_ver }           );
 
     if ( $cpan_ver < $dist_ver ) {
