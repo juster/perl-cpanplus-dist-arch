@@ -91,7 +91,7 @@ pkgname='[% pkgname %]'
 pkgver='[% pkgver %]'
 pkgrel='[% pkgrel %]'
 pkgdesc="[% pkgdesc %]"
-arch=('any')
+arch=('[% arch %]')
 license=('PerlArtistic' 'GPL')
 options=('!emptydirs')
 depends=([% depends %])
@@ -226,7 +226,7 @@ sub init
     my $self = shift;
 
     $self->status->mk_accessors( qw{ pkgname  pkgver  pkgbase pkgdesc
-                                     pkgurl   pkgsize pkgarch pkgrel
+                                     pkgurl   pkgsize arch    pkgrel
                                      builddir destdir
 
                                      pkgbuild_templ tt_init_args } );
@@ -273,7 +273,7 @@ sub _find_built_pkg
                              $status->pkgrel,
                              join '.',
                              ( $pkg_type eq q{bin}
-                               ? ( $status->pkgarch, 'pkg' )
+                               ? ( $status->arch, 'pkg' )
                                : 'src' ),
                              'tar',
                             ));
@@ -387,7 +387,9 @@ Package type must be 'bin' or 'src'};
 
     chdir $oldcwd or die "chdir: $OS_ERROR";
 
-    $status->dist( $self->_find_built_pkg( $pkg_type, $destdir ));
+    my $pkg_path = $self->_find_built_pkg( $pkg_type, $destdir );
+    $status->dist( $pkg_path );
+
     return $status->created( 1 );
 }
 
@@ -588,6 +590,7 @@ sub get_pkgvars
     return ( pkgname  => $status->pkgname,
              pkgver   => $status->pkgver,
              pkgrel   => $status->pkgrel,
+             arch     => $status->arch,
              pkgdesc  => $status->pkgdesc,
              depends  => scalar $self->_translate_cpan_deps,
 
@@ -956,8 +959,7 @@ sub _prepare_pkgdesc
 # Usage    : $self->_prepare_status()
 # Purpose  : Prepares all the package-specific accessors in our $self->status
 #            accessor object (of the class Object::Accessor).
-# Postcond : Accessors assigned to: pkgname pkgver pkgbase pkgarch
-#                                   destdir
+# Postcond : Accessors assigned to: pkgname pkgver pkgbase arch destdir
 # Returns  : The object's status accessor.
 #---------------------
 sub _prepare_status
@@ -982,18 +984,16 @@ sub _prepare_status
             dist_pkgname( $module->package_name));
 
     my $pkgbase = catdir( $our_base, 'build', "$pkgname-$pkgver" );
-    my $pkgarch = `uname -m`;
-    chomp $pkgarch;
 
-    foreach ( $pkgname, $pkgver, $pkgbase, $pkgarch ) {
+    foreach ( $pkgname, $pkgver, $pkgbase ) {
         die "A package variable is invalid" unless defined;
     }
 
     $status->pkgname( $pkgname );
     $status->pkgver ( $pkgver  );
     $status->pkgbase( $pkgbase );
-    $status->pkgarch( $pkgarch );
     $status->pkgrel (    1     );
+    $status->arch   ( 'any'    );
 
     $status->tt_init_args( {} );
 

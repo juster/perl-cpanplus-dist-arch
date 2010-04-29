@@ -279,7 +279,7 @@ included in the examples directory for an example.
             Dependencies are converted to their pacman names.
  
             The keys are: pkgname, pkgver, pkgdesc, depends, url, source
-            md5sums (despite this name only one is given), depshash
+            md5sums (despite this name only one is given), depshash, arch
  
             One new key is 'depshash' whose value is a hashref.
             The hashref keys are packages and their values are
