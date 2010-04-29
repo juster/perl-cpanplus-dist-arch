@@ -103,18 +103,18 @@ build() {
   DIST_DIR="${srcdir}/[% distdir %]"
   export PERL_AUTOINSTALL=--skipdeps PERL_MM_USE_DEFAULT=1
   { cd "$DIST_DIR" &&
-[% IF is_makemaker %]
+[% IF is_makemaker -%]
     perl Makefile.PL INSTALLDIRS=vendor &&
     make &&
     [% IF skiptest %]#[% END %]make test &&
     make DESTDIR="$pkgdir" install;
-[% END %]
-[% IF is_modulebuild %]
+[% END -%]
+[% IF is_modulebuild -%]
     perl Build.PL --installdirs=vendor --destdir="$pkgdir" &&
     perl Build &&
     [% IF skiptest %]#[% END %]perl Build test &&
     perl Build install;
-[% END %]
+[% END -%]
   } || return 1;
 
   find "$pkgdir" -name .packlist -o -name perllocal.pod -delete
