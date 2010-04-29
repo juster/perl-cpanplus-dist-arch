@@ -11,7 +11,7 @@ use CPANPLUS::Error        qw(error msg);
 use Digest::MD5            qw();
 use Pod::Select            qw();
 use List::Util             qw(first);
-use File::Path             qw(make_path);
+use File::Path  2.06_05    qw(make_path);
 use File::Copy             qw(copy);
 use File::stat             qw(stat);
 use DynaLoader             qw();
