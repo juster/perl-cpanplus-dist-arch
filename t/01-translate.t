@@ -3,9 +3,11 @@
 use warnings;
 use strict;
 
-use Test::More tests => 23;
+use Test::More tests => 24;
 
-use CPANPLUS::Dist::Arch qw( dist_pkgname dist_pkgver );
+BEGIN {
+    use_ok( 'CPANPLUS::Dist::Arch', qw(:all) );
+}
 
 my %pkgname_of =
     ( '-Crazy-CPAN_Name-'  => 'perl-crazy-cpan-name',
