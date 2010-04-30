@@ -24,7 +24,7 @@ use Cwd                    qw();
 our $VERSION     = '0.20';
 our @EXPORT      = qw();
 our @EXPORT_OK   = qw(dist_pkgname dist_pkgver);
-our @EXPORT_TAGS = ( 'all' => [ @EXPORT_OK ] );
+our %EXPORT_TAGS = ( 'all' => [ @EXPORT_OK ] );
 
 
 #-----------------------------------------------------------------------------
