@@ -32,9 +32,6 @@ sub aur_needs_pkg
 my $corelist = $Module::CoreList::version{ 0+$] };
 my %is_checked;
 
-open my $null_fh, '>', '/dev/null' or die "open /dev/null: $!";
-
-
 # Desc   : Filters out modules which are available to pacman.
 # Params : The module name to filter along with its dependencies.
 # Returns: A list of modules someone might want to upload to AUR.
