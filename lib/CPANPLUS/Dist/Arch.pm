@@ -479,10 +479,8 @@ sub dist_pkgname
     die qq{Dist name '$distname' completely violates packaging standards}
         if ( ! $distname );
 
-    if ( $distname !~ / (?: \A perl ) | (?: -perl \z ) /xms ) {
-        $distname = "perl-$distname";
-    }
-
+    # Don't create a redundant 'perl-' prefix in the package name...
+    $distname = "perl-$distname" unless $distname =~ /\Aperl-/;
     return $distname;
 }
 
