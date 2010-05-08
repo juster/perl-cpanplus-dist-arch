@@ -137,12 +137,11 @@ problem.
 our ($Is_dependency, $PKGDEST, $PACKAGER, $DEBUG);
 
 $PACKAGER = 'Anonymous';
-$DEBUG    = $ENV{DIST_ARCH_DEBUG};
 
-sub _DEBUG
-{
-    print STDERR '***DEBUG*** ', @_, "\n" if $DEBUG;
-}
+sub _DEBUG;
+*_DEBUG = ( $ENV{DIST_ARCH_DEBUG}
+            ? sub { print STDERR '***DEBUG*** ', @_, "\n" }
+            : sub { return } );
 
 #---HELPER FUNCTION---
 # Purpose: Expand environment variables and tildes like bash would.
