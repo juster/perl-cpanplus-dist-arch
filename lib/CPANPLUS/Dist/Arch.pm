@@ -481,7 +481,9 @@ sub dist_pkgname
         if ( ! $distname );
 
     # Don't create a redundant 'perl-' prefix in the package name...
-    $distname = "perl-$distname" unless $distname =~ /\Aperl-/;
+    $distname = "perl-$distname"
+        unless ( $distname eq 'perl' || $distname =~ /\Aperl-/ );
+
     return $distname;
 }
 
