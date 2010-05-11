@@ -2,7 +2,7 @@
 pkgname='perl-cpanplus-dist-arch-git'
 pkgver='20100510'
 pkgrel='1'
-pkgdesc='Developer release for CPANPLUS::Dist::Arch'
+pkgdesc='Newest developer release for CPANPLUS::Dist::Arch'
 arch=('any')
 license=('PerlArtistic' 'GPL')
 options=('!emptydirs')
@@ -31,9 +31,8 @@ build() {
     git clone "$_gitroot" "$DIST_DIR"
   fi
 
-  export PERL_AUTOINSTALL=--skipdeps PERL_MM_USE_DEFAULT=1 \
-    PERL_MB_OPT="--installdirs vendor --destdir '$pkgdir'" \
-    MODULEBUILDRC='/dev/null'
+  export PERL_MB_OPT="--installdirs vendor --destdir '$pkgdir'" \
+    MODULEBUILDRC='/dev/null' TEST_RELEASE=1
 
   msg 'Building CPANPLUS::Dist::Arch...'
   { cd "$DIST_DIR"  &&
