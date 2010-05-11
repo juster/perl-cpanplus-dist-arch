@@ -1,4 +1,4 @@
-steps = FindVersion, ChangeVersion, DistTest, Commit, Tag, MakeDist, UploadCPAN
+steps = FindVersion, ChangeVersion, DistTest, Commit, Tag, MakeDist, UploadCPAN, PodReadme
 
 git.tagpattern = v%v
 git.push_to = origin
