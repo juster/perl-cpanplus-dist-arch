@@ -4,10 +4,6 @@
 
 CPANPLUS::Dist::Arch - CPANPLUS backend for building Archlinux pacman packages
 
-=head1 VERSION
-
-Version 0.20
-
 =head1 SYNOPSIS
 
   (First, setup cpan to use us automatically)
