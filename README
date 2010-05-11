@@ -2,9 +2,6 @@ NAME
     CPANPLUS::Dist::Arch - CPANPLUS backend for building Archlinux pacman
     packages
 
-VERSION
-    Version 0.20
-
 SYNOPSIS
       (First, setup cpan to use us automatically)
       $ setupdistarch
