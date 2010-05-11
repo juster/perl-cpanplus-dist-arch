@@ -1,14 +1,15 @@
 # Contributor: Justin Davis <jrcd83@gmail.com>
 pkgname='perl-cpanplus-dist-arch-git'
-pkgver=20100218
-pkgrel=1
-pkgdesc="CPANPLUS backend for building Archlinux pacman packages"
-arch=('i686' 'x86_64')
+pkgver='20100510'
+pkgrel='1'
+pkgdesc='Developer release for CPANPLUS::Dist::Arch'
+arch=('any')
 license=('PerlArtistic' 'GPL')
 options=('!emptydirs')
+makedepends=('perl-test-pod-coverage' 'perl-test-pod')
 depends=('perl')
 provides=('perl-cpanplus-dist-arch')
-url='http://search.cpan.org/dist/CPANPLUS-Dist-Arch'
+url='http://github.com/juster/perl-cpanplus-dist-arch'
 md5sums=()
 source=()
 
@@ -17,22 +18,30 @@ _gitname='master'
 
 build() {
   DIST_DIR="${srcdir}/${pkgname}"
-  if [ -d $DIST_DIR ] ; then
-    cd $DIST_DIR
-    perl Build clean
-    git pull $_gitroot $_gitname
+  msg 'Creating CPANPLUS::Dist::Arch developer package...'
+
+  if [ -d "$DIST_DIR" ] ; then
+    warning 'Repository directory already exists!'
+    msg2 'Attempting to pull from repo and checkout master...'
+    cd "$DIST_DIR"
+    git pull "$_gitroot" "$_gitname"
     git checkout master
   else
-    git clone $_gitroot $DIST_DIR
+    msg2 "Cloning $_gitroot repository..."
+    git clone "$_gitroot" "$DIST_DIR"
   fi
 
-  export PERL_MM_USE_DEFAULT=1
-  { cd "$DIST_DIR" &&
-    perl Build.PL --installdirs=vendor --destdir="$pkgdir" &&
-    perl Build &&
+  export PERL_AUTOINSTALL=--skipdeps PERL_MM_USE_DEFAULT=1 \
+    PERL_MB_OPT="--installdirs vendor --destdir '$pkgdir'" \
+    MODULEBUILDRC='/dev/null'
+
+  msg 'Building CPANPLUS::Dist::Arch...'
+  { cd "$DIST_DIR"  &&
+    perl Build.PL   &&
+    perl Build      &&
+    msg2 'Testing CPANPLUS::Dist::Arch...' &&
     perl Build test &&
-    perl Build install;
-  } || return 1;
+    perl Build install; } || return 1;
 
   find "$pkgdir" -name .packlist -o -name perllocal.pod -delete
 }
