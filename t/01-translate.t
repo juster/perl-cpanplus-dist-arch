@@ -11,7 +11,7 @@ BEGIN {
 
 my %pkgname_of =
     ( '-Crazy-CPAN_Name-'  => 'perl-crazy-cpan-name',
-      'AT-END-IS-PERL'    => 'at-end-is-perl',
+      'AT-END-IS-PERL'    => 'perl-at-end-is-perl',
       'Perl-At-Beginning' => 'perl-at-beginning',
       'Middle-Perl-Here'  => 'perl-middle-perl-here',
 
@@ -30,6 +30,7 @@ my %pkgname_of =
       'glade-perl-two'    => 'perl-glade-two',
       'aceperl'           => 'perl-ace',
 
+      # You probably shouldn't use dist_pkgname for perl itself...
       'perl'              => 'perl',
      );
 

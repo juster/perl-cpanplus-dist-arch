@@ -21,7 +21,7 @@ use English                qw(-no_match_vars);
 use Carp                   qw(carp croak confess);
 use Cwd                    qw();
 
-our $VERSION     = '0.20';
+our $VERSION     = '1.00';
 our @EXPORT      = qw();
 our @EXPORT_OK   = qw(dist_pkgname dist_pkgver);
 our %EXPORT_TAGS = ( 'all' => [ @EXPORT_OK ] );
@@ -101,17 +101,23 @@ md5sums=('[% md5sums %]')
 
 build() {
   DIST_DIR="${srcdir}/[% distdir %]"
-  export PERL_AUTOINSTALL=--skipdeps PERL_MM_USE_DEFAULT=1
-  unset PERL_MM_OPT MODULEBUILDRC
+  export PERL_AUTOINSTALL=--skipdeps PERL_MM_USE_DEFAULT=1 \
+[% IF is_makemaker -%]
+    PERL_MM_OPT="INSTALLDIRS=vendor DESTDIR='$pkgdir'"
+[% ELSE -%]
+    PERL_MB_OPT="--installdirs vendor --destdir '$pkgdir'" \
+    MODULEBUILDRC=/dev/null
+[% END -%]
+
   { cd "$DIST_DIR" &&
 [% IF is_makemaker -%]
-    perl Makefile.PL INSTALLDIRS=vendor &&
+    perl Makefile.PL &&
     make &&
     [% IF skiptest %]#[% END %]make test &&
-    make DESTDIR="$pkgdir" install;
+    make install;
 [% END -%]
 [% IF is_modulebuild -%]
-    perl Build.PL --installdirs=vendor --destdir="$pkgdir" &&
+    perl Build.PL &&
     perl Build &&
     [% IF skiptest %]#[% END %]perl Build test &&
     perl Build install;

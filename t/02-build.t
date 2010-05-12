@@ -12,7 +12,8 @@ my $TEST_MODULE =  'Acme::Bleach';
 plan skip_all => 'build testing requires pacman & makepkg installed'
     unless ( CPANPLUS::Dist::Arch::format_available );
 
-diag 'You must be connected to the Internet for this test to succeed';
+plan skip_all => 'skipping slower developer tests'
+    unless $ENV{ 'TEST_RELEASE' };
 
 plan tests => 5;
 
@@ -21,9 +22,6 @@ diag "Downloading and packaging the $TEST_MODULE module";
 my $cb;
 ok( $cb = CPANPLUS::Backend->new,
     q{load a CPANPLUS::Backend object} );
-
-# ok( $cb->configure_object->set_conf( 'dist_type', 'CPANPLUS::Dist::Arch' ),
-#     q{set dist_type to CPANPLUS::Dist::Arch'} );
 
 my $test_mod;
 ok( $test_mod = $cb->module_tree( $TEST_MODULE ),

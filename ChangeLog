@@ -1,3 +1,37 @@
+2010-05-11  Justin Davis  <juster@cpan.org>
+
+	* RELEASE (1.00): Uploaded to CPAN.
+
+	* lib/CPANPLUS/Dist/Arch.pm (dist_pkgname): Changed the mapping of
+	CPAN dist names to package names:
+	  - Prefix the package name with 'perl-' even if it ends with '-perl'.
+	  - The only time to not prefix the package with 'perl-' is if it
+	    already starts with 'perl-'.
+	  - Special case: the 'perl' dist name maps to the 'perl' package.
+
+2010-05-10  Justin Davis  <juster@cpan.org>
+
+	* lib/CPANPLUS/Dist/Arch.pm: The PKGBUILD template has been
+	changed.  We now more eloquently override environment
+	variables (i.e. PERL_MM_OPT, PERL_MB_OPT) in order to assure
+	their values don't affect our package building.
+
+2010-04-28  Justin Davis  <juster@cpan.org>
+
+	* lib/CPANPLUS/Dist/Arch.pm: Add POST_CHOMP (-%]) tags to PKGBUILD
+	template to remove extra whitespace.
+
+2010-04-17  Justin Davis  <juster@cpan.org>
+
+	* script/cpan2aur (update_if_old): Fix bug where we were comparing
+	the module version and not the module's package version.
+
+	* lib/CPANPLUS/Dist/Arch.pm: Fix bug where installing packages
+	from the AUR runs Module::AutoInstall inside the PKGBUILD.
+	Module::AutoInstall installed packages while running _inside_ the
+	PKGBUILD.  Maybe all AUR packages created by cpan2aur who used
+	Module::Install were broken!  Reported by Xenoterracide
+
 2010-04-13  Justin Davis  <juster@cpan.org>
 
 	* lib/CPANPLUS/Dist/Arch.pm (create): Fix bug where I assumed

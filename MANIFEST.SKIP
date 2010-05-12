@@ -1,0 +1,9 @@
+~$
+MYMETA.yml
+Makefile.
+Build
+_build/
+blib/
+.git/
+.tmp
+.bak
