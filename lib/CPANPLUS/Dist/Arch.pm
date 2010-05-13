@@ -102,12 +102,9 @@ md5sums=('[% md5sums %]')
 build() {
   DIST_DIR="${srcdir}/[% distdir %]"
   export PERL_AUTOINSTALL=--skipdeps PERL_MM_USE_DEFAULT=1 \
-[% IF is_makemaker -%]
     PERL_MM_OPT="INSTALLDIRS=vendor DESTDIR='$pkgdir'"
-[% ELSE -%]
     PERL_MB_OPT="--installdirs vendor --destdir '$pkgdir'" \
     MODULEBUILDRC=/dev/null
-[% END -%]
 
   { cd "$DIST_DIR" &&
 [% IF is_makemaker -%]
