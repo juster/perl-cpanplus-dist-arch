@@ -39,7 +39,8 @@ build() {
     exit 1
   fi
 
-  export PERL_MB_OPT="--installdirs vendor --destdir '$pkgdir'" \
+  export PERL_MM_OPT="INSTALLDIRS=vendor DESTDIR=$pkgdir"  \
+    PERL_MB_OPT="--installdirs vendor --destdir '$pkgdir'" \
     MODULEBUILDRC='/dev/null' TEST_RELEASE=1
 
   msg 'Building CPANPLUS::Dist::Arch...'
