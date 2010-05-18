@@ -15,6 +15,7 @@ t/00-load.t
 t/01-translate.t
 t/02-build.t
 t/03-pkgbuild.t
+t/04-int_template.t
 t/pod.t
 t/pod-coverage.t
 META.yml
