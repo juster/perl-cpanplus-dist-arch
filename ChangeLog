@@ -1,3 +1,12 @@
+2010-05-18  Justin Davis  <juster@cpan.org>
+
+	* RELEASE (1.01)
+
+	* lib/CPANPLUS/Dist/Arch.pm (_process_template): [Bugfix] When
+	using internal template engine the [%-'s and -%]'s would not be
+	recognized.  When I added the -'s I forgot to change the code.
+	Reported by IsaacG
+
 2010-05-11  Justin Davis  <juster@cpan.org>
 
 	* RELEASE (1.00): Uploaded to CPAN.
