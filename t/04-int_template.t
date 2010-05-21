@@ -2,7 +2,7 @@
 
 use warnings;
 use strict;
-use Test::More tests => 10;
+use Test::More tests => 7;
 
 sub make_inc_hook
 {
@@ -50,23 +50,26 @@ is $cda_obj->get_pkgbuild, 'perl-cda-template',
 # TEST WHITESPACE
 ##############################################################################
 
-ok $cda_obj->set_pkgbuild_templ( <<'END_TEMPL' );
+my @ws_tests;
+push @ws_tests, <<'END_TEMPL', "GOOD\n\n";
 [% IF pkgname -%]
 GOOD[% END %]
 
 END_TEMPL
-is $cda_obj->get_pkgbuild, "GOOD\n";
 
-ok $cda_obj->set_pkgbuild_templ( <<'END_TEMPL' );
+push @ws_tests, <<'END_TEMPL', "GOOD";
 [% IF pkgname -%]
-GOOD
-[% END %]
+GOOD[% END -%]
 
 END_TEMPL
-is $cda_obj->get_pkgbuild, "GOOD\n\n";
 
-ok $cda_obj->set_pkgbuild_templ( <<'END_TEMPL' );
+push @ws_tests, <<'END_TEMPL', "GOOD\n\n";
 [% IF pkgname -%]GOOD
 [% END %]
 END_TEMPL
-is $cda_obj->get_pkgbuild, "GOOD\n";
+
+my $count = 1;
+while( my ($templ, $result) = splice @ws_tests, 0, 2 ) {
+    $cda_obj->set_pkgbuild_templ( $templ );
+    is $cda_obj->get_pkgbuild(), $result;
+}
