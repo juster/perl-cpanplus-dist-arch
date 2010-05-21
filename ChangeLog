@@ -1,3 +1,8 @@
+2010-05-20  Justin Davis  <juster@cpan.org>
+
+	* lib/CPANPLUS/Dist/Arch.pm (set_tt_module): Add new method.  This
+	can also be a class method.
+
 2010-05-18  Justin Davis  <juster@cpan.org>
 
 	* RELEASE (1.01)
