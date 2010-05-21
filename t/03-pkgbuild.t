@@ -26,6 +26,7 @@ END_TEMPL
 $cda_obj->set_pkgbuild_templ( $templ );
 is( $cda_obj->get_pkgbuild_templ, $templ );
 
+$cda_obj->set_tt_module( 0 );
 is( $cda_obj->get_pkgbuild(), "perl-fake-package\n31337\n" );
 
 ## TEST EXCLAIMATION MARK QUOTING
