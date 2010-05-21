@@ -83,9 +83,16 @@ END_OVERRIDES
 my $TT_MOD_NAME;
 my @TT_MOD_SEARCH = qw/ Template Template::Alloy Template::Tiny /;
 
-my $TT_IF_MATCH  = qr/ \[% -? \s* IF \s* (\w*) \s* -? %\] \n? /xms;
-my $TT_END_MATCH = qr/ \[% -? \s* END          \s* -? %\] \n? /xms;
-my $TT_VAR_MATCH = qr/ \[% -? \s* (\w+)        \s* -? %\] \n? /xms;
+sub _tt_block
+{
+    my $inside = shift;
+    return qr{ \[% -?
+               \s* $inside \s*
+               (?: (?: -%\] \n* ) | %\] ) }xms;
+}
+my $TT_IF_MATCH  = _tt_block 'IF \s* (\w*)';
+my $TT_END_MATCH = _tt_block 'END';
+my $TT_VAR_MATCH = _tt_block '(\w+)';
 
 # Crude template for our PKGBUILD script
 my $PKGBUILD_TEMPL = <<'END_TEMPL';
