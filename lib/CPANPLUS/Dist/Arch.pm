@@ -627,6 +627,14 @@ sub set_tt_init_args
     return $self->status->tt_init_args( { @_ } );
 }
 
+sub set_tt_module
+{
+    my ($self, $modname) = @_;
+
+    $TT_MOD_NAME = $modname || 0;
+    return $TT_MOD_NAME;
+}
+
 sub get_tt_module
 {
     _load_tt_module() unless defined $TT_MOD_NAME;

@@ -337,6 +337,15 @@ See L</PKGBUILD TEMPLATE>.
 What config value are supported depends on what template module is
 being used.  You'll have to look at the module's docs to be sure.
 
+=head3 set_tt_module
+
+  Usage   : $obj->set_tt_module( 0 );
+  Params  : $modname - The name of a template module to use or
+                       0 to force using the internal engine.
+  Warning : This sets the template module to use for ALL
+            CPANPLUS::Dist::Arch objects.
+  Returns : $modname
+
 =head3 get_tt_module
 
   Usage   : my $modname = $obj->get_tt_module();
