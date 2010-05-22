@@ -638,8 +638,14 @@ sub set_tt_module
 {
     my ($self, $modname) = @_;
 
-    $TT_MOD_NAME = $modname || 0;
-    return $TT_MOD_NAME;
+    return ( $TT_MOD_NAME = 0 ) unless $modname;
+
+    croak qq{Failed to load template module "$modname"}
+        unless eval "require $modname; 1;";
+
+    _DEBUG "Loaded template module: $modname";
+
+    return $TT_MOD_NAME = $modname;
 }
 
 sub get_tt_module
