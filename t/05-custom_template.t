@@ -35,7 +35,7 @@ use CPANPLUS::Dist::Arch::Test;
 my $cda_obj = CPANPLUS::Dist::Arch::Test->new( name    => 'Template-Tester',
                                                version => '1.342' );
 ok $cda_obj->set_tt_module( 'Template::Fake' );
-is $cda_obj->get_pkgbuild(), <<'END_OUTPUT';
+is $cda_obj->get_pkgbuild(), <<"END_OUTPUT";
 arch = any
 depends = 'perl>=5.010'
 distdir = Template-Tester-1.342
@@ -43,13 +43,13 @@ is_makemaker = 0
 is_modulebuild = 1
 md5sums = 12345MD5SUM12345
 packager = Anonymous
-pkgdesc = This is a  \" fake \"  package, for testing only.
+pkgdesc = This is a  \\" fake \\"  package, for testing only.
 pkgname = perl-template-tester
 pkgrel = 1
 pkgver = 1.342
 skiptest = 0
 source = http://search.cpan.org/CPAN/J/JU/JUSTER/Template-Tester-1.342.tar.gz
 url = http://search.cpan.org/dist/Template-Tester
-version = 1.02
+version = $CPANPLUS::Dist::Arch::VERSION
 END_OUTPUT
 
