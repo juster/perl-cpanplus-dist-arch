@@ -112,8 +112,9 @@ md5sums=('[% md5sums %]')
 
 build() {
   DIST_DIR="${srcdir}/[% distdir %]"
-  export PERL_AUTOINSTALL=--skipdeps PERL_MM_USE_DEFAULT=1 \
-    PERL_MM_OPT="INSTALLDIRS=vendor DESTDIR='$pkgdir'"
+  export PERL_MM_USE_DEFAULT=1 PERL5LIB=""                 \
+    PERL_AUTOINSTALL=--skipdeps                            \
+    PERL_MM_OPT="INSTALLDIRS=vendor DESTDIR='$pkgdir'"     \
     PERL_MB_OPT="--installdirs vendor --destdir '$pkgdir'" \
     MODULEBUILDRC=/dev/null
 
