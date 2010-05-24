@@ -69,9 +69,9 @@ config.
 
 =over 4
 
-=item Build Directory - C<~/.cpanplus/5.10.1/pacman/build>
+=item * Build Directory: C<~/.cpanplus/5.10.1/pacman/build>
 
-=item Package Directory - C<~/.cpanplus/5.10.1/pacman/pkg>
+=item * Package Directory: C<~/.cpanplus/5.10.1/pacman/pkg>
 
 =back
 
@@ -84,9 +84,13 @@ using environment variables.
 
 =over
 
-=item PKGDEST  - Override where the package files end up.
+=item B<PKGDEST>
 
-=item PACKAGER - Override the Contributor comment line at the top of the PKGBUILD.
+Override where the package files end up.
+
+=item B<PACKAGER>
+
+Override the Contributor comment line at the top of the PKGBUILD.
 
 =back
 
@@ -98,7 +102,7 @@ Here is how you can use environment variables to put the package files
 in our I<~/pkgs> directory for the L<ALPM> module. (along with any
 modules we have to build and install to create it)
 
-  PACKAGER='Juster <juster at cpan dot org>'> PKGDEST=~/pkgs cpanp -i ALPM
+  PACKAGER='Juster <juster at cpan dot org>' PKGDEST=~/pkgs cpanp -i ALPM
 
 =head1 COMMAND LINE OPTIONS
 
@@ -107,7 +111,7 @@ small number of these options are recognized by CPANPLUS::Dist::Arch.
 
 =over
 
-=item B<--verbose> B<DISABLED>
+=item B<--verbose> I<(DISABLED)>
 
 We are now verbose by default!  Hope this is okay.
 
@@ -308,6 +312,8 @@ included in the examples directory for an example.
             Invalid directoy passed to create_pkgbuild: ...
   Returns : Nothing.
 
+=head2 TEMPLATE METHODS
+
 =head3 get_pkgbuild_templ
 
   Usage   : my $tt_text = $self->get_pkgbuild_templ();
@@ -383,6 +389,9 @@ the message I<"Template variable ... was not provided"> if the
 variable was not defined.  C<[% IF var_name %] ... [% END %]> will
 remove what is in-between the C<IF> and C<END> tags if the variable
 named C<var_name> is not set to a true value.
+
+Trailing newlines will also be stripped if you use the C<-%]> syntax
+(notice the C<->) to close the L<Template::Toolkit> style blocks.
 
 See L</get_pkgvars> for a list of the variables that can be used
 inside the template.
