@@ -76,6 +76,8 @@ Pango          = pango-perl
 XML-Parser     = perlxml0
 SDL_Perl       = sdl_perl
 shorewall-perl = shorewall-perl
+Perl-Critic    = perl-critic
+Perl-Tidy      = perl-tidy
 
 END_OVERRIDES
 
@@ -510,9 +512,8 @@ sub dist_pkgname
     die qq{Dist name '$distname' completely violates packaging standards}
         if ( ! $distname );
 
-    # Don't create a redundant 'perl-' prefix in the package name...
-    $distname = "perl-$distname"
-        unless ( $distname eq 'perl' || $distname =~ /\Aperl-/ );
+    # Don't prefix the package with perl- if it IS perl...
+    $distname = "perl-$distname" unless ( $distname eq 'perl' );
 
     return $distname;
 }

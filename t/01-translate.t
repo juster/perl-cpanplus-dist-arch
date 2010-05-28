@@ -1,9 +1,16 @@
 #!perl -T
 
+=pod
+
+Tests our translation (mapping) of CPAN names to package names.
+Tests CPAN version to package version translation.
+
+=cut
+
 use warnings;
 use strict;
 
-use Test::More tests => 24;
+use Test::More tests => 28;
 
 BEGIN {
     use_ok( 'CPANPLUS::Dist::Arch', qw(:all) );
@@ -12,7 +19,7 @@ BEGIN {
 my %pkgname_of =
     ( '-Crazy-CPAN_Name-'  => 'perl-crazy-cpan-name',
       'AT-END-IS-PERL'    => 'perl-at-end-is-perl',
-      'Perl-At-Beginning' => 'perl-at-beginning',
+      'Perl-At-Beginning' => 'perl-perl-at-beginning',
       'Middle-Perl-Here'  => 'perl-middle-perl-here',
 
       'crazy~!@#$%^&*()_+{}|/\<>:"/' => 'perl-crazy',
@@ -24,11 +31,18 @@ my %pkgname_of =
       'SWIFT-Factory-Tag-Tag17A' => 'perl-swift-factory-tag-tag17a',
       'Data-Dumper'              => 'perl-data-dumper',
 
+      # An interesting conflict, mentioned by xenoterracide...
+      'Perl-Version'             => 'perl-perl-version',
+      'version'                  => 'perl-version',
+      
+
       # Test overridden names
       'libwww-perl'       => 'perl-libwww',
       'mod_perl'          => 'mod_perl',
       'glade-perl-two'    => 'perl-glade-two',
       'aceperl'           => 'perl-ace',
+      'Perl-Critic'       => 'perl-critic',
+      'Perl-Tidy'         => 'perl-tidy',
 
       # You probably shouldn't use dist_pkgname for perl itself...
       'perl'              => 'perl',
