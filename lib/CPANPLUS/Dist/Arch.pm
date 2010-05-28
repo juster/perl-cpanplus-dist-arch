@@ -275,22 +275,36 @@ sub prepare
     return $self->SUPER::prepare(@_);
 }
 
-#---HELPER FUNCTION---
+#---PRIVATE METHOD---
+# Purpose : Finds the first package file that matches our internal data.
+#           (Meaning we might have built it)  We search for .tar.gz and
+#           .tar.xz files.
+# Note    : .tar.xz files have higher priority than .tar.gz files.
+# Params  : $pkg_type - Must be 'bin' or 'src'.
+#           $destdir  - The directory to search in for packages.
+# Returns : The absolute path of the found package
+#-------------------
 sub _find_built_pkg
 {
     my ($self, $pkg_type, $destdir) = @_;
     my $status = $self->status;
 
     my $pkgfile = catfile( $destdir,
-                           join '-',
-                           ( $status->pkgname,
-                             $status->pkgver,
-                             $status->pkgrel,
-                             join '.',
-                             ( $pkg_type eq q{bin}
-                               ? ( $status->arch, 'pkg' )
-                               : 'src' ),
-                             'tar',
+
+                           ( join q{.},
+
+                             ( join q{-},
+                               $status->pkgname,
+                               $status->pkgver,
+                               $status->pkgrel,
+                              
+                               ( $pkg_type eq q{bin}
+                                 ? $status->arch : qw// ),
+                              ),
+
+                             ( $pkg_type eq q{bin} ? q{pkg} : q{src} ),
+
+                             q{tar},
                             ));
 
     _DEBUG "Searching for file starting with $pkgfile";
@@ -403,6 +417,7 @@ Package type must be 'bin' or 'src'};
     chdir $oldcwd or die "chdir: $OS_ERROR";
 
     my $pkg_path = $self->_find_built_pkg( $pkg_type, $destdir );
+    print STDERR "DEBUG: \$pkg_path = $pkg_path\n";
     $status->dist( $pkg_path );
 
     return $status->created( 1 );
