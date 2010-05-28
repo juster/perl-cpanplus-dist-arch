@@ -419,7 +419,6 @@ Package type must be 'bin' or 'src'};
     chdir $oldcwd or die "chdir: $OS_ERROR";
 
     my $pkg_path = $self->_find_built_pkg( $pkg_type, $destdir );
-    print STDERR "DEBUG: \$pkg_path = $pkg_path\n";
     $status->dist( $pkg_path );
 
     return $status->created( 1 );
