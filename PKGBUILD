@@ -1,9 +1,9 @@
 # -*- Mode: shell-script; sh-basic-offset: 2 -*-
 # Contributor: Justin Davis <jrcd83@gmail.com>
 pkgname='perl-cpanplus-dist-arch-git'
-pkgver='20100512'
+pkgver='20100530'
 pkgrel='1'
-pkgdesc='Newest developer release for CPANPLUS::Dist::Arch'
+pkgdesc='Developer release for CPANPLUS::Dist::Arch perl module'
 arch=('any')
 license=('PerlArtistic' 'GPL')
 options=('!emptydirs')
@@ -15,7 +15,7 @@ md5sums=()
 source=()
 
 _gitroot='git://github.com/juster/perl-cpanplus-dist-arch.git'
-_gitname=${BRANCH:-'master'}
+_gitbranch=${BRANCH:-'master'}
 
 build() {
   DIST_DIR="${srcdir}/${pkgname}"
@@ -25,18 +25,18 @@ build() {
     warning 'Repository directory already exists!'
     msg2 'Attempting to pull from repo...'
     cd "$DIST_DIR"
-    git pull
+    git pull origin "$_gitbranch"
   else
     msg2 "Cloning $_gitroot repository..."
     git clone "$_gitroot" "$DIST_DIR"
     cd "$DIST_DIR"
   fi
 
-  msg2 "Checking out the $_gitname branch..."
-  git checkout "$_gitname"
+  msg2 "Checking out the $_gitbranch branch..."
+  git checkout "$_gitbranch"
   if [ "$?" -ne 0 ] ; then
-    error "Failed to checkout the $_gitname branch... aborting."
-    exit 1
+    error "Failed to checkout the $_gitbranch branch... aborting."
+    return 1
   fi
 
   export PERL_MM_OPT="INSTALLDIRS=vendor DESTDIR=$pkgdir"  \
