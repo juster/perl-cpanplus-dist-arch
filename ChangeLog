@@ -1,4 +1,22 @@
+2010-05-28  Justin Davis  <juster@cpan.org>
+
+	* RELEASE (1.03)
+
+	* lib/CPANPLUS/Dist/Arch.pm (_find_built_pkg): Fix bug where
+	source packages were not being found after being built.
+	(dist_pkgname): Changed naming rules again.  ALWAYS prefix a
+	package name with perl- unless it is "perl".
+
+	Added an override for Perl-Tidy and Perl-Critic so they will still
+	convert to 'perl-tidy' and 'perl-critic'.  We may need more
+	overrides to match Archlinux packages...
+
+	Fixes a bug with Perl::Version and version both translating to
+	perl-version.  Reported by xenoteracide
+
 2010-05-20  Justin Davis  <juster@cpan.org>
+
+	* RELEASE (1.02)
 
 	* lib/CPANPLUS/Dist/Arch.pm (set_tt_module): Add new method.  This
 	can also be a class method.

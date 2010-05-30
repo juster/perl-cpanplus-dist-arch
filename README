@@ -60,8 +60,8 @@ WHERE IS THE PACKAGE
     and *~/.cpanplus* represents the base directory chosen in your CPANPLUS
     config.
 
-    Build Directory - `~/.cpanplus/5.10.1/pacman/build'
-    Package Directory - `~/.cpanplus/5.10.1/pacman/pkg'
+    * Build Directory: `~/.cpanplus/5.10.1/pacman/build'
+    * Package Directory: `~/.cpanplus/5.10.1/pacman/pkg'
 
 CUSTOMIZATION
     You can change defaults settings machine-wide (for every user) or for
@@ -69,9 +69,11 @@ CUSTOMIZATION
     */etc/makepkg.conf* file. The user/package customizations are set using
     environment variables.
 
-    PKGDEST - Override where the package files end up.
-    PACKAGER - Override the Contributor comment line at the top of the
-    PKGBUILD.
+    PKGDEST
+        Override where the package files end up.
+
+    PACKAGER
+        Override the Contributor comment line at the top of the PKGBUILD.
 
 SUPPORT
     Email me at `<juster at cpan dot org>' or message me as *juster* on the
