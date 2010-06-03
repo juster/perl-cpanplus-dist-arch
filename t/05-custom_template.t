@@ -42,7 +42,7 @@ distdir = Template-Tester-1.342
 is_makemaker = 0
 is_modulebuild = 1
 md5sums = 12345MD5SUM12345
-packager = Anonymous
+packager = $CPANPLUS::Dist::Arch::PACKAGER
 pkgdesc = This is a  \\" fake \\"  package, for testing only.
 pkgname = perl-template-tester
 pkgrel = 1
@@ -52,4 +52,3 @@ source = http://search.cpan.org/CPAN/J/JU/JUSTER/Template-Tester-1.342.tar.gz
 url = http://search.cpan.org/dist/Template-Tester
 version = $CPANPLUS::Dist::Arch::VERSION
 END_OUTPUT
-
