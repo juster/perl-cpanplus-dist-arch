@@ -1,3 +1,9 @@
+2010-06-02  Justin Davis  <juster@cpan.org>
+
+	* t/05-custom_template.t: Fix bug where the packager was
+	hard-coded in our test output.
+	Reported by IsaacG
+
 2010-05-28  Justin Davis  <juster@cpan.org>
 
 	* RELEASE (1.03)
