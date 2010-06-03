@@ -519,6 +519,21 @@ This mostly started from CPANPLUS::Dist::RPM which is on Google Code
 at L<http://code.google.com/p/cpanplus-dist-rpm/>.  This was a very
 helpful starting point to try to understand the internals of CPANPLUS.
 
+=head1 CONTRIBUTORS
+
+Contributors are credited in detail in the ChangeLog file.  The
+following people have been kind enough to submit bug reports:
+
+=over 4
+
+=item * Xenoterracide
+
+=item * IsaacG
+
+=back
+
+I<Thank you for your help!>
+
 =head1 SEE ALSO
 
 =over
