@@ -18,7 +18,7 @@
 	overrides to match Archlinux packages...
 
 	Fixes a bug with Perl::Version and version both translating to
-	perl-version.  Reported by xenoteracide
+	perl-version.  Reported by Xenoterracide
 
 2010-05-20  Justin Davis  <juster@cpan.org>
 
