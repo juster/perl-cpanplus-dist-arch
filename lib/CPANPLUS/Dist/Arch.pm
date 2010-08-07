@@ -73,11 +73,10 @@ Gtk2           = gtk2-perl
 XML-LibXML     = libxml-perl
 mod_perl       = mod_perl
 Pango          = pango-perl
-XML-Parser     = perlxml0
-SDL_Perl       = sdl_perl
-shorewall-perl = shorewall-perl
+SDL            = sdl_perl
 Perl-Critic    = perl-critic
 Perl-Tidy      = perl-tidy
+App-Ack        = ack
 
 END_OVERRIDES
 

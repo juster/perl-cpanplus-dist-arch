@@ -1,3 +1,8 @@
+2010-08-07  Justin Davis  <juster@cpan.org>
+
+	* lib/CPANPLUS/Dist/Arch.pm: Update name overrides to match
+	changed ArchLinux perl package names in official repos.
+
 2010-06-02  Justin Davis  <juster@cpan.org>
 
 	* t/05-custom_template.t: Fix bug where the packager was
