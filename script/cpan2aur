@@ -48,6 +48,11 @@ my ($DIRECTORY, $VERBOSE, $UPLOAD, $FORCE, $HELP, $NAME,
 ## UTILITY FUNCTIONS
 ##############################################################################
 
+sub _is_interactive
+{
+    return -t STDIN && -t STDOUT;
+}
+
 # Params : @questions - Questions to concatenate and print together.
 # Returns: The answer! (sans newline)
 sub prompt_ask
@@ -59,6 +64,8 @@ sub prompt_ask
     local $OUTPUT_AUTOFLUSH = 1;
     my $prefix = q{ } x 4;
     print wrap( $prefix, $prefix, $question );
+
+    return undef if $FORCE || ! _is_interactive();
 
     my $line = <STDIN>;
     chomp $line;
@@ -84,6 +91,12 @@ sub prompt_yn
     QUESTION: {
         $answer = prompt_ask( $question );
 
+        if ( $FORCE || ! defined $answer ) {
+            # Print the default answer if we are uninteractive or forced.
+            printf "%s\n", ( $default ? 'y' : 'n' );
+            return $default
+        }
+        
         return $default if ( length $answer == 0 );
         redo QUESTION unless $answer =~ /\A[yYnN]/;
     }
@@ -195,12 +208,6 @@ sub confirm_overwrite
     my ($file_path) = @_;
 
     return 1 unless ( -f $file_path );
-
-    # User wants us to force deletions...
-    if ( $FORCE ) {
-        unlink $file_path or die qq{failed to "rm $file_path": $!};
-        return 1;
-    }
 
     my $answer = prompt_yn( "$file_path already exists, overwrite?" => 'yes' );
     return 0 if ( $answer == 0 );
@@ -445,14 +452,10 @@ sub _load_web_modules
     unless ( $loaded ) {
         my $answer = 1;
 
-        # Force flag will install perl-libwww without asking...
-        unless ( $FORCE ) {
-            $answer = prompt_yn( <<'END_PROMPT' => 'yes' );
+        $answer = prompt_yn( <<'END_PROMPT' => 'yes' );
 You need the perl-libwww package installed to upload to the AUR.
 Do you want to install it now?
 END_PROMPT
-            $answer = ($answer !~ /\A[nN]/ );
-        }
 
         exit NEEDLWP_ERRCODE unless ( $answer );
 
@@ -486,6 +489,11 @@ sub upload_pkgfile
 
     my ($username, $sid) = _load_last_login();
     $username ||= $NAME || prompt_ask( 'Username:' );
+    
+    if ( ! defined $username ) {
+        print "\n";
+        error( 'Unable to read username in uninteractive mode.' );
+    }
 
     my $ua = LWP::UserAgent->new();
     # First try to reuse an old Session ID...
@@ -505,6 +513,9 @@ sub upload_pkgfile
     }
 
     my $passwd = prompt_password();
+    error( 'Unable to read password in uninteractive mode. '
+           . 'Upload a file manually first.' )
+        unless defined $passwd;
 
     # Retrieve a new session and save it...
     $sid = _new_login_sid( $ua, $username, $passwd );
@@ -703,7 +714,7 @@ name into the file prefixed with the above comment in quotes.
 
         my $new_pkgrel = $old_info{pkgrel} + 1;
 
-        my $answer = prompt_yn( <<"END_QUESTION" );
+        my $answer = prompt_yn( <<"END_QUESTION" => 'no' );
 A PKGBUILD already exists for this version ($new_ver).
 Would you like to increment the pkgrel to $new_pkgrel?
 END_QUESTION
