@@ -42,7 +42,7 @@ my $NEED_LOGIN_ERR = 'Login session was invalid.';
 my $PKG_EXISTS_ERR = 'You tried to submit a package you do not own.';
 
 # Command line flags
-my ($DIRECTORY, $VERBOSE, $UPLOAD, $FORCE, $HELP, $NAME,
+my ($DIRECTORY, $VERBOSE, $UPLOAD, $FORCE, $HELP, $NAME, $PASSWD,
     $REVERSE, $CHECK, $MONO);
 
 ## UTILITY FUNCTIONS
@@ -512,7 +512,7 @@ sub upload_pkgfile
         substatus 'Old session ID failed. Starting new session...';
     }
 
-    my $passwd = prompt_password();
+    my $passwd = $PASSWD || prompt_password();
     error( 'Unable to read password in uninteractive mode. '
            . 'Upload a file manually first.' )
         unless defined $passwd;
@@ -878,6 +878,7 @@ GetOptions( 'directory' => \$DIRECTORY,
             'force'     => \$FORCE,
             'check'     => \$CHECK,
             'name=s'    => \$NAME,
+            'pass=s'    => \$PASSWD,
             'mono'      => \$MONO,
             'help'      => \$HELP,
            );
@@ -978,6 +979,7 @@ Version 1.0
                        If so, then --upload a new version.
  -n, --name <username> Specify a different username to login to the AUR,
                        instead of the last one used.
+ -p, --pass <password> Specify a password to use to login to AUR.
  -m, --mono            Disable color output, use monochrome black/white.
 
  (Unlike GNU options, single-letter options need their own hyphens
