@@ -513,9 +513,10 @@ sub upload_pkgfile
     }
 
     my $passwd = $PASSWD || prompt_password();
-    error( 'Unable to read password in uninteractive mode. '
-           . 'Upload a file manually first.' )
-        unless defined $passwd;
+    unless ( defined $passwd ) {
+        error( 'Unable to read password in uninteractive mode. '
+               . 'Upload a file manually first or use the -p option.' );
+    }
 
     # Retrieve a new session and save it...
     $sid = _new_login_sid( $ua, $username, $passwd );
