@@ -62,7 +62,6 @@ my $PKGNAME_OVERRIDES =
 libwww-perl    = perl-libwww
 glade-perl-two = perl-glade-two
 aceperl        = perl-ace
-
 Gnome2-GConf   = gconf-perl
 Gtk2-GladeXML  = glade-perl
 Glib           = glib-perl
@@ -77,6 +76,7 @@ SDL            = sdl_perl
 Perl-Critic    = perl-critic
 Perl-Tidy      = perl-tidy
 App-Ack        = ack
+TermReadKey    = perl-term-readkey
 
 END_OVERRIDES
 
