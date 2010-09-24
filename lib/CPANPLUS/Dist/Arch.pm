@@ -450,7 +450,7 @@ END_ERROR
 
     die "Package file $pkgfile_fqp was not found" if ( ! -f $pkgfile_fqp );
 
-    my @pacmancmd = ( 'pacman', '-U', $pkgfile_fqp,
+    my @pacmancmd = ( 'pacman', '--noconfirm', '-U', $pkgfile_fqp,
                       ( $Is_dependency ? '--asdeps' : '--asexplicit' ),
                      );
 
