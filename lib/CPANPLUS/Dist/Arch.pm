@@ -112,6 +112,7 @@ source=('[% source %]')
 md5sums=('[% md5sums %]')
 
 build() {
+  PERL=/usr/bin/perl
   DIST_DIR="${srcdir}/[% distdir %]"
   export PERL_MM_USE_DEFAULT=1 PERL5LIB=""                 \
     PERL_AUTOINSTALL=--skipdeps                            \
@@ -121,16 +122,16 @@ build() {
 
   { cd "$DIST_DIR" &&
 [% IF is_makemaker -%]
-    perl Makefile.PL &&
+    $PERL Makefile.PL &&
     make &&
     [% IF skiptest %]#[% END %]make test &&
     make install;
 [% END -%]
 [% IF is_modulebuild -%]
-    perl Build.PL &&
-    perl Build &&
-    [% IF skiptest %]#[% END %]perl Build test &&
-    perl Build install;
+    $PERL Build.PL &&
+    $PERL Build &&
+    [% IF skiptest %]#[% END %]$PERL Build test &&
+    $PERL Build install;
 [% END -%]
   } || return 1;
 
