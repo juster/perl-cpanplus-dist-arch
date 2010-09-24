@@ -1,3 +1,9 @@
+2010-09-24  Justin Davis  <juster@cpan.org>
+
+	* lib/CPANPLUS/Dist/Arch.pm: Change PKGBUILD template to use
+	  the absolute path to the system perl interpreter.
+	  (install): Add --noconfirm flag to pacman arguments.
+
 2010-08-07  Justin Davis  <juster@cpan.org>
 
 	* lib/CPANPLUS/Dist/Arch.pm: Update name overrides to match

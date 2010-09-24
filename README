@@ -92,6 +92,15 @@ ACKNOWLEDGEMENTS
     http://code.google.com/p/cpanplus-dist-rpm/. This was a very helpful
     starting point to try to understand the internals of CPANPLUS.
 
+CONTRIBUTORS
+    Contributors are credited in detail in the ChangeLog file. The following
+    people have been kind enough to submit bug reports:
+
+    * Xenoterracide
+    * IsaacG
+
+    *Thank you for your help!*
+
 SEE ALSO
     * AUR Package: perl-cpanplus-dist-arch
         http://aur.archlinux.org/packages.php?ID=24971
