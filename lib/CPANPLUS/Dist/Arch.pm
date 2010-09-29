@@ -69,7 +69,6 @@ Gnome2         = gnome-perl
 Gnome2-VFS     = gnome-vfs-perl
 Gnome2-Canvas  = gnomecanvas-perl
 Gtk2           = gtk2-perl
-XML-LibXML     = libxml-perl
 mod_perl       = mod_perl
 Pango          = pango-perl
 SDL            = sdl_perl
