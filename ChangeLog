@@ -1,8 +1,18 @@
+2010-09-29  Justin Davis  <juster@cpan.org>
+
+	* RELEASE (1.06)
+
+	* ChangeLog: Fix whitespace funkiness in 2010-09-24.
+
+	* lib/CPANPLUS/Dist/Arch.pm: Remove erronous 'XML::LibXML' to
+	'libxml-perl' name mapping. There is a dist named libxml-perl so
+	it doesn't need a mapping to it. Oops!  Reported by IsaacG
+
 2010-09-24  Justin Davis  <juster@cpan.org>
 
-	* lib/CPANPLUS/Dist/Arch.pm: Change PKGBUILD template to use
-	  the absolute path to the system perl interpreter.
-	  (install): Add --noconfirm flag to pacman arguments.
+	* lib/CPANPLUS/Dist/Arch.pm: Change PKGBUILD template to use the
+	absolute path to the system perl interpreter.
+	(install): Add --noconfirm flag to pacman arguments.
 
 2010-08-07  Justin Davis  <juster@cpan.org>
 
