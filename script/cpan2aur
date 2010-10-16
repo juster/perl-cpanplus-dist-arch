@@ -767,7 +767,7 @@ sub get_pkgfile_info
     my $pkgbuild = $pkg_file->get_content( "$pkg_name/PKGBUILD" );
     my %info     = get_pkgbuild_info( $pkgbuild );
 
-    error( <<'END_ERROR' ) unless ( $info{dist_name} );
+    error( <<"END_ERROR" ) unless ( $info{dist_name} );
 $pkg_path's PKGBUILD does not seem to be made by cpan2aur.
 We are unable to extract the CPAN distribution name from it.
 END_ERROR
