@@ -38,4 +38,4 @@ $cda_obj = CPANPLUS::Dist::Arch::Test->new( name    => 'Foo-Bar',
                                            );
 $cda_obj->set_pkgbuild_templ( q{"[% pkgdesc %]"} );
 
-is( $cda_obj->get_pkgbuild(), q{"Foo you"'!'""} );
+is( $cda_obj->get_pkgbuild(), q{"Foo you!"} );
