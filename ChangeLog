@@ -1,3 +1,19 @@
+2010-10-22  Justin Davis  <juster@cpan.org>
+
+	* lib/CPANPLUS/Dist/Arch.pm (_prepare_arch): Search for XS files
+	in the CPAN package dir and set the PKGBUILD arch field to 'i686'
+	'x86_64' if we find we are building an XS module. This changes
+	the 'arch' field for templates. Do not enclose the 'arch'
+	value in quotes! The value of the 'arch' template variable now
+	comes enclosed in single-quotes.
+
+2010-10-21  Justin Davis  <juster@cpan.org>
+
+	* lib/CPANPLUS/Dist/Arch.pm (get_pkgbuild): Fix bug where quoted
+	bash special characters were padded with spaces.
+	(get_pkgbuild): Remove exclaimation point (!) quoting for bash's
+	sake, this wasn't necessary and looks funny.
+
 2010-09-29  Justin Davis  <juster@cpan.org>
 
 	* RELEASE (1.06)

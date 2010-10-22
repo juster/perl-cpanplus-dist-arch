@@ -950,8 +950,8 @@ sub _readme_pkgdesc
         chomp;
 
         # limit ourselves to a NAME section
-        next LINE unless ( (/^NAME/ ... /^[A-Z]+/) &&
-                           / ^ \s* ${mod_name} [\s\-]+ (.+) $ /oxms );
+        next LINE unless ( ( /^NAME/ ... /^[A-Z]+/ ) &&
+                          / ^ \s* ${mod_name} [\s\-]+ (.+) $ /oxms );
         
         _DEBUG qq{Found pkgdesc "$1" in README};
         return $1;
@@ -1339,8 +1339,7 @@ sub _translate_xs_deps
     # TODO: figure out how to do this with Module::Build
 
     # Turn the linker flags into package deps...
-    return +{ map { ($self->_get_lib_pkg($_)) }
-              @$libs_ref };
+    return +{ map { $self->_get_lib_pkg($_) } @$libs_ref };
 }
 
 #---INSTANCE METHOD---
