@@ -887,14 +887,12 @@ sub _pod_pkgdesc
 
     my $base_path = $mod_obj->status->extract;
 
-    my @possible_pods = (# check directly inside the extracted folder
-                         # and deep inside the lib directory
-                         map { ( catfile( $base_path, 'lib', $_ ),
-                                 catfile( $base_path, $_ )) }
-                         map { ( catfile( $mainmod_path, $_ ), $_ ) }
-                         # .pm files and .pod files
-                         map { "${mainmod_file}.$_" }
-                         qw/pod pm/ );
+    # First check under lib/ for a "properly" pathed module, with
+    # nested directories. Then search desperately for a .pm file that
+    # matches the module's last name component.
+
+    my @possible_pods = ( glob "$base_path/{lib/,}{$mainmod_path/,}"
+                             . "$mainmod_file.{pod,pm}" );
 
     PODSEARCH:
     for my $podfile_path ( @possible_pods ) {
