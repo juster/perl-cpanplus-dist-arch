@@ -363,8 +363,9 @@ Package type must be 'bin' or 'src'};
         # Use CPANPLUS::Dist::Base to make packages for pre-requisites...
         # (starts the packaging process for any missing ones)
         my @ok_resolve_args = qw/ verbose target force prereq_build /;
-        my %resolve_args = map { ( exists $opts{$_}  ?
-                                   ($_ => $opts{$_}) : () ) } @ok_resolve_args;
+        my %resolve_args    = ( map { ( exists $opts{$_}  ?
+                                        ($_ => $opts{$_}) : () ) }
+                                @ok_resolve_args );
 
         local $Is_dependency = 1; # only top level pkgs explicitly installed
 
