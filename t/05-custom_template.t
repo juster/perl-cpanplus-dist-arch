@@ -36,7 +36,7 @@ my $cda_obj = CPANPLUS::Dist::Arch::Test->new( name    => 'Template-Tester',
                                                version => '1.342' );
 ok $cda_obj->set_tt_module( 'Template::Fake' );
 is $cda_obj->get_pkgbuild(), <<"END_OUTPUT";
-arch = any
+arch = 'any'
 depends = 'perl>=5.010'
 distdir = Template-Tester-1.342
 is_makemaker = 0

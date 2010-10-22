@@ -102,7 +102,7 @@ pkgname='[% pkgname %]'
 pkgver='[% pkgver %]'
 pkgrel='[% pkgrel %]'
 pkgdesc="[% pkgdesc %]"
-arch=('[% arch %]')
+arch=([% arch %])
 license=('PerlArtistic' 'GPL')
 options=('!emptydirs')
 depends=([% depends %])
@@ -290,6 +290,14 @@ sub _find_built_pkg
     my ($self, $pkg_type, $destdir) = @_;
     my $status = $self->status;
 
+    my $arch = $self->status->arch;
+    if ( $arch eq q{'any'} ) {
+        $arch = 'any';
+    }
+    else {
+        chomp ( $arch = `uname -m` );
+    }
+
     my $pkgfile = catfile( $destdir,
 
                            ( join q{.},
@@ -299,8 +307,7 @@ sub _find_built_pkg
                                $status->pkgver,
                                $status->pkgrel,
                               
-                               ( $pkg_type eq q{bin}
-                                 ? $status->arch : qw// ),
+                               ( $pkg_type eq q{bin} ? $arch : qw// ),
                               ),
 
                              ( $pkg_type eq q{bin} ? q{pkg} : q{src} ),
@@ -953,6 +960,55 @@ sub _readme_pkgdesc
     return undef;
 }
 
+#---HELPER FUNCTION---
+sub _find_xs_files
+{
+    my ($dirpath) = @_;
+    return -f "$dirpath/typemap" || scalar glob "$dirpath/*.xs";
+}
+
+#---PRIVATE METHOD---
+# Try to find out if this distribution has any XS files.
+# If it does, then the arch PKGBUILD field should be ('i686', 'x86_64').
+# If it doesn't, then the arch field should be ('any').
+sub _prepare_arch
+{
+    my ($self) = @_;
+
+    my $dist_cpan = $self->parent->status->dist_cpan;
+    my $dist_dir  = $dist_cpan->status->distdir;
+
+    unless ( -d $dist_dir ) {
+        return $self->status->arch( q{'any'} );
+    }
+    print STDERR "*DBG* \$dist_dir = $dist_dir\n";
+
+    # Only search the top distribution directory and then go
+    # one directory-level deep. .xs files are usually at the top
+    # or in a subdir. Don't use File::Find, that could be really slow.
+
+    my $found_xs;
+    if ( _find_xs_files( $dist_dir )) {
+        $found_xs = 1;
+    }
+    else {
+        opendir my $basedir, $dist_dir or die "opendir: $!";
+        my @childdirs = grep { !/^./ && -d $_ } readdir $basedir;
+
+        DIR_LOOP:
+        for my $childdir ( @childdirs ) {
+            next DIR_LOOP unless _find_xs_files( $childdir );
+            $found_xs = 1;
+            last DIR_LOOP;
+        }
+
+        closedir $basedir;
+    }
+
+    return $self->status->arch( $found_xs
+                                ? q{'i686', 'x86_64'} : q{'any'} );
+}
+
 #---INSTANCE METHOD---
 # Usage    : $pkgdesc = $self->_prepare_pkgdesc();
 # Purpose  : Tries to find a module's "abstract" short description for
@@ -1032,10 +1088,10 @@ sub _prepare_status
     $status->pkgver ( $pkgver  );
     $status->pkgbase( $pkgbase );
     $status->pkgrel (    1     );
-    $status->arch   ( 'any'    );
 
     $status->tt_init_args( {} );
 
+    $self->_prepare_arch();
     $self->_prepare_pkgdesc();
 
     return $status;
