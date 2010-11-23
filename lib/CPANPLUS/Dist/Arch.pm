@@ -798,7 +798,7 @@ sub _translate_cpan_deps
 
     # Do not separate test modules into makedeps if we are ourself
     # a test module.
-    my $wearetester = $module->name =~ /^Test::/;
+    my $wearetester = $module->package_name =~ /^Test-/;
 
     CPAN_DEP_LOOP:
     for my $modname ( keys %{$prereqs} ) {
