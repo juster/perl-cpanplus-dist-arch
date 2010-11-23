@@ -7,3 +7,4 @@ blib/
 .git/
 .tmp
 .bak
+PKGBUILD.git

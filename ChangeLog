@@ -1,3 +1,15 @@
+2010-11-23  Justin Davis  <juster@artemis.juster.info>
+
+	* RELEASE (1.07)
+
+	* lib/CPANPLUS/Dist/Arch.pm (_translate_cpan_deps): Return
+	perl-test- packages as 'makedepends' unless we are ourselves
+	a perl-test- package. This updates templates as well.
+	(_translate_cpan_deps): We also no longer filter out perl
+	core module requirements. The perl package now gives us a
+	provides list of included core modules.
+	(set_pkgrel): Adds new mutator.
+
 2010-10-22  Justin Davis  <juster@cpan.org>
 
 	* lib/CPANPLUS/Dist/Arch.pm (_prepare_arch): Search for XS files
