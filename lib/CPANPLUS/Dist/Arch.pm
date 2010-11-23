@@ -614,6 +614,16 @@ sub set_pkgrel
     return $self->status->pkgrel( $new_pkgrel );
 }
 
+#---HELPER FUNCTION---
+# Converts a dependency hash into a dependency string for PKGBUILD
+sub _deps_string
+{
+    my %deps = @_;
+    return ( join ' ',
+             map { $deps{$_} ? qq{'${_}>=$deps{$_}'} : qq{'$_'} }
+             sort keys %deps );
+}
+
 sub get_pkgvars
 {
     croak 'Invalid arguments to get_pkgvars' if ( @_ != 1 );
@@ -624,18 +634,20 @@ sub get_pkgvars
     croak 'prepare() must be called before get_pkgvars()'
         unless ( $status->prepared );
 
+    my %deps = $self->_translate_cpan_deps;
+
     return ( pkgname  => $status->pkgname,
              pkgver   => $status->pkgver,
              pkgrel   => $status->pkgrel,
              arch     => $status->arch,
              pkgdesc  => $status->pkgdesc,
-             depends  => scalar $self->_translate_cpan_deps,
+             depends  => _deps_string( %deps ),
 
              url      => $self->_get_disturl,
              source   => $self->_get_srcurl,
              md5sums  => $self->_calc_tarballmd5,
 
-             depshash => { $self->_translate_cpan_deps },
+             depshash => \%deps,
             );
 }
 
@@ -790,15 +802,6 @@ sub _translate_cpan_deps
             next CPAN_DEP_LOOP;
         }
 
-        # Ignore modules included with this version of perl...
-        # NOTE: If 'provides' are given version numbers in the perl
-        #       package we won't need to check this.
-        #       (But we still do, owell.  It avoids redundancy.)
-        my $bundled_version = $Module::CoreList::version{ 0+$] }->{$modname};
-        if ( defined $bundled_version ) {
-            next CPAN_DEP_LOOP if ( qv($bundled_version) >= qv($depver) );
-        }
-
         # Translate the module's distribution name into a package name...
         my $modobj  = $backend->module_tree( $modname )
             or next CPAN_DEP_LOOP;
@@ -813,9 +816,6 @@ sub _translate_cpan_deps
         $pkgdeps{$pkgname} = ( qv($depver) == 0 ? 0 : dist_pkgver( $depver ));
     }
 
-    # Always require perl.
-    $pkgdeps{perl} ||= 0;
-
     # Merge in the XS C library package deps...
     my $xs_deps = $self->_translate_xs_deps;
 
@@ -825,14 +825,13 @@ sub _translate_cpan_deps
         next XSDEP_LOOP if ( exists $pkgdeps{$name} );
         $pkgdeps{$name} = $ver;
     }
+    
+    # Require perl unless we have a dependency on a perl module or perl
+    $pkgdeps{perl} = 0 unless grep { /^perl/ } keys %pkgdeps;
 
     # Return a hash if in list context or return a string representing
     # the depends= line in the PKGBUILD if caller wants a scalar.
-    return %pkgdeps if ( wantarray );
-
-    return ( join ' ',
-             map { $pkgdeps{$_} ? qq{'${_}>=$pkgdeps{$_}'} : qq{'$_'} }
-             sort keys %pkgdeps );
+    return %pkgdeps;
 }
 
 #---HELPER FUNCTION---
@@ -978,10 +977,9 @@ sub _prepare_arch
     my $dist_cpan = $self->parent->status->dist_cpan;
     my $dist_dir  = $dist_cpan->status->distdir;
 
-    unless ( -d $dist_dir ) {
+    unless ( $dist_dir && -d $dist_dir ) {
         return $self->status->arch( q{'any'} );
     }
-    print STDERR "*DBG* \$dist_dir = $dist_dir\n";
 
     # Only search the top distribution directory and then go
     # one directory-level deep. .xs files are usually at the top
@@ -1006,7 +1004,7 @@ sub _prepare_arch
     }
 
     return $self->status->arch( $found_xs
-                                ? q{'i686', 'x86_64'} : q{'any'} );
+                                ? q{'i686' 'x86_64'} : q{'any'} );
 }
 
 #---INSTANCE METHOD---
