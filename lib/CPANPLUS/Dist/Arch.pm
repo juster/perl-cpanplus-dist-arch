@@ -269,11 +269,11 @@ sub prepare
     my $distcpan = $module->status->dist_cpan;   # CPANPLUS::Dist::MM or
                                                  # CPANPLUS::Dist::Build
 
-    $self->_prepare_status;
-    $status->prepared(0);
-
     # Call CPANPLUS::Dist::Base's prepare to resolve our pre-reqs.
-    return $self->SUPER::prepare(@_);
+    $self->SUPER::prepare( @_ ) or return 0;
+
+    $self->_prepare_status;
+    return $status->prepared;
 }
 
 #---PRIVATE METHOD---
