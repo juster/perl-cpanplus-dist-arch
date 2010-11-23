@@ -798,7 +798,7 @@ sub _translate_cpan_deps
 
     # Do not separate test modules into makedeps if we are ourself
     # a test module.
-    my $igntestdeps = $module->name !~ /^Test::/;
+    my $wearetester = $module->name =~ /^Test::/;
 
     CPAN_DEP_LOOP:
     for my $modname ( keys %{$prereqs} ) {
@@ -823,11 +823,11 @@ sub _translate_cpan_deps
 
         my $pkgver = ( qv($depver) == 0 ? 0 : dist_pkgver( $depver ));
 
-        if ( $igntestdeps ) {
-            $pkgdeps{$pkgname} = $pkgver;
-        }
-        elsif ( $pkgname =~ /^perl-test-/ ) {
+        if ( !$wearetester && $pkgname =~ /^perl-test-/ ) {
             $makedeps{$pkgname} = $pkgver;
+        }
+        else {
+            $pkgdeps{$pkgname} = $pkgver;
         }
     }
 
