@@ -106,6 +106,7 @@ arch=([% arch %])
 license=('PerlArtistic' 'GPL')
 options=('!emptydirs')
 depends=([% depends %])
+makedepends=([% makedepends %])
 url='[% url %]'
 source=('[% source %]')
 md5sums=('[% md5sums %]')
@@ -618,7 +619,8 @@ sub set_pkgrel
 # Converts a dependency hash into a dependency string for PKGBUILD
 sub _deps_string
 {
-    my %deps = @_;
+    my ($deps_ref) = @_;
+    my %deps = %$deps_ref;
     return ( join ' ',
              map { $deps{$_} ? qq{'${_}>=$deps{$_}'} : qq{'$_'} }
              sort keys %deps );
@@ -634,20 +636,22 @@ sub get_pkgvars
     croak 'prepare() must be called before get_pkgvars()'
         unless ( $status->prepared );
 
-    my %deps = $self->_translate_cpan_deps;
+    my $deps_ref = $self->_translate_cpan_deps;
 
     return ( pkgname  => $status->pkgname,
              pkgver   => $status->pkgver,
              pkgrel   => $status->pkgrel,
              arch     => $status->arch,
              pkgdesc  => $status->pkgdesc,
-             depends  => _deps_string( %deps ),
+
+             depends     => _deps_string( $deps_ref->{'depends'} ),
+             makedepends => _deps_string( $deps_ref->{'makedepends'} ),
 
              url      => $self->_get_disturl,
              source   => $self->_get_srcurl,
              md5sums  => $self->_calc_tarballmd5,
 
-             depshash => \%deps,
+             depshash => $deps_ref,
             );
 }
 
@@ -786,11 +790,15 @@ sub _translate_cpan_deps
         if @_ != 1;
     my ($self) = @_;
 
-    my %pkgdeps;
+    my (%pkgdeps, %makedeps);
 
     my $module  = $self->parent;
     my $backend = $module->parent;
     my $prereqs = $module->status->prereqs;
+
+    # Do not separate test modules into makedeps if we are ourself
+    # a test module.
+    my $igntestdeps = $module->name !~ /^Test::/;
 
     CPAN_DEP_LOOP:
     for my $modname ( keys %{$prereqs} ) {
@@ -813,7 +821,14 @@ sub _translate_cpan_deps
             next CPAN_DEP_LOOP unless _is_main_module( $modname, $pkgname );
         }
 
-        $pkgdeps{$pkgname} = ( qv($depver) == 0 ? 0 : dist_pkgver( $depver ));
+        my $pkgver = ( qv($depver) == 0 ? 0 : dist_pkgver( $depver ));
+
+        if ( $igntestdeps ) {
+            $pkgdeps{$pkgname} = $pkgver;
+        }
+        elsif ( $pkgname =~ /^perl-test-/ ) {
+            $makedeps{$pkgname} = $pkgver;
+        }
     }
 
     # Merge in the XS C library package deps...
@@ -829,9 +844,7 @@ sub _translate_cpan_deps
     # Require perl unless we have a dependency on a perl module or perl
     $pkgdeps{perl} = 0 unless grep { /^perl/ } keys %pkgdeps;
 
-    # Return a hash if in list context or return a string representing
-    # the depends= line in the PKGBUILD if caller wants a scalar.
-    return %pkgdeps;
+    return { depends => \%pkgdeps, makedepends => \%makedeps };
 }
 
 #---HELPER FUNCTION---

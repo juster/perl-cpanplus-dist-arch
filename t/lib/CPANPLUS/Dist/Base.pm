@@ -37,7 +37,8 @@ use base qw(Object::Accessor);
 sub new {
     my $class = shift;
     my %opt   = @_;
-    my $self  = $class->SUPER::new( qw{ package package_name package_version
+    my $self  = $class->SUPER::new( qw{ name
+                                        package package_name package_version
                                         parent status path description } );
 
     $self->status( Object::Accessor->new( qw{ prereqs installer_type
@@ -45,6 +46,7 @@ sub new {
     $self->status->dist_cpan( Object::Accessor->new( 'status' ));
     $self->status->dist_cpan->status( Object::Accessor->new( 'distdir' ));
 
+    $opt{modname} ||= 'Fake::Package';
     $opt{name}    ||= 'Fake-Package';
     $opt{version} ||= '31337';
     $opt{prereqs} ||= { 'perl'        => '5.010',
@@ -64,6 +66,9 @@ sub new {
     # Used in _get_srcurl
     $self->path           ( 'J/JU/JUSTER' );
     $self->package        ( "$opt{name}-$opt{version}.tar.gz" );
+
+    # Used in _translate_cpan_deps
+    $self->name( $opt{modname} );
 
     # Used in get_pkgvars
     $self->package_name   ( $opt{name}    );
