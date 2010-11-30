@@ -42,7 +42,7 @@ sub new {
                                         parent status path description } );
 
     $self->status( Object::Accessor->new( qw{ prereqs installer_type
-                                              dist_cpan } ));
+                                              dist_cpan extract } ));
     $self->status->dist_cpan( Object::Accessor->new( 'status' ));
     $self->status->dist_cpan->status( Object::Accessor->new( 'distdir' ));
 
@@ -77,6 +77,8 @@ sub new {
     $self->status->prereqs( $opt{prereqs} );
     # Used in _translate_xs_deps
     $self->status->installer_type( $opt{installer_type} );
+    # Used in _prepare_cfgdeps
+    $self->status->extract( 'asldfkjasldf' );
 
     $self->parent( CPANPLUS::Backend::Test->new() );
 

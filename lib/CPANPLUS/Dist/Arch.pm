@@ -246,7 +246,7 @@ sub init
 
     $self->status->mk_accessors( qw{ pkgname  pkgver  pkgbase pkgdesc
                                      pkgurl   pkgsize arch    pkgrel
-                                     builddir destdir
+                                     builddir destdir cfgdeps
 
                                      pkgbuild_templ tt_init_args } );
 
@@ -638,7 +638,7 @@ sub get_pkgvars
     croak 'prepare() must be called before get_pkgvars()'
         unless ( $status->prepared );
 
-    my $deps_ref = $self->_translate_cpan_deps;
+    my $deps_ref = $self->_get_pkg_deps;
 
     return ( pkgname  => $status->pkgname,
              pkgver   => $status->pkgver,
@@ -780,31 +780,63 @@ sub _is_main_module
     return (lc $mod_name) eq (lc $dist_name);
 }
 
-#---INSTANCE METHOD---
-# Usage    : my $deps_str = $self->_translate_cpan_deps()
-# Purpose  : Convert CPAN prerequisites into pacman package dependencies
-# Returns  : String to be appended after 'depends=' in PKGBUILD file,
-#            without parenthesis.
-#---------------------
-sub _translate_cpan_deps
+#---HELPER FUNCTION---
+# Merges the right-hand deps into the left-hand deps.
+sub _merge_deps
 {
-    croak 'Invalid arguments to _translate_cpan_deps method'
-        if @_ != 1;
-    my ($self) = @_;
+    my ($left_deps, $right_deps) = @_;
 
-    my (%pkgdeps, %makedeps);
+    MERGE_LOOP:
+    while ( my ( $pkg, $ver ) = each %$right_deps ) {
+        next MERGE_LOOP if $left_deps->{ $pkg } &&
+            ( qv($left_deps->{ $pkg }) > qv($ver) );
 
-    my $module  = $self->parent;
-    my $backend = $module->parent;
-    my $prereqs = $module->status->prereqs;
+        $left_deps->{ $pkg } = $ver;
+    }
+
+    return $left_deps;
+}
+
+#---PRIVATE METHOD---
+sub _extract_makedepends
+{
+    my ($self, $deps_ref) = @_;
+    my %makedeps;
+
+    my $cpanpkg = $self->parent->package_name;
 
     # Do not separate test modules into makedeps if we are ourself
-    # a test module.
-    my $wearetester = $module->package_name =~ /^Test-/;
+    # a test module...
+    unless ( $cpanpkg =~ /^Test-/ ) {
+        for my $testdep ( grep { /perl-test-/ } keys %$deps_ref ) {
+            $makedeps{ $testdep } = delete $deps_ref->{ $testdep };
+        }
+        
+        # Also extract Pod::Coverage module into makedepends
+        for my $dep ( qw/ perl-pod-coverage / ) {
+            $makedeps{ $dep } = delete $deps_ref->{ $dep }
+                if exists $deps_ref->{$dep};
+        }
+    }
+
+    # Maybe add more operations later...
+    return;
+}
+
+#---PRIVATE METHOD---
+# Translates CPAN module dependencies into ArchLinux package dependencies.
+sub _translate_cpan_deps
+{
+    my ($self, $moddeps_ref) = @_;
+
+    my $modobj  = $self->parent;
+    my $backend = $modobj->parent;
+
+    my %pkgdeps;
 
     CPAN_DEP_LOOP:
-    for my $modname ( keys %{$prereqs} ) {
-        my $depver = $prereqs->{$modname};
+    for my $modname ( keys %$moddeps_ref ) {
+        my $depver = $moddeps_ref->{$modname};
 
         # Sometimes a perl version is given as a prerequisite
         if ( $modname eq 'perl' ) {
@@ -815,38 +847,53 @@ sub _translate_cpan_deps
         # Translate the module's distribution name into a package name...
         my $modobj  = $backend->module_tree( $modname )
             or next CPAN_DEP_LOOP;
-        my $pkgname = dist_pkgname( $modobj->package_name );
+        my $cpanpkg = $modobj->package_name;
+        my $pkgname = dist_pkgname( $cpanpkg );
 
         # If two module prereqs are in the same distribution ("package") file
         # then try to choose the one with the same name as the file...
-        if ( exists $pkgdeps{$pkgname} ) {
-            next CPAN_DEP_LOOP unless _is_main_module( $modname, $pkgname );
+        if ( exists $pkgdeps{ $pkgname } ) {
+            next CPAN_DEP_LOOP unless _is_main_module( $modname, $cpanpkg );
         }
 
-        my $pkgver = ( qv($depver) == 0 ? 0 : dist_pkgver( $depver ));
-
-        if ( !$wearetester && $pkgname =~ /^perl-test-/ ) {
-            $makedeps{$pkgname} = $pkgver;
-        }
-        else {
-            $pkgdeps{$pkgname} = $pkgver;
-        }
+        # TODO: what to do about module version requirements that aren't
+        #       identical to CPAN dist/pkg versions? 
+        $pkgdeps{ $pkgname } = ( $depver ? dist_pkgver( $depver ) : '0' );
     }
+
+    return \%pkgdeps;
+}
+
+#---PRIVATE METHOD---
+# Usage    : my $deps_ref = $self->_get_pkg_deps()
+# Purpose  : Converts our module's deps into makedepends and depends.
+# Returns  : A hashref of dependencies. Top level keys are
+#            'makedepends' and 'depends'. Beneath these are package
+#            names with values being package versions.
+#---------------------
+sub _get_pkg_deps
+{
+    croak 'Invalid arguments to _get_pkg_deps method'
+        if @_ != 1;
+    my ($self) = @_;
+
+    my $module  = $self->parent;
+    my $backend = $module->parent;
+    my $prereqs = $module->status->prereqs;
+
+    my $pkgdeps_ref  = $self->_translate_cpan_deps( $prereqs );
+    my $makedeps_ref = $self->_extract_makedepends( $pkgdeps_ref );
+    my $cfgdeps_ref  = $self->_translate_cpan_deps( $self->status->cfgdeps );
+    _merge_deps( $makedeps_ref, $cfgdeps_ref );
 
     # Merge in the XS C library package deps...
-    my $xs_deps = $self->_translate_xs_deps;
-
-    XSDEP_LOOP:
-    while ( my ($name, $ver) = each %$xs_deps ) {
-        # TODO: report this error?
-        next XSDEP_LOOP if ( exists $pkgdeps{$name} );
-        $pkgdeps{$name} = $ver;
-    }
+    my $xs_deps      = $self->_translate_xs_deps;
+    _merge_deps( $pkgdeps_ref, $xs_deps );
     
     # Require perl unless we have a dependency on a perl module or perl
-    $pkgdeps{perl} = 0 unless grep { /^perl/ } keys %pkgdeps;
+    $pkgdeps_ref->{'perl'} = 0 unless grep { /^perl/ } keys %$pkgdeps_ref;
 
-    return { depends => \%pkgdeps, makedepends => \%makedeps };
+    return { 'depends' => $pkgdeps_ref, 'makedepends' => $makedeps_ref };
 }
 
 #---HELPER FUNCTION---
@@ -1063,6 +1110,23 @@ sub _prepare_pkgdesc
     return $status->pkgdesc( $pkgdesc || q{} );
 }
 
+sub _prepare_cfgdeps
+{
+    my ($self) = @_;
+    my ($status, $modobj) = ($self->status, $self->parent);
+
+    $status->cfgdeps( {} ); # Default to an empty list of deps
+
+    my $metapath = catfile( $modobj->status->extract, 'META.yml' );
+    return unless -f $metapath;
+    
+    my $meta_ref = Parse::CPAN::Meta::LoadFile( $metapath );
+    return unless $meta_ref->{'configure_requires'};
+    
+    $status->cfgdeps( $meta_ref->{'configure_requires'} );
+    return;
+}
+
 #---INSTANCE METHOD---
 # Usage    : $self->_prepare_status()
 # Purpose  : Prepares all the package-specific accessors in our $self->status
@@ -1106,6 +1170,7 @@ sub _prepare_status
 
     $self->_prepare_arch();
     $self->_prepare_pkgdesc();
+    $self->_prepare_cfgdeps();
 
     return $status;
 }
@@ -1332,7 +1397,7 @@ sub _process_template
 
 
 #---INSTANCE METHOD---
-# Usage    : $deps_ref = $self->_translate_cs_deps;
+# Usage    : $deps_ref = $self->_translate_xs_deps;
 # Purpose  : Attempts to find non-perl dependencies in XS modules.
 # Returns  : A hashref of 'package name' => 'minimum version'.
 #            (Minimum version will be the current installed version
