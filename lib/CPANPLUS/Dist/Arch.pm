@@ -62,17 +62,21 @@ my $PKGNAME_OVERRIDES =
 { map { split /[\s=]+/ } split /\s*\n+\s*/, <<'END_OVERRIDES' };
 
 libwww-perl    = perl-libwww
-glade-perl-two = perl-glade-two
 aceperl        = perl-ace
+mod_perl       = mod_perl
+
+glade-perl-two = perl-glade-two
 Gnome2-GConf   = gconf-perl
 Gtk2-GladeXML  = glade-perl
 Glib           = glib-perl
 Gnome2         = gnome-perl
 Gnome2-VFS     = gnome-vfs-perl
 Gnome2-Canvas  = gnomecanvas-perl
+Gnome2-GConf   = gconf-perl
 Gtk2           = gtk2-perl
-mod_perl       = mod_perl
+Cairo          = cairo-perl
 Pango          = pango-perl
+
 SDL_Perl       = sdl_perl
 Perl-Critic    = perl-critic
 Perl-Tidy      = perl-tidy
