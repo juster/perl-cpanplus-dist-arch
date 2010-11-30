@@ -3,7 +3,9 @@ package CPANPLUS::Dist::Arch;
 use warnings;
 use strict;
 
-use base qw(CPANPLUS::Dist::Base Exporter);
+use CPANPLUS::Dist::Base qw();
+use Exporter             qw();
+our @ISA = qw(CPANPLUS::Dist::Base Exporter);
 
 use File::Spec::Functions  qw(catfile catdir);
 use Module::CoreList       qw();
