@@ -819,8 +819,11 @@ sub _extract_makedepends
         }
     }
 
-    # Maybe add more operations later...
-    return;
+    for my $extdep ( grep { /perl-extutils-/ } keys %$deps_ref ) {
+        $makedeps{ $extdep } = delete $deps_ref->{ $extdep };
+    }
+
+    return \%makedeps;
 }
 
 #---PRIVATE METHOD---
