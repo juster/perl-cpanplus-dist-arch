@@ -1,3 +1,12 @@
+2010-11-30  Justin Davis  <juster@artemis.juster.info>
+
+	* lib/CPANPLUS/Dist/Arch.pm (_extract_makedepends): Extract
+	ExtUtils:: modules into makedepends.
+	(_prepare_cfgdeps): Extract 'configure_requires' modules
+	from META.yml into makedepends.
+	(dist_pkgname): Adds Cairo and Gtk2-GConf to the package
+	name overrides.
+
 2010-11-23  Justin Davis  <juster@artemis.juster.info>
 
 	* RELEASE (1.07)
