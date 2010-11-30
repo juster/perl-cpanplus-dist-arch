@@ -622,10 +622,10 @@ sub set_pkgrel
 sub _deps_string
 {
     my ($deps_ref) = @_;
-    my %deps = %$deps_ref;
     return ( join ' ',
-             map { $deps{$_} ? qq{'${_}>=$deps{$_}'} : qq{'$_'} }
-             sort keys %deps );
+             map { qq{'$_'} }
+             map { $deps_ref->{$_} ? qq{$_>=$deps_ref->{$_}} : $_ }
+             sort keys %$deps_ref );
 }
 
 sub get_pkgvars
