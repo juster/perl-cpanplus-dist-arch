@@ -23,7 +23,7 @@ use English                qw(-no_match_vars);
 use Carp                   qw(carp croak confess);
 use Cwd                    qw();
 
-our $VERSION     = '1.08';
+our $VERSION     = '1.09';
 our @EXPORT      = qw();
 our @EXPORT_OK   = qw(dist_pkgname dist_pkgver);
 our %EXPORT_TAGS = ( 'all' => [ @EXPORT_OK ] );
@@ -515,7 +515,9 @@ sub dist_pkgname
     # characters only (and hyphens!)...
     $distname =  lc $distname;
     $distname =~ tr/_/-/;
-    $distname =~ tr/-a-z0-9//cd;
+    $distname =~ tr/-a-z0-9+//cd; # Delete all other chars
+    $distname =~ s/-[+]/-/g;      # + next to - looks weird
+    $distname =~ s/[+]-/-/g;
     $distname =~ tr/-/-/s;
 
     # Delete leading or trailing hyphens...
@@ -523,7 +525,7 @@ sub dist_pkgname
     $distname =~ s/-\z//;
 
     die qq{Dist name '$distname' completely violates packaging standards}
-        if ( ! $distname );
+        if ( length $distname == 0 );
 
     # Don't prefix the package with perl- if it IS perl...
     $distname = "perl-$distname" unless ( $distname eq 'perl' );
