@@ -23,7 +23,7 @@ use English                qw(-no_match_vars);
 use Carp                   qw(carp croak confess);
 use Cwd                    qw();
 
-our $VERSION     = '1.09';
+our $VERSION     = '1.10';
 our @EXPORT      = qw();
 our @EXPORT_OK   = qw(dist_pkgname dist_pkgver);
 our %EXPORT_TAGS = ( 'all' => [ @EXPORT_OK ] );
@@ -851,6 +851,26 @@ sub _translate_cpan_deps
         if ( $modname eq 'perl' ) {
             $pkgdeps{perl} = $depver;
             next CPAN_DEP_LOOP;
+        }
+
+# Ideally we could take advantage of the perl package's provides list
+# and add dependencies for core modules.
+
+# This is more robust and handles the problem of packages built
+# with a different version of perl than the perl that is present
+# when the package is installed.
+
+# The problem is that the perl package provides list still needs work.
+# While I was trying to generate a provides list I noticed the
+# Module::CoreList module had some incorrect version numbers
+# as well. So until I get around to reporting these bugs I will
+# just go back to not depending on packages provided by perl.
+
+        # 0+$] is needed to force the perl version into number-dom
+        # otherwise trailing zeros cause problems
+        my $bundled_version = $Module::CoreList::version{ 0+$] }->{$modname};
+        if ( defined $bundled_version ) {
+            next CPAN_DEP_LOOP if ( qv($bundled_version) >= qv($depver) );
         }
 
         # Translate the module's distribution name into a package name...

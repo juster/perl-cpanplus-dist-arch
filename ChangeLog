@@ -1,6 +1,15 @@
+2010-12-10  Justin Davis  <juster@artemis.juster.info>
+
+	* RELEASE (1.10)
+
+	* lib/CPANPLUS/Dist/Arch.pm (_translate_cpan_deps): Regress back
+	to not adding dependencies to packages (distributions) that are
+	included with the version of perl running us.
+
 2010-12-02  Justin Davis  <juster@artemis.juster.info>
 
 	* RELEASE (1.09)
+
 	* lib/CPANPLUS/Dist/Arch.pm (dist_pkgname): Fix bug with our own
 	package dependencies. + signs are now allowed in package
 	names (for Text-Tabs+Wraps aka perl-text-tabs+wraps).
@@ -8,6 +17,7 @@
 2010-11-30  Justin Davis  <juster@artemis.juster.info>
 
 	* RELEASE (1.08)
+
 	* lib/CPANPLUS/Dist/Arch.pm (_extract_makedepends): Extract
 	ExtUtils:: modules into makedepends.
 	(_prepare_cfgdeps): Extract 'configure_requires' modules
