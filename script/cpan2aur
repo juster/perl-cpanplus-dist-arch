@@ -750,11 +750,13 @@ sub get_pkgbuild_info
             );
 }
 
+# Read PKGBUILD info from a compressed source package file.
 sub get_pkgfile_info
 {
     my ($pkg_path) = @_;
 
-    eval { require Archive::Tar; 1; };
+    eval { require Archive::Tar; 1; }
+        or error( "Failed to load Archive::Tar. Make sure it is installed." );
 
     my ($pkg_filename) = reverse splitpath( $pkg_path );
     my ($pkg_name)     = $pkg_filename =~ / \A ( [\w-]+ ) - \d /xms;
