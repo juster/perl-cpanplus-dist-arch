@@ -7,7 +7,7 @@ use Test::More;
 use CPANPLUS::Backend;
 use CPANPLUS::Dist::Arch;
 
-my $TEST_MODULE =  'Acme::Bleach';
+my $TEST_MODULE = 'Acme::Bleach';
 
 plan skip_all => 'build testing requires pacman & makepkg installed'
     unless ( CPANPLUS::Dist::Arch::format_available );
@@ -33,5 +33,5 @@ ok $test_mod->install( target  => 'create',
     'create module package';
 
 my $pkg_fqp = $test_mod->status->dist->get_pkgpath;
-ok( -e $pkg_fqp, 'package was created' );
-ok unlink $pkg_fqp;
+ok( $pkg_fqp && -e $pkg_fqp, 'package was created' );
+ok $pkg_fqp && unlink $pkg_fqp;
