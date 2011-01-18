@@ -126,20 +126,19 @@ build() {
     PERL_MB_OPT="--installdirs vendor --destdir '$pkgdir'" \
     MODULEBUILDRC=/dev/null
 
-  { cd "$DIST_DIR" &&
+  cd "$DIST_DIR"
 [% IF is_makemaker -%]
-    $PERL Makefile.PL &&
-    make &&
-    [% IF skiptest %]#[% END %]make test &&
-    make install;
+  $PERL Makefile.PL
+  make
+  [% IF skiptest %]#[% END %]make test
+  make install
 [% END -%]
 [% IF is_modulebuild -%]
-    $PERL Build.PL &&
-    $PERL Build &&
-    [% IF skiptest %]#[% END %]$PERL Build test &&
-    $PERL Build install;
+  $PERL Build.PL
+  $PERL Build
+  [% IF skiptest %]#[% END %]$PERL Build test
+  $PERL Build install
 [% END -%]
-  } || return 1;
 
   find "$pkgdir" -name .packlist -o -name perllocal.pod -delete
 }
