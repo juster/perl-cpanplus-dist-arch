@@ -1,84 +1,74 @@
-2010-12-10  Justin Davis  <juster@artemis.juster.info>
+-*- org -*-
 
-	* RELEASE (1.10)
+* 1.11 [2011-01-18 Tue]
+** New Changelog Format
+   The changelog now uses org-mode. It is much nicer. I rewrote many
+   of the latest entries for the last few versions and renamed
+   ChangeLog to the perl-default Changes.
+** Template Changes
+   Since around pacman 3.4, makepkg no longer requires you to use
+   gratutious "|| return 1's". I suppose makepkg uses set -e now, so
+   any errors should make makepkg bail out. Anyways these are now
+   removed from the PKGBUILD template and generated PKGBUILDs.
 
-	* lib/CPANPLUS/Dist/Arch.pm (_translate_cpan_deps): Regress back
-	to not adding dependencies to packages (distributions) that are
-	included with the version of perl running us.
+* 1.10 [2010-12-10 Fri]
+** Cowardly Reverting
+   Regress back to not adding dependencies to packages (distributions)
+   that are included with the version of perl running us.
 
-2010-12-02  Justin Davis  <juster@artemis.juster.info>
+* 1.09 [2010-12-02 Thu]
+** lib/CPANPLUS/Dist/Arch.pm
+*** dist_pkgname
+   Fix bug with our own package dependencies. + signs are now allowed
+   in package names (for Text-Tabs+Wraps aka perl-text-tabs+wraps).
 
-	* RELEASE (1.09)
+* 1.08 [2010-11-30 Tue]
+** lib/CPANPLUS/Dist/Arch.pm
+*** _extract_makedepends
+    Extract ExtUtils:: modules into makedepends.
+*** _prepare_cfgdeps
+    Extract 'configure_requires' modules from META.yml into makedepends.
+*** dist_pkgname
+    Adds Cairo and Gtk2-GConf to the package name overrides.
 
-	* lib/CPANPLUS/Dist/Arch.pm (dist_pkgname): Fix bug with our own
-	package dependencies. + signs are now allowed in package
-	names (for Text-Tabs+Wraps aka perl-text-tabs+wraps).
+* 1.07 [2010-11-23 Tue]
+** lib/CPANPLUS/Dist/Arch.pm
+*** _translate_cpan_deps
+    Return perl-test- packages as 'makedepends' unless we are
+    ourselves a perl-test- package. This updates templates as well.
+    (_translate_cpan_deps): We also no longer filter out perl core
+    module requirements. The perl package now gives us a provides list
+    of included core modules.  (set_pkgrel): Adds new mutator.
+*** _prepare_arch
+    Search for XS files in the CPAN package dir and set the PKGBUILD
+    arch field to 'i686' 'x86_64' if we find we are building an XS
+    module. This changes the 'arch' field for templates. Do not
+    enclose the 'arch' value in quotes! The value of the 'arch'
+    template variable now comes enclosed in single-quotes.
+*** get_pkgbuild
+    Fix bug where quoted bash special characters were padded with
+    spaces. Remove exclaimation point (!) quoting for bash's sake,
+    this wasn't necessary and looks funny.
 
-2010-11-30  Justin Davis  <juster@artemis.juster.info>
+* 1.06 [2010-09-29 Wed]
+** Bad libxml name override                                          :BUGFIX:
+   Remove erronous 'XML::LibXML' to 'libxml-perl' name mapping. There
+   is a dist named libxml-perl so it doesn't need a mapping to
+   it. Oops!
+   *Reported by IsaacG*
+** Templates
+   Change PKGBUILD template to use the absolute path to the system
+   perl interpreter.
+** Yes - stop asking me
+   Add --noconfirm flag to pacman arguments.
+** Update official name overrides
+   Update name overrides to match changed ArchLinux perl package names
+   in official repos.
+** t/05-custom_template.t                                            :BUGFIX:
+   Fix bug where the packager was hard-coded in our test output.
+   *Reported by IsaacG*
 
-	* RELEASE (1.08)
-
-	* lib/CPANPLUS/Dist/Arch.pm (_extract_makedepends): Extract
-	ExtUtils:: modules into makedepends.
-	(_prepare_cfgdeps): Extract 'configure_requires' modules
-	from META.yml into makedepends.
-	(dist_pkgname): Adds Cairo and Gtk2-GConf to the package
-	name overrides.
-
-2010-11-23  Justin Davis  <juster@artemis.juster.info>
-
-	* RELEASE (1.07)
-
-	* lib/CPANPLUS/Dist/Arch.pm (_translate_cpan_deps): Return
-	perl-test- packages as 'makedepends' unless we are ourselves
-	a perl-test- package. This updates templates as well.
-	(_translate_cpan_deps): We also no longer filter out perl
-	core module requirements. The perl package now gives us a
-	provides list of included core modules.
-	(set_pkgrel): Adds new mutator.
-
-2010-10-22  Justin Davis  <juster@cpan.org>
-
-	* lib/CPANPLUS/Dist/Arch.pm (_prepare_arch): Search for XS files
-	in the CPAN package dir and set the PKGBUILD arch field to 'i686'
-	'x86_64' if we find we are building an XS module. This changes
-	the 'arch' field for templates. Do not enclose the 'arch'
-	value in quotes! The value of the 'arch' template variable now
-	comes enclosed in single-quotes.
-
-2010-10-21  Justin Davis  <juster@cpan.org>
-
-	* lib/CPANPLUS/Dist/Arch.pm (get_pkgbuild): Fix bug where quoted
-	bash special characters were padded with spaces.
-	(get_pkgbuild): Remove exclaimation point (!) quoting for bash's
-	sake, this wasn't necessary and looks funny.
-
-2010-09-29  Justin Davis  <juster@cpan.org>
-
-	* RELEASE (1.06)
-
-	* ChangeLog: Fix whitespace funkiness in 2010-09-24.
-
-	* lib/CPANPLUS/Dist/Arch.pm: Remove erronous 'XML::LibXML' to
-	'libxml-perl' name mapping. There is a dist named libxml-perl so
-	it doesn't need a mapping to it. Oops!  Reported by IsaacG
-
-2010-09-24  Justin Davis  <juster@cpan.org>
-
-	* lib/CPANPLUS/Dist/Arch.pm: Change PKGBUILD template to use the
-	absolute path to the system perl interpreter.
-	(install): Add --noconfirm flag to pacman arguments.
-
-2010-08-07  Justin Davis  <juster@cpan.org>
-
-	* lib/CPANPLUS/Dist/Arch.pm: Update name overrides to match
-	changed ArchLinux perl package names in official repos.
-
-2010-06-02  Justin Davis  <juster@cpan.org>
-
-	* t/05-custom_template.t: Fix bug where the packager was
-	hard-coded in our test output.
-	Reported by IsaacG
+* Old Entries
 
 2010-05-28  Justin Davis  <juster@cpan.org>
 
