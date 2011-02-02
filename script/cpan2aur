@@ -646,7 +646,8 @@ END_ERR
 
     # Also replace _DISTDIR or DIST_DIR if we are creating a template from
     # a C::D::A generated PKGBUILD...
-    $pkgbuild_txt =~ s{(DIST_|_DIST)DIR=".*?"}{DIST_DIR="\${srcdir}/[% distdir %]"};
+    $pkgbuild_txt =~ s{(DIST_|_DIST)DIR=".*?"}
+                      {DIST_DIR="\${srcdir}/[% distdir %]"};
     $pkgbuild_txt =~ s{\$_DISTDIR}{\$DIST_DIR}g;
     # Change _DISTDIR for backwards compatibility...
 
@@ -777,6 +778,15 @@ END_ERROR
     return %info;
 }
 
+sub by_version
+{
+    my ($aver) = $a =~ /-([^-]+)-\d+[.]src[.]tar[.]gz\z/
+        or die "Failed to extract version from $a.";
+    my ($bver) = $b =~ /-([^-]+)-\d+[.]src[.]tar[.]gz\z/
+        or die "Failed to extract version from $b.";
+    version->parse( $aver ) cmp version->parse( $bver );
+}
+
 sub pkgdir_srcpkg
 {
     my ($pkg_dir) = @_;
@@ -785,7 +795,8 @@ sub pkgdir_srcpkg
         or error( "Failed to extract pkgname from dir $pkg_dir" );
 
     # Choose the package with the latest version number...
-    my ($src_pkgpath) = reverse sort glob "$pkg_dir/$pkg_name-*.src.tar.gz";
+    my ($src_pkgpath) = reverse sort by_version
+        glob "$pkg_dir/$pkg_name-*.src.tar.gz";
 
     return $src_pkgpath;
 }
