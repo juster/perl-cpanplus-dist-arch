@@ -838,6 +838,16 @@ sub _extract_makedepends
     return \%makedeps;
 }
 
+#---HELPER FUNCTION---
+# Converts a decimal perl version (like $]) into the dotted decimal
+# form that the official ArchLinux perl package uses.
+sub _translate_perl_ver
+{
+    my ($perlver) = @_;
+    return $perlver unless $perlver =~ / \A (\d+) [.] (\d{3}) (\d{3}) \z /xms;
+    return sprintf '%d.%d.%d', $1, $2, $3;
+}
+
 #---PRIVATE METHOD---
 # Translates CPAN module dependencies into ArchLinux package dependencies.
 sub _translate_cpan_deps
@@ -855,7 +865,7 @@ sub _translate_cpan_deps
 
         # Sometimes a perl version is given as a prerequisite
         if ( $modname eq 'perl' ) {
-            $pkgdeps{perl} = $depver;
+            $pkgdeps{perl} = _translate_perl_ver( $depver );
             next CPAN_DEP_LOOP;
         }
 

@@ -10,7 +10,7 @@ Tests CPAN version to package version translation.
 use warnings;
 use strict;
 
-use Test::More tests => 28;
+use Test::More tests => 34;
 
 BEGIN {
     use_ok( 'CPANPLUS::Dist::Arch', qw(:all) );
@@ -69,4 +69,22 @@ for my $cpan_ver ( keys %pkgver_of ) {
     is( dist_pkgver($cpan_ver),
         $pkgver_of{$cpan_ver},
         "CPAN to pacman version translation of $cpan_ver" );
+}
+
+# Also test conversion of decimal perl version strings.
+
+my %perlpkgver_of =
+    ( '5.006001' => '5.6.1',
+      '5.6.1'    => '5.6.1',
+      '5.012001' => '5.12.1',
+      '5.0123456789' => 5.0123456789, # not 6 decimals? pass through
+      '5.01234'      => 5.01234,
+      '.012345'  => '.012345',        # must have a major ver number
+     );
+
+*_perl_ver = *CPANPLUS::Dist::Arch::_translate_perl_ver;
+
+while ( my ($decimal, $dotdecimal) = each %perlpkgver_of ) {
+    is( _perl_ver( $decimal ), $dotdecimal,
+        "Conversion of perl version $decimal" );
 }
