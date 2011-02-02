@@ -256,7 +256,7 @@ sub init
 
     $self->status->mk_accessors( qw{ pkgname  pkgver  pkgbase pkgdesc
                                      pkgurl   pkgsize arch    pkgrel
-                                     builddir destdir cfgdeps
+                                     builddir destdir metadeps
 
                                      pkgbuild_templ tt_init_args } );
 
@@ -916,51 +916,31 @@ sub _get_pkg_deps
     my $backend = $module->parent;
     my $prereqs = $module->status->prereqs;
 
-    my $pkgdeps_ref  = $self->_translate_cpan_deps( $prereqs );
-    my $makedeps_ref = $self->_extract_makedepends( $pkgdeps_ref );
-    my $cfgdeps_ref  = $self->_translate_cpan_deps( $self->status->cfgdeps );
+    # Take our CPAN and META.yml dependencies (of distribution names) and
+    # convert them into packages names for 'depends' and 'makedepends'
+    # inside of a PKGBUILD.
+
+    my $pkgdeps_ref   = $self->_translate_cpan_deps( $prereqs );
+    my $makedeps_ref  = $self->_extract_makedepends( $pkgdeps_ref );
+    my $cfgdeps_ref   = $self->_translate_cpan_deps
+        ( $self->status->metadeps->{'cfg'} );
+    my $builddeps_ref = $self->_translate_cpan_deps
+        ( $self->status->metadeps->{'build'} );
+
+    # 'configure_requires' from META.yml don't show in the prereqs()
+    # results but I think 'build_requires' do
+    for ( keys %$builddeps_ref ) { delete $pkgdeps_ref->{ $_ }; }
     _merge_deps( $makedeps_ref, $cfgdeps_ref );
+    _merge_deps( $makedeps_ref, $builddeps_ref );
 
     # Merge in the XS C library package deps...
-    my $xs_deps      = $self->_translate_xs_deps;
+    my $xs_deps = $self->_translate_xs_deps;
     _merge_deps( $pkgdeps_ref, $xs_deps );
     
     # Require perl unless we have a dependency on a perl module or perl
     $pkgdeps_ref->{'perl'} = 0 unless grep { /^perl/ } keys %$pkgdeps_ref;
 
     return { 'depends' => $pkgdeps_ref, 'makedepends' => $makedeps_ref };
-}
-
-#---HELPER FUNCTION---
-sub _metayml_pkgdesc
-{
-    my ($mod_obj) = @_;
-    my $metayml;
-
-    unless ( open $metayml, '<',
-             catfile( $mod_obj->status->extract, 'META.yml' )) {
-        _DEBUG( "Could not open META.yml to get pkgdesc: $!" );
-        return undef;
-    }
-
-    while ( <$metayml> ) {
-        chomp;
-        if ( my ($pkgdesc) = / \A abstract: \s* (.+) \s* \z /xms ) {
-            _DEBUG qq{Found pkgdesc "$pkgdesc" in META.yml};
-
-            # Ignore enclosing quotes...
-            $pkgdesc = $2 if ( $pkgdesc =~ / \A (['"]) (.*) \1 \z /xms );
-
-            # Ignore certain values we don't like...
-            for my $bad ( @BAD_METAYML_ABSTRACTS ) {
-                return undef if $pkgdesc eq $bad;
-            }
-
-            return $pkgdesc;
-        }
-    }
-
-    return undef;
 }
 
 #---HELPER FUNCTION---
@@ -1123,16 +1103,15 @@ sub _prepare_pkgdesc
 
     my @pkgdesc_srcs =
         (
-         # Registered modules have their description stored in the object.
+         # 1. We checked the META.yml earlier in the _scan_metayml method.
+
+         # 2. Registered modules have their description stored in the object.
          sub { $module->description },
 
-         # First, try to find the short description in the META.yml file...
-         \&_metayml_pkgdesc,
-          
-         # Next, parse the source file or pod file for a NAME section...
+         # 3. Parse the source file or pod file for a NAME section.
          \&_pod_pkgdesc,
 
-         # Last, try to find it in in the README file...
+         # 4. Try to find it in in the README file.
          \&_readme_pkgdesc,
 
          );
@@ -1145,20 +1124,32 @@ sub _prepare_pkgdesc
     return $status->pkgdesc( $pkgdesc || q{} );
 }
 
-sub _prepare_cfgdeps
+#--- PRIVATE METHOD ---
+# We read the META.yml file with Parse::CPAN::META and extract
+# data needed for makedepends and pkgdesc if we can.
+sub _scan_metayml
 {
     my ($self) = @_;
     my ($status, $modobj) = ($self->status, $self->parent);
 
-    $status->cfgdeps( {} ); # Default to an empty list of deps
+    # Default to an empty list of deps
+    $status->metadeps( { 'cfg' => {}, 'build' => {} } );
 
     my $metapath = catfile( $modobj->status->extract, 'META.yml' );
     return unless -f $metapath;
     
-    my $meta_ref = Parse::CPAN::Meta::LoadFile( $metapath );
-    return unless $meta_ref->{'configure_requires'};
+    my $meta_ref = eval { Parse::CPAN::Meta::LoadFile( $metapath ) }
+        or return;
+
+    $status->metadeps->{'cfg'}   = $meta_ref->{'configure_requires'};
+    $status->metadeps->{'build'} = $meta_ref->{'build_requires'};
+
+    my $pkgdesc = $meta_ref->{'abstract'} or return;
+    for my $baddesc ( @BAD_METAYML_ABSTRACTS ) {
+        return if $pkgdesc eq $baddesc;
+    }
     
-    $status->cfgdeps( $meta_ref->{'configure_requires'} );
+    $status->pkgdesc( $pkgdesc );
     return;
 }
 
@@ -1204,8 +1195,10 @@ sub _prepare_status
     $status->tt_init_args( {} );
 
     $self->_prepare_arch();
-    $self->_prepare_pkgdesc();
-    $self->_prepare_cfgdeps();
+    $self->_scan_metayml();
+
+    # _scan_metayml() might find a pkgdesc for us
+    $self->_prepare_pkgdesc() unless $status->pkgdesc();
 
     return $status;
 }
