@@ -104,6 +104,7 @@ my $TT_VAR_MATCH = _tt_block '(\w+)';
 my $PKGBUILD_TEMPL = <<'END_TEMPL';
 # Contributor: [% packager %]
 # Generator  : CPANPLUS::Dist::Arch [% version %]
+
 pkgname='[% pkgname %]'
 pkgver='[% pkgver %]'
 pkgrel='[% pkgrel %]'
@@ -142,6 +143,12 @@ build() {
 
   find "$pkgdir" -name .packlist -o -name perllocal.pod -delete
 }
+
+# Local Variables:
+# mode: shell-script
+# sh-basic-offset: 2
+# End:
+# vim:set ts=2 sw=2 et:
 END_TEMPL
 
 =for Weird "perl Build" Syntax

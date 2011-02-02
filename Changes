@@ -1,15 +1,19 @@
 -*- org -*-
 
-* 1.11 [2011-01-18 Tue]
+* 1.11 [2011-01-19 Wed]
 ** New Changelog Format
    The changelog now uses org-mode. It is much nicer. I rewrote many
    of the latest entries for the last few versions and renamed
    ChangeLog to the perl-default Changes.
 ** Template Changes
-   Since around pacman 3.4, makepkg no longer requires you to use
-   gratutious "|| return 1's". I suppose makepkg uses set -e now, so
-   any errors should make makepkg bail out. Anyways these are now
-   removed from the PKGBUILD template and generated PKGBUILDs.
+*** No more || return 1
+    Since around pacman 3.4, makepkg no longer requires you to use
+    gratutious "|| return 1's". I suppose makepkg uses set -e now, so
+    any errors should make makepkg bail out. Anyways these are now
+    removed from the PKGBUILD template and generated PKGBUILDs.
+*** Emacs local variables
+    Because I am tired of adding them in manually. You will see them
+    at the end of the PKGBUILD. I forget what the vim equivalent is.
 
 * 1.10 [2010-12-10 Fri]
 ** Cowardly Reverting
