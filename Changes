@@ -1,83 +1,124 @@
 -*- org -*-
 
-* 1.11 [2011-01-19 Wed]
+* Release 1.11 [2011-02-04 Fri]
+
 ** New Changelog Format
-   The changelog now uses org-mode. It is much nicer. I rewrote many
-   of the latest entries for the last few versions and renamed
-   ChangeLog to the perl-default Changes.
+
+The changelog now uses org-mode. It is much nicer. I rewrote many
+of the latest entries for the last few versions and renamed
+ChangeLog to the perl-default Changes.
+
 ** Template Changes
+
 *** No more || return 1
-    Since around pacman 3.4, makepkg no longer requires you to use
-    gratutious "|| return 1's". I suppose makepkg uses set -e now, so
-    any errors should make makepkg bail out. Anyways these are now
-    removed from the PKGBUILD template and generated PKGBUILDs.
+
+Since around pacman 3.4, makepkg no longer requires you to use
+gratutious "|| return 1's". I suppose makepkg uses set -e now, so
+any errors should make makepkg bail out. Anyways these are now
+removed from the PKGBUILD template and generated PKGBUILDs.
+
 *** Emacs local variables
-    Because I am tired of adding them in manually. You will see them
-    at the end of the PKGBUILD. I forget what the vim equivalent is.
+
+Because I am tired of adding them in manually. You will see them
+at the end of the PKGBUILD. I forget what the vim equivalent is.
+
 ** Perl Version Conversion :BUGFIX:
-   When some modules depend on perl they use the decimal notation for
-   the version string (i.e. 5.006001) whereas ArchLinux uses the
-   dotted-decimal notation for versions (i.e. 5.6.1). Pacman was
-   confused by the decimal notation so we now convert any explicit
-   dependencies on perl into dotted-decimal format.
-   *Reported by: Xenoterracide*
 
-* 1.10 [2010-12-10 Fri]
+When some modules depend on perl they use the decimal notation for
+the version string (i.e. 5.006001) whereas ArchLinux uses the
+dotted-decimal notation for versions (i.e. 5.6.1). Pacman was
+confused by the decimal notation so we now convert any explicit
+dependencies on perl into dotted-decimal format.
+
+*Reported by: Xenoterracide*
+
+* Release 1.10 [2010-12-10 Fri]
+
 ** Cowardly Reverting
-   Regress back to not adding dependencies to packages (distributions)
-   that are included with the version of perl running us.
 
-* 1.09 [2010-12-02 Thu]
+Regress back to not adding dependencies to packages (distributions)
+that are included with the version of perl running us.
+
+* Release 1.09 [2010-12-02 Thu]
+
 ** lib/CPANPLUS/Dist/Arch.pm
+
 *** dist_pkgname
-   Fix bug with our own package dependencies. + signs are now allowed
-   in package names (for Text-Tabs+Wraps aka perl-text-tabs+wraps).
 
-* 1.08 [2010-11-30 Tue]
+Fix bug with our own package dependencies. + signs are now allowed
+in package names (for Text-Tabs+Wraps aka perl-text-tabs+wraps).
+
+* Release 1.08 [2010-11-30 Tue]
+
 ** lib/CPANPLUS/Dist/Arch.pm
+
 *** _extract_makedepends
-    Extract ExtUtils:: modules into makedepends.
+
+Extract ExtUtils:: modules into makedepends.
+
 *** _prepare_cfgdeps
-    Extract 'configure_requires' modules from META.yml into makedepends.
+
+Extract 'configure_requires' modules from META.yml into makedepends.
+
 *** dist_pkgname
-    Adds Cairo and Gtk2-GConf to the package name overrides.
 
-* 1.07 [2010-11-23 Tue]
+Adds Cairo and Gtk2-GConf to the package name overrides.
+
+* Release 1.07 [2010-11-23 Tue]
+
 ** lib/CPANPLUS/Dist/Arch.pm
-*** _translate_cpan_deps
-    Return perl-test- packages as 'makedepends' unless we are
-    ourselves a perl-test- package. This updates templates as well.
-    (_translate_cpan_deps): We also no longer filter out perl core
-    module requirements. The perl package now gives us a provides list
-    of included core modules.  (set_pkgrel): Adds new mutator.
-*** _prepare_arch
-    Search for XS files in the CPAN package dir and set the PKGBUILD
-    arch field to 'i686' 'x86_64' if we find we are building an XS
-    module. This changes the 'arch' field for templates. Do not
-    enclose the 'arch' value in quotes! The value of the 'arch'
-    template variable now comes enclosed in single-quotes.
-*** get_pkgbuild
-    Fix bug where quoted bash special characters were padded with
-    spaces. Remove exclaimation point (!) quoting for bash's sake,
-    this wasn't necessary and looks funny.
 
-* 1.06 [2010-09-29 Wed]
+*** _translate_cpan_deps
+
+Return perl-test- packages as 'makedepends' unless we are
+ourselves a perl-test- package. This updates templates as well.
+(_translate_cpan_deps): We also no longer filter out perl core
+module requirements. The perl package now gives us a provides list
+of included core modules.  (set_pkgrel): Adds new mutator.
+
+*** _prepare_arch
+
+Search for XS files in the CPAN package dir and set the PKGBUILD
+arch field to 'i686' 'x86_64' if we find we are building an XS
+module. This changes the 'arch' field for templates. Do not
+enclose the 'arch' value in quotes! The value of the 'arch'
+template variable now comes enclosed in single-quotes.
+
+*** get_pkgbuild
+
+Fix bug where quoted bash special characters were padded with
+spaces. Remove exclaimation point (!) quoting for bash's sake,
+this wasn't necessary and looks funny.
+
+* Release 1.06 [2010-09-29 Wed]
+
 ** Bad libxml name override                                          :BUGFIX:
-   Remove erronous 'XML::LibXML' to 'libxml-perl' name mapping. There
-   is a dist named libxml-perl so it doesn't need a mapping to
-   it. Oops!
-   *Reported by IsaacG*
+
+Remove erronous 'XML::LibXML' to 'libxml-perl' name mapping. There
+is a dist named libxml-perl so it doesn't need a mapping to
+it. Oops!
+
+*Reported by IsaacG*
+
 ** Templates
-   Change PKGBUILD template to use the absolute path to the system
-   perl interpreter.
+
+Change PKGBUILD template to use the absolute path to the system
+perl interpreter.
+
 ** Yes - stop asking me
-   Add --noconfirm flag to pacman arguments.
+
+Add --noconfirm flag to pacman arguments.
+
 ** Update official name overrides
-   Update name overrides to match changed ArchLinux perl package names
-   in official repos.
+
+Update name overrides to match changed ArchLinux perl package names
+in official repos.
+
 ** t/05-custom_template.t                                            :BUGFIX:
-   Fix bug where the packager was hard-coded in our test output.
-   *Reported by IsaacG*
+
+Fix bug where the packager was hard-coded in our test output.
+
+*Reported by IsaacG*
 
 * Old Entries
 
