@@ -187,11 +187,11 @@ modules through CPANPLUS::Dist::Arch by default or to disable
 automatic packaging in CPANPLUS.  setupdistarch also turns on recursive
 package installation and warns if sudo is not installed.
 
-  $ ./setupdistarch
+  $ setupdistarch
   Are you sure you want to auto-package CPAN installs? [Yn] 
   CPANPLUS will now auto-package modules.
 
-  $ ./setupdistarch --force
+  $ setupdistarch --force
   CPANPLUS will now auto-package modules.
 
   $ setupdistarch --remove --force
