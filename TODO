@@ -1,0 +1,39 @@
+-*- org -*-
+
+This is where I keep all of my notes about CPANPLUS-Dist-Arch and try
+to keep track of what I want to do next.
+
+* cpan2aur
+** TODO Package Release Incrementing                                   :IDEA:
+   I need finer control over incrementing package releases. Sometimes
+   I need to force a rebuild of a package. If I don't increment the
+   release number and I upload the package, AUR ignores it.
+** DONE Possible version sorting bug                                    :BUG:
+   A new version sorting algorithm was recently added to cpan2aur.
+   I noticed that checking the following packages for a new
+   version does not work properly:
+   - Devel::GlobalDestruction
+   - Class::MOP
+
+   [2011-02-02 Wed] Could not reproduce.
+* Makedepends Separation
+  I would like to properly filter dependencies into 'makedepends' of
+  the packages which are not required to run the perl module. This
+  includes things like test scripts.
+** DONE perl-class-method-modifiers makedepends                         :BUG:
+   Why is perl-text-exception not filtered into makedepends like it
+   should be? http://aur.archlinux.org/packages.php?ID=20124.
+
+   For some reason it had not been uploaded after I generated the
+   package with the new rules.
+** DONE Read 'build_requires' from META.yml                            :IDEA:
+   Since I implemented the use of 'configure_requires' from the
+   META.yml I might as well use 'build_requires' as well.
+* TODO Multi-line package descriptions aren't read properly             :BUG:
+  - perl-debug-showoff :: http://aur.archlinux.org/packages.php?ID=43824
+  - perl-data-taxi :: Seems to have a trailing newline
+                      http://aur.archlinux.org/packages.php?ID=33774
+* DONE Convert perl versions                                            :BUG:
+  Perl versions listed in requirements of Makefile.PL is in the
+  decimal format whereas the 'perl' package versions are given in the
+  dotted decimal format.
