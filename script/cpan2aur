@@ -17,7 +17,7 @@ use version               qw();
 use POSIX                 qw();
 use Cwd                   qw(getcwd);
 
-our $VERSION = '1.01';
+our $VERSION = '1.02';
 
 ## CONSTANTS
 ##############################################################################
@@ -955,10 +955,6 @@ __END__
 
 cpan2aur - AUR maintainer utility for CPAN perl modules
 
-=head1 VERSION
-
-Version 1.0
-
 =head1 SYNOPSIS
 
  cpan2aur [-v -f] <Module::Names /pkg/dirs/>
@@ -995,6 +991,8 @@ Version 1.0
                        instead of the last one used.
  -p, --pass <password> Specify a password to use to login to AUR.
  -m, --mono            Disable color output, use monochrome black/white.
+ -i, --inc     <dir>   Rebuild the source package, incrementing the
+              <file>   release number.
 
  (Unlike GNU options, single-letter options need their own hyphens
   example: -u -d)
