@@ -3,9 +3,14 @@ package CPANPLUS::Dist::Arch;
 use warnings;
 use strict;
 
-use CPANPLUS::Dist::Base qw();
-use Exporter             qw();
-our @ISA = qw(CPANPLUS::Dist::Base Exporter);
+use CPANPLUS::Dist::Base   qw();
+use Exporter               qw(import);
+
+our $VERSION     = '1.11';
+our @EXPORT      = qw();
+our @EXPORT_OK   = qw(dist_pkgname dist_pkgver);
+our %EXPORT_TAGS = ( 'all' => [ @EXPORT_OK ] );
+our @ISA         = qw(CPANPLUS::Dist::Base);
 
 use File::Spec::Functions  qw(catfile catdir);
 use Module::CoreList       qw();
@@ -22,12 +27,6 @@ use version                qw(qv);
 use English                qw(-no_match_vars);
 use Carp                   qw(carp croak confess);
 use Cwd                    qw();
-
-our $VERSION     = '1.11';
-our @EXPORT      = qw();
-our @EXPORT_OK   = qw(dist_pkgname dist_pkgver);
-our %EXPORT_TAGS = ( 'all' => [ @EXPORT_OK ] );
-
 
 #-----------------------------------------------------------------------------
 # CLASS CONSTANTS
