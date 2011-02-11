@@ -935,16 +935,19 @@ sub _get_pkg_deps
     # convert them into packages names for 'depends' and 'makedepends'
     # inside of a PKGBUILD.
 
-    my $pkgdeps_ref   = $self->_translate_cpan_deps( $prereqs );
-    my $makedeps_ref  = $self->_extract_makedepends( $pkgdeps_ref );
-    my $cfgdeps_ref   = $self->_translate_cpan_deps
-        ( $self->status->metadeps->{'cfg'} );
-    my $builddeps_ref = $self->_translate_cpan_deps
-        ( $self->status->metadeps->{'build'} );
+    my $pkgdeps_ref  = $self->_translate_cpan_deps( $prereqs );
+    my $makedeps_ref = $self->_extract_makedepends( $pkgdeps_ref );
+
+    # Merge 'configure_requires' and 'build_requires' from META.yml into
+    # the makedepends for PKGBUILD.
+    my ( $cfgdeps_ref, $builddeps_ref ) =
+        ( map { $self->_translate_cpan_deps( $_ ) }
+          map { $self->status->metadeps->{ $_ }   }
+          qw/ cfg build / );
 
     # 'configure_requires' from META.yml don't show in the prereqs()
-    # results but I think 'build_requires' do
-    for ( keys %$builddeps_ref ) { delete $pkgdeps_ref->{ $_ }; }
+    # results but 'build_requires' do... remove them.
+    delete $pkgdeps_ref->{ $_ } for ( keys %$builddeps_ref );
     _merge_deps( $makedeps_ref, $cfgdeps_ref );
     _merge_deps( $makedeps_ref, $builddeps_ref );
 
@@ -952,7 +955,7 @@ sub _get_pkg_deps
     my $xs_deps = $self->_translate_xs_deps;
     _merge_deps( $pkgdeps_ref, $xs_deps );
     
-    # Require perl unless we have a dependency on a perl module or perl
+    # Require perl unless we have a dependency on a module or perl itself.
     $pkgdeps_ref->{'perl'} = 0 unless grep { /^perl/ } keys %$pkgdeps_ref;
 
     return { 'depends' => $pkgdeps_ref, 'makedepends' => $makedeps_ref };
