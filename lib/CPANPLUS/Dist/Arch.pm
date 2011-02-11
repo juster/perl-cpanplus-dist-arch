@@ -783,6 +783,7 @@ Directory does not exist or is not writeable}
 #-----------------------------------------------------------------------------
 
 #---HELPER FUNCTION---
+# Decide if the dist. is named after the module.
 sub _is_main_module
 {
     my ($mod_name, $dist_name) = @_;
@@ -894,15 +895,20 @@ sub _translate_cpan_deps
         my $cpanpkg = $modobj->package_name;
         my $pkgname = dist_pkgname( $cpanpkg );
 
-        # If two module prereqs are in the same distribution ("package") file
-        # then try to choose the one with the same name as the file...
-        if ( exists $pkgdeps{ $pkgname } ) {
-            next CPAN_DEP_LOOP unless _is_main_module( $modname, $cpanpkg );
-        }
+        # If the dep is for a module inside the CPAN distribution
+        # ignore the version number. (There is no way to cross
+        # reference old module versions to find which version of
+        # distribution provides them)
+        undef $depver unless _is_main_module( $modname, $cpanpkg );
 
-        # TODO: what to do about module version requirements that aren't
-        #       identical to CPAN dist/pkg versions? 
-        $pkgdeps{ $pkgname } = ( $depver ? dist_pkgver( $depver ) : '0' );
+        # XXX: We pray that the module version is the same as the
+        # distribution version...
+        
+        # If two module prereqs are in the same CPAN distribution then
+        # the version required for the main module will override.
+        # (because versions specified for other modules in the dist
+        # are 0)
+        $pkgdeps{ $pkgname } ||= ( $depver ? dist_pkgver( $depver ) : 0 );
     }
 
     return \%pkgdeps;
