@@ -16,6 +16,7 @@ to keep track of what I want to do next.
    - Class::MOP
 
    [2011-02-02 Wed] Could not reproduce.
+** TODO Make sure to disable PKGDEST if it is set                       :BUG:
 * Makedepends Separation
   I would like to properly filter dependencies into 'makedepends' of
   the packages which are not required to run the perl module. This
