@@ -6,7 +6,7 @@ use strict;
 use CPANPLUS::Dist::Base   qw();
 use Exporter               qw(import);
 
-our $VERSION     = '1.11';
+our $VERSION     = '1.12';
 our @EXPORT      = qw();
 our @EXPORT_OK   = qw(dist_pkgname dist_pkgver);
 our %EXPORT_TAGS = ( 'all' => [ @EXPORT_OK ] );
@@ -18,7 +18,7 @@ use CPANPLUS::Error        qw(error msg);
 use Digest::MD5            qw();
 use Pod::Select            qw();
 use List::Util             qw(first);
-use File::Path  2.06_05    qw(make_path);
+use File::Path 2.06_05     qw(make_path);
 use File::Copy             qw(copy);
 use File::stat             qw(stat);
 use DynaLoader             qw();
@@ -118,27 +118,28 @@ source=('[% source %]')
 md5sums=('[% md5sums %]')
 
 build() {
-  PERL=/usr/bin/perl
-  DIST_DIR="${srcdir}/[% distdir %]"
-  export PERL_MM_USE_DEFAULT=1 PERL5LIB=""                 \
-    PERL_AUTOINSTALL=--skipdeps                            \
-    PERL_MM_OPT="INSTALLDIRS=vendor DESTDIR='$pkgdir'"     \
-    PERL_MB_OPT="--installdirs vendor --destdir '$pkgdir'" \
-    MODULEBUILDRC=/dev/null
+  local PERL=/usr/bin/perl DIST_DIR="${srcdir}/[% distdir %]"
 
-  cd "$DIST_DIR"
+  ( export PERL_MM_USE_DEFAULT=1 PERL5LIB=""                 \
+      PERL_AUTOINSTALL=--skipdeps                            \
+      PERL_MM_OPT="INSTALLDIRS=vendor DESTDIR='$pkgdir'"     \
+      PERL_MB_OPT="--installdirs vendor --destdir '$pkgdir'" \
+      MODULEBUILDRC=/dev/null
+
+    cd "$DIST_DIR"
 [% IF is_makemaker -%]
-  $PERL Makefile.PL
-  make
-  [% IF skiptest %]#[% END %]make test
-  make install
+    $PERL Makefile.PL
+    make
+    [% IF skiptest %]#[% END %]make test
+    make install
 [% END -%]
 [% IF is_modulebuild -%]
-  $PERL Build.PL
-  $PERL Build
-  [% IF skiptest %]#[% END %]$PERL Build test
-  $PERL Build install
+    $PERL Build.PL
+    $PERL Build
+    [% IF skiptest %]#[% END %]$PERL Build test
+    $PERL Build install
 [% END -%]
+  )
 
   find "$pkgdir" -name .packlist -o -name perllocal.pod -delete
 }
