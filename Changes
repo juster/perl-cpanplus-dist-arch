@@ -1,5 +1,56 @@
 -*- org -*-
 
+* Release 1.12 [2011-03-25 Fri]
+
+** Upgrades for pacman/makepkg 3.5
+
+*** SRCPKGDEST environment variable
+
+Makepkg uses the 'SRCPKGDEST' environment variable when building a
+source package. To override where the package will end up, simply
+set SRCPKGDEST. This also means we don't know where it will
+end up until create() is called and you specify whether you want
+a 'bin' or 'src' package in create()'s parameters.
+
+set_destdir() still allows you to override where a package will be
+stored after being built. This method doesn't discriminate between
+source or binary packages.
+
+get_destdir() is now alot stupider and will not try to guess where
+a package will end up. Instead it just returns what you have given
+to set_destdir() previously.
+
+*** check() PKGBUILD function
+
+makepkg allows you to specify a new step when building a package
+from a PKGBUILD. Automated tests (via make test or Build test)
+are now run inside the check() bash function in the PKGBUILD.
+
+** PKGBUILD Template Tweaks
+
+PKGBUILDs are now more conservative about exporting environment
+variable everywhere. Even though I never heard of any problems
+caused by this. Now a subshell wraps any exported env. vars.
+
+We also use the check() and package() functions in PKGBUILDs.
+These changes shouldn't change the user experience any but I
+thought I'd try them out. Overly anal-retentive users should
+appreciate it.
+
+** Dependences on Minor Module Versions :BUGFIX:
+
+If one distribution depends on a module that is not the main module,
+the versions of the dependency cannot be cross-referenced. This means
+there is no way to find which old version of the distribution contains
+the old module file. We cannot convert module deps to distribution
+deps in this case.
+
+What I have done is discard the version and simply depend on the
+package representing the CPAN distribution we need. This is not ideal
+but will work in most cases. The fact that ArchLinux is a rolling
+release also helps to support the idea that most users have very
+recent versions of perl modules installed.
+
 * Release 1.11 [2011-02-04 Fri]
 
 ** New Changelog Format
@@ -30,7 +81,7 @@ dotted-decimal notation for versions (i.e. 5.6.1). Pacman was
 confused by the decimal notation so we now convert any explicit
 dependencies on perl into dotted-decimal format.
 
-*Reported by: Xenoterracide*
+Reported by: Xenoterracide
 
 * Release 1.10 [2010-12-10 Fri]
 
