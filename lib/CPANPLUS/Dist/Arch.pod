@@ -246,13 +246,14 @@ included in the examples directory for an example.
 =head3 set_destdir
 
   Usage   : $dist->set_destdir('~/pkg/perl');
-  Purpose : Sets the directory to store the resulting package.
+  Purpose : Overrides the directory to store the built package
+            for this particular object.
   Returns : The directory that was set.
 
 =head3 get_destdir
 
   Usage   : my $dest = $dist->get_destdir;
-  Returns : The directory where the package is going to end up.
+  Returns : The directory previously specified by set_destdir.
 
 =head3 get_pkgpath
 

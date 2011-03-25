@@ -183,7 +183,7 @@ END_TEMPL
 # CLASS GLOBALS
 #----------------------------------------------------------------------
 
-our ($Is_dependency, $PKGDEST, $PACKAGER, $DEBUG);
+our ($Is_dependency, $PKGDEST, $SRCPKGDEST, $PACKAGER, $DEBUG);
 
 $PACKAGER = 'Anonymous';
 
@@ -215,8 +215,9 @@ READ_CONF:
         last READ_CONF;
     }
 
-    my %cfg_vars = ( 'PKGDEST'  => \$PKGDEST,
-                     'PACKAGER' => \$PACKAGER );
+    my %cfg_vars = ( 'PKGDEST'    => \$PKGDEST,
+                     'SRCPKGDEST' => \$SRCPKGDEST,
+                     'PACKAGER'   => \$PACKAGER );
 
     my $cfg_field_match = sprintf $CFG_VALUE_MATCH,
         join '|', keys %cfg_vars;
@@ -327,7 +328,7 @@ sub _find_built_pkg
         $arch = 'any';
     }
     else {
-        chomp ( $arch = `uname -m` );
+        chomp( $arch = `uname -m` );
     }
 
     my $pkgfile = catfile( $destdir,
@@ -338,7 +339,7 @@ sub _find_built_pkg
                                $status->pkgname,
                                $status->pkgver,
                                $status->pkgrel,
-                              
+
                                ( $pkg_type eq q{bin} ? $arch : qw// ),
                               ),
 
@@ -416,8 +417,12 @@ Package type must be 'bin' or 'src'};
     # Prepare our file name paths for pkgfile and source tarball...
     my $srcfile_fqp = $status->pkgbase . '/' . $module->package;
 
-    $status->destdir( $opts{destdir} ) if $opts{destdir};
-    my $destdir = $status->destdir;
+    my $destenv = ( $pkg_type eq 'src' ? 'SRCPKGDEST' : 'PKGDEST' );
+    my $destdir = ( $opts{'destdir'} ||
+                    $status->destdir ||
+                    $ENV{ $destenv } ||
+                    ( $pkg_type eq 'src' ? $SRCPKGDEST : $PKGDEST ) ||
+                    $self->get_fallback_destdir );
     $destdir = Cwd::abs_path( $destdir );
 
     # Prepare our 'makepkg' package building directory,
@@ -431,7 +436,7 @@ Package type must be 'bin' or 'src'};
     $self->create_pkgbuild( $self->status->pkgbase, $opts{skiptest} );
 
     # Package it up!
-    local $ENV{PKGDEST} = $destdir;
+    local $ENV{ $destenv } = $destdir;
 
     my $oldcwd = Cwd::getcwd();
     chdir $status->pkgbase or die "chdir: $OS_ERROR";
@@ -605,14 +610,12 @@ sub set_destdir
 
 sub get_destdir
 {
-    my $self = shift;
-    return $self->status->destdir;
+    return shift->status->destdir
 }
 
 sub get_pkgpath
 {
-    my $self = shift;
-    return $self->status->dist;
+    shift->status->dist;
 }
 
 sub get_cpandistdir
@@ -801,6 +804,27 @@ Directory does not exist or is not writeable}
 #-----------------------------------------------------------------------------
 # PRIVATE INSTANCE METHODS
 #-----------------------------------------------------------------------------
+
+#---HELPER METHOD---
+# Returns the default base directory that our separate build and
+# package cache directories append themselves to.
+# Example: ~/.cpanplus/5.12.1/pacman
+sub _cpanp_user_basedir
+{
+    my $conf = shift->parent->parent->configure_object;
+    return catdir( $conf->get_conf('base'),
+                   ( sprintf '%vd', $PERL_VERSION ),
+                   'pacman' );
+}
+
+#---HELPER METHOD---
+# Returns the default package cache directory when no other directory
+# is specified by many other means. This directory is inside the
+# $HOME/.cpanplus directory for each different user.
+sub _fallback_destdir
+{
+    catdir( shift->_cpanp_user_basedir, 'pkg' );
+}
 
 #---HELPER FUNCTION---
 # Decide if the dist. is named after the module.
@@ -1207,19 +1231,12 @@ sub _prepare_status
     my $module   = $self->parent; # CPANPLUS::Module
     my $conf     = $module->parent->configure_object;
 
-    my $our_base = catdir( $conf->get_conf('base'),
-                           ( sprintf "%vd", $PERL_VERSION ),
-                           'pacman' );
-
-    $status->destdir( $ENV{PKGDEST} ||
-                      $PKGDEST      ||
-                      catdir( $our_base, 'pkg' ) );
-
     my ($pkgver, $pkgname)
         = ( dist_pkgver( $module->package_version ),
             dist_pkgname( $module->package_name));
 
-    my $pkgbase = catdir( $our_base, 'build', "$pkgname-$pkgver" );
+    my $pkgbase = catdir( $self->_cpanp_user_basedir,
+                          'build', "$pkgname-$pkgver" );
 
     foreach ( $pkgname, $pkgver, $pkgbase ) {
         die "A package variable is invalid" unless defined;
