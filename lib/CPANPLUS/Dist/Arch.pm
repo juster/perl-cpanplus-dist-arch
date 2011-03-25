@@ -372,18 +372,6 @@ sub create
     my $distcpan = $module->status->dist_cpan;   # CPANPLUS::Dist::MM or
                                                  # CPANPLUS::Dist::Build
 
-    # Create directories for building and delivering the new package.
-    MKDIR_LOOP:
-    for my $dir ( $status->pkgbase, $status->destdir ) {
-        if ( -e $dir ) {
-            die "$dir exists but is not a directory!" unless ( -d _ );
-            die "$dir exists but is read-only!"       unless ( -w _ );
-            next MKDIR_LOOP;
-        }
-
-        make_path( $dir, { verbose => $opts{verbose} ? 1 : 0 });
-    }
-
     my $pkg_type = $opts{pkg} || $opts{pkgtype} || 'bin';
     $pkg_type = lc $pkg_type;
 
@@ -416,13 +404,21 @@ Package type must be 'bin' or 'src'};
     # Prepare our file name paths for pkgfile and source tarball...
     my $srcfile_fqp = $status->pkgbase . '/' . $module->package;
 
-    my $destenv = ( $pkg_type eq 'src' ? 'SRCPKGDEST' : 'PKGDEST' );
-    my $destdir = ( $opts{'destdir'} ||
-                    $status->destdir ||
-                    $ENV{ $destenv } ||
-                    ( $pkg_type eq 'src' ? $SRCPKGDEST : $PKGDEST ) ||
-                    $self->get_fallback_destdir );
+    my ($destenv, $destdir) = $self->_calc_setdest( $pkg_type );
+    $destdir = $opts{'destdir'} || $status->destdir || $destdir;
     $destdir = Cwd::abs_path( $destdir );
+
+    # Create directories for building and delivering the new package.
+    MKDIR_LOOP:
+    for my $dir ( $status->pkgbase, $destdir ) {
+        if ( -e $dir ) {
+            die "$dir exists but is not a directory!" unless ( -d _ );
+            die "$dir exists but is read-only!"       unless ( -w _ );
+            next MKDIR_LOOP;
+        }
+
+        make_path( $dir, { 'verbose' => $opts{'verbose'} ? 1 : 0 });
+    }
 
     # Prepare our 'makepkg' package building directory,
     # namely the PKGBUILD and source tarball files...
@@ -803,6 +799,24 @@ Directory does not exist or is not writeable}
 #-----------------------------------------------------------------------------
 # PRIVATE INSTANCE METHODS
 #-----------------------------------------------------------------------------
+
+#---HELPER METHOD---
+# Caculates where we should store our built package.
+# (does not take into account our $self->status state or parameters)
+#
+# Returns the environment variable we should override as well as the
+# value we should set it to.
+sub _calc_setdest
+{
+    my ($self, $pkg_type) = @_;
+
+    my $destenv = ( $pkg_type eq 'src' ? 'SRCPKGDEST' : 'PKGDEST' );
+    my $destdir = ( $ENV{ $destenv }
+                    || ( $pkg_type eq 'src' ? $SRCPKGDEST : $PKGDEST )
+                    || $self->_fallback_destdir );
+
+    return ( $destenv, $destdir );
+}
 
 #---HELPER METHOD---
 # Returns the default base directory that our separate build and
