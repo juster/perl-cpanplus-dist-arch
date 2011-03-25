@@ -96,7 +96,7 @@ sub prompt_yn
             printf "%s\n", ( $default ? 'y' : 'n' );
             return $default
         }
-        
+
         return $default if ( length $answer == 0 );
         redo QUESTION unless $answer =~ /\A[yYnN]/;
     }
@@ -211,7 +211,7 @@ sub confirm_overwrite
 
     my $answer = prompt_yn( "$file_path already exists, overwrite?" => 'yes' );
     return 0 if ( $answer == 0 );
-    
+
     unlink $file_path or die qq{Failed to "rm $file_path": $!};
     return 1;
 }
@@ -429,7 +429,7 @@ sub _post_upload
     # We get a 302 Moved HTTP status code on success and when uploading a package
     # that we own, if the package file is older and ignored...
     return if ( $resp->code() == 302 );
-    
+
     error( "When uploading file, got http status ", $resp->status_line )
         unless ( $resp->is_success );
 
@@ -489,7 +489,7 @@ sub upload_pkgfile
 
     my ($username, $sid) = _load_last_login();
     $username ||= $NAME || prompt_ask( 'Username:' );
-    
+
     if ( ! defined $username ) {
         print "\n";
         error( 'Unable to read username in uninteractive mode.' );
@@ -602,7 +602,7 @@ sub pkgbuild_to_tt
 There is no PKGBUILD in the current directory that we can reverse into a
 template.
 END_ERR
-    
+
     return unless confirm_overwrite( 'PKGBUILD.tt' );
 
     open my $pkgbuild_file, '<', 'PKGBUILD' or die "open PKGBUILD: $!";
@@ -613,7 +613,7 @@ END_ERR
     # to the PKGBUILD in tt_to_pkgbuild()...
     my ($distname) =
         $pkgbuild_txt =~ m{^ source = \s* [^\n]* / ( [-\w]+ ) -\d }xms;
-    
+
     error( "Failed to determine the distribution name from the " .
                "existing PKGBUILD" ) unless ( $distname );
 
@@ -708,7 +708,7 @@ name into the file prefixed with the above comment in quotes.
     REL_CHECK:
     {
         last REL_CHECK unless ( $old_info{pkgver} );
-        
+
         my $old_ver = version->new( $old_info{pkgver}   );
         my $new_ver = version->new( $distobj->get_pkgver );
 
@@ -720,7 +720,7 @@ name into the file prefixed with the above comment in quotes.
 A PKGBUILD already exists for this version ($new_ver).
 Would you like to increment the pkgrel to $new_pkgrel?
 END_QUESTION
-        
+
         $distobj->set_pkgrel( $answer ? $new_pkgrel : $old_info{pkgrel} );
     }
 
@@ -738,7 +738,8 @@ sub get_pkgbuild_info
     my ($pkgbuild_txt) = @_;
 
     my ($dist_name, $dist_ver) = $pkgbuild_txt
-        =~ m{ DIST_DIR="\${srcdir}/ ( [\w-]+ ) - ( [\d.]+ ) /? " }xms;
+        =~ m{ (?: DIST_DIR | ^_distdir )=
+              "\${srcdir}/ ( [\w-]+ ) - ( [\d.]+ ) /? " }xms;
 
     my ($pkgrel) = $pkgbuild_txt
         =~ m{ ^ pkgrel = ['"]? ( \d+ ) ['"]? }xms;
@@ -941,7 +942,7 @@ for my $arg ( @ARGV ) {
         print $EVAL_ERROR if ( $EVAL_ERROR );
         next ARG_LOOP;
     }
-    
+
     status( 'Creating new source package for ' . $arg . '...' );
     my $modobj  = find_module( $arg ) or next ARG_LOOP;
     my $distobj = create_dist_arch( $modobj, ( $DIRECTORY
@@ -1100,7 +1101,7 @@ Justin Davis C<< <juster at cpan dot org> >>
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2010 Justin Davis, all rights reserved.
+Copyright 2011 Justin Davis, all rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
