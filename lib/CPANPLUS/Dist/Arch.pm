@@ -350,9 +350,7 @@ sub _find_built_pkg
 
     _DEBUG "Searching for file starting with $pkgfile";
 
-    my ($found) =
-        ( grep { -f $_ }
-          map { "$pkgfile.$_" } qw/ xz gz / );
+    my ($found) = grep { -f $_ } map { "$pkgfile.$_" } qw/ xz gz bz2 /;
 
     _DEBUG ( $found ? "Found $found" : "No package file found!" );
 
