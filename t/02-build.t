@@ -27,9 +27,10 @@ my $test_mod;
 ok( $test_mod = $cb->module_tree( $TEST_MODULE ),
     qq{load ${TEST_MODULE}'s module tree} );
 
-ok $test_mod->install( target  => 'create',
-                       format  => 'CPANPLUS::Dist::Arch',
-                       destdir => '/tmp' ),
+ok $test_mod->install( 'target'  => 'create',
+                       'format'  => 'CPANPLUS::Dist::Arch',
+                       'destdir' => '/tmp',
+                       'verbose' => 1 ),
     'create module package';
 
 my $pkg_fqp = $test_mod->status->dist->get_pkgpath;
