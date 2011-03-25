@@ -138,6 +138,7 @@ build() {
 }
 
 check() {
+  cd "$_distdir"
   ( export PERL_MM_USE_DEFAULT=1 PERL5LIB=""
 [% IF is_makemaker -%]
     [% IF skiptest %]#[% END %]make test
