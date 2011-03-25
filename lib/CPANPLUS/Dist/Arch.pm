@@ -116,30 +116,46 @@ makedepends=([% makedepends %])
 url='[% url %]'
 source=('[% source %]')
 md5sums=('[% md5sums %]')
+_distdir="${srcdir}/[% distdir %]"
 
 build() {
-  local PERL=/usr/bin/perl DIST_DIR="${srcdir}/[% distdir %]"
-
   ( export PERL_MM_USE_DEFAULT=1 PERL5LIB=""                 \
       PERL_AUTOINSTALL=--skipdeps                            \
       PERL_MM_OPT="INSTALLDIRS=vendor DESTDIR='$pkgdir'"     \
       PERL_MB_OPT="--installdirs vendor --destdir '$pkgdir'" \
       MODULEBUILDRC=/dev/null
 
-    cd "$DIST_DIR"
+    cd "$_distdir"
 [% IF is_makemaker -%]
-    $PERL Makefile.PL
+    /usr/bin/perl Makefile.PL
     make
-    [% IF skiptest %]#[% END %]make test
-    make install
 [% END -%]
 [% IF is_modulebuild -%]
-    $PERL Build.PL
-    $PERL Build
-    [% IF skiptest %]#[% END %]$PERL Build test
-    $PERL Build install
+    /usr/bin/perl Build.PL
+    /usr/bin/perl Build
 [% END -%]
   )
+}
+
+check() {
+  ( export PERL_MM_USE_DEFAULT=1 PERL5LIB=""
+[% IF is_makemaker -%]
+    [% IF skiptest %]#[% END %]make test
+[% END -%]
+[% IF is_modulebuild -%]
+    [% IF skiptest %]#[% END %]/usr/bin/perl Build test
+[% END -%]
+  )
+}
+
+package() {
+  cd "$_distdir"
+[% IF is_makemaker -%]
+  make install
+[% END -%]
+[% IF is_modulebuild -%]
+  /usr/bin/perl Build install
+[% END -%]
 
   find "$pkgdir" -name .packlist -o -name perllocal.pod -delete
 }
@@ -151,12 +167,15 @@ build() {
 # vim:set ts=2 sw=2 et:
 END_TEMPL
 
-=for Weird "perl Build" Syntax
-We use "perl Build" above instead of the normal "./Build" in order to
-make the yaourt packager happy.  Yaourt runs the PKGBUILD under the /tmp
-directory and makepkg will fail if /tmp is a seperate partition mounted
-with noexec.  Thanks to xenoterracide on the AUR for mentioning the
-problem.
+=for Weird "/usr/bin/perl Build" Syntax
+ We use "/usr/bin/perl Build" above instead of the normal "./Build" in
+ order to make the yaourt packager happy.  Yaourt runs the PKGBUILD
+ under the /tmp directory and makepkg will fail if /tmp is a seperate
+ partition mounted with noexec.  Thanks to xenoterracide on the AUR for
+ mentioning the problem.
+ 
+ We also use /usr/bin/perl to ensure running the system-wide perl
+ interpreter.
 
 =cut
 
