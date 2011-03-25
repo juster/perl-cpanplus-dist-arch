@@ -1,10 +1,11 @@
 -*- org -*-
-  ____ ____   _    _   _          ____  _     _          _             _     
- / ___|  _ \ / \  | \ | |  _  _ _|  _ \(_)___| |_ _ _   / \   _ __ ___| |__  
-| |   | |_) / _ \ |  \| |_| |(_|_) | | | / __| __(_|_) / _ \ | '__/ __| '_ \ 
-| |___|  __/ ___ \| |\  |_   _| _| |_| | \__ \ |_ _ _ / ___ \| | | (__| | | |
- \____|_| /_/   \_\_| \_| |_|(_|_)____/|_|___/\__(_|_)_/   \_\_|  \___|_| |_|
-                                                                             
+:   ____ ____   _    _   _          ____  _     _          _             _     
+:  / ___|  _ \ / \  | \ | |  _  _ _|  _ \(_)___| |_ _ _   / \   _ __ ___| |__  
+: | |   | |_) / _ \ |  \| |_| |(_|_) | | | / __| __(_|_) / _ \ | '__/ __| '_ \ 
+: | |___|  __/ ___ \| |\  |_   _| _| |_| | \__ \ |_ _ _ / ___ \| | | (__| | | |
+:  \____|_| /_/   \_\_| \_| |_|(_|_)____/|_|___/\__(_|_)_/   \_\_|  \___|_| |_|
+: 
+
 CPANPLUS::Dist::Arch - CPANPLUS backend for building Archlinux pacman packages
 
 * Background
@@ -48,9 +49,9 @@ file, skip to step 4.
 
 #+BEGIN_EXAMPLE
 
-curl -O http://.../CPANPLUS-Dist-Arch-1.11.tar.gz
-tar xf CPANPLUS-Dist-Arch-1.11.tar.gz
-cd CPANPLUS-Dist-Arch-1.11
+curl -O http://.../CPANPLUS-Dist-Arch-X.XX.tar.gz
+tar xf CPANPLUS-Dist-Arch-X.XX.tar.gz
+cd CPANPLUS-Dist-Arch-X.XX
 perl Build.PL
 ./Build
 ./Build test
@@ -65,7 +66,7 @@ available on CPAN under the name "App-cpanminus".
 
 The steps above install this module into your system where it is
 available for use by perl. You will also need to activate
-CPANPLUS::Dist::Arch as a plugin in the CPANPLUS shell.
+CPANPLUS::Dist::Arch as a plugin to the CPANPLUS shell.
 
 I have included a program called 'setupdistarch' that makes this
 easier. Run the program and answer yes in order to enable
@@ -85,9 +86,7 @@ See the 'setupdistarch' manpage for more information.
 
 A number of modules are required to run CPANPLUS::Dist::Arch. These
 are all included with recent versions of perl so you should not need
-to install anything before you can use it. In each table I list which
-distribution contains one or more modules. A distribution is CPAN's
-version of a package.
+to install anything before you can use it.
 
 ** Core Modules
 
