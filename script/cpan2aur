@@ -285,6 +285,14 @@ END_ERR
         substatus qq{Running '$makepkg_cmd'...};
         my $output = `$makepkg_cmd 2>&1`;
 
+        unless ( $? == 0 ) {
+            my $msg =
+                ( $? & 127
+                  ? ( sprintf 'makepkg failed, signal %d',      $? & 127 )
+                  : ( sprintf 'makepkg failed, error code %d.', $? >> 8  ));
+            error( $msg );
+        }
+
         # We can only parse the output of makepkg to find the filename...
         my @pkginfo = $output =~ /Making package: ([\w-]+) ([\d.-]+)/
             or error( "makepkg returned unexpected output: $output" );
