@@ -3,6 +3,7 @@
 This is where I keep all of my notes about CPANPLUS-Dist-Arch and try
 to keep track of what I want to do next.
 
+* TODO Use the new --nocheck option for makepkg to skip tests
 * cpan2aur
 ** TODO Package Release Incrementing                                   :IDEA:
    I need finer control over incrementing package releases. Sometimes
