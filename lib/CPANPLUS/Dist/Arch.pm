@@ -23,7 +23,7 @@ use File::Copy             qw(copy);
 use File::stat             qw(stat);
 use DynaLoader             qw();
 use IPC::Cmd               qw(can_run);
-use version                qw(qv);
+use version                qw();
 use English                qw(-no_match_vars);
 use Carp                   qw(carp croak confess);
 use Cwd                    qw();
@@ -857,9 +857,12 @@ sub _merge_deps
 
     MERGE_LOOP:
     while ( my ( $pkg, $ver ) = each %$right_deps ) {
-        next MERGE_LOOP if $left_deps->{ $pkg } &&
-            ( qv($left_deps->{ $pkg }) > qv($ver) );
+        if ( $left_deps->{ $pkg } ) {
+            my $leftver  = version->parse( $left_deps->{ $pkg } );
+            my $rightver = version->parse( $ver );
 
+            next MERGE_LOOP if $leftver > $rightver;
+        }
         $left_deps->{ $pkg } = $ver;
     }
 
@@ -943,7 +946,15 @@ sub _translate_cpan_deps
         # otherwise trailing zeros cause problems
         my $bundled_version = $Module::CoreList::version{ 0+$] }->{$modname};
         if ( defined $bundled_version ) {
-            next CPAN_DEP_LOOP if ( qv($bundled_version) >= qv($depver) );
+            # Avoid parsing an empty string (causes an error) or 0.
+            next CPAN_DEP_LOOP unless $depver;
+
+            # Avoid parsing a bundled version of 0. Is this possible?
+            if ( $bundled_version ) {
+                my $bundle_vobj = version->parse( $bundled_version );
+                my $dep_vobj    = version->parse( $depver );
+                next CPAN_DEP_LOOP if $bundle_vobj >= $dep_vobj;
+            }
         }
 
         # Translate the module's distribution name into a package name...
