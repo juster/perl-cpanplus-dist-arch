@@ -747,7 +747,7 @@ sub get_pkgbuild_info
 
     my ($dist_name, $dist_ver) = $pkgbuild_txt
         =~ m{ (?: DIST_DIR | ^_distdir )=
-              "\${srcdir}/ ( [\w-]+ ) - ( [\d.]+ ) /? " }xms;
+              "\${srcdir}/ ( [\w-]+ ) - v? ( [\d.]+ ) /? " }xms;
 
     my ($pkgrel) = $pkgbuild_txt
         =~ m{ ^ pkgrel = ['"]? ( \d+ ) ['"]? }xms;
