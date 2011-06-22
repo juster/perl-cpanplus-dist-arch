@@ -855,11 +855,11 @@ END_ERROR
                      $type eq 'dir'  ? get_pkgdir_info( $thing )  :
                      die );
 
-    my $mod_obj  = find_module( $pkg_info{ dist_name } );
+    my $mod_obj  = find_module( $pkg_info{'dist_name'} );
     return unless ( $mod_obj );
 
     my $cpan_ver = version->new( dist_pkgver( $mod_obj->package_version ));
-    my $dist_ver = version->new( $pkg_info{ dist_ver }           );
+    my $dist_ver = version->new( $pkg_info{'dist_ver'} );
 
     if ( $cpan_ver < $dist_ver ) {
         error( <<"END_WARN" );
