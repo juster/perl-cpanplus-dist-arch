@@ -294,8 +294,6 @@ included in the examples directory for an example.
 =head3 get_pkgbuild
 
   Usage    : my $pkgbuildtext = $dist->get_pkgbuild;
-  Params   : $skiptest - (optional, default is 0)
-                         Whether to skip testing and comment out the test.
   Returns  : A scalar containing the full text of the PKGBUILD that would
              be generated in the perl pacman package.
 
@@ -304,8 +302,6 @@ included in the examples directory for an example.
   Usage   : $self->create_pkgbuild( '/tmp', 1 );
   Purpose : Creates a PKGBUILD file in the specified directory.
   Params  : $destdir - The directory to put the new PKGBUILD in.
-            $skiptest - (optional, default is 0)
-                        Whether to skip testing and comment out the test.
   Precond : You must first call prepare or have CPANPLUS do it automatically.
   Throws  : unknown installer type: '...'
             failed to write PKGBUILD: ...
@@ -329,7 +325,7 @@ See L</PKGBUILD TEMPLATE>.
   Purpose : Create PKGBUILDs based on a custom template.
   Params  : $templ_text - New template text to use for creating the PKGBUILD.
   Returns : The new template text.
-            
+
 See L</PKGBUILD TEMPLATE>.
 
 =head3 set_tt_init_args

@@ -141,10 +141,10 @@ check() {
   cd "$_distdir"
   ( export PERL_MM_USE_DEFAULT=1 PERL5LIB=""
 [% IF is_makemaker -%]
-    [% IF skiptest %]#[% END %]make test
+    make test
 [% END -%]
 [% IF is_modulebuild -%]
-    [% IF skiptest %]#[% END %]/usr/bin/perl Build test
+    /usr/bin/perl Build test
 [% END -%]
   )
 }
@@ -428,7 +428,7 @@ Package type must be 'bin' or 'src'};
             or error "Failed to create link to $tarball_fqp: $OS_ERROR";
     }
 
-    $self->create_pkgbuild( $self->status->pkgbase, $opts{skiptest} );
+    $self->create_pkgbuild( $self->status->pkgbase );
 
     # Package it up!
     local $ENV{ $destenv } = $destdir;
@@ -742,7 +742,7 @@ sub get_pkgbuild_templ
 sub get_pkgbuild
 {
     croak 'Invalid arguments to get_pkgbuild' if ( @_ < 1 );
-    my ($self, $skiptest) = @_;
+    my ($self) = @_;
 
     my $status  = $self->status;
     my $module  = $self->parent;
@@ -755,12 +755,11 @@ sub get_pkgbuild
 
     # Quote our package desc for bash.
     $pkgvars{pkgdesc} =~ s/ ([\$\"\`]) /\\$1/gxms;
-    
+
     my $templ_vars = { packager  => $ENV{PACKAGER} || $PACKAGER,
                        version   => $VERSION,
                        %pkgvars,
                        distdir   => $self->get_cpandistdir(),
-                       skiptest  => $skiptest || $conf->get_conf('skiptest'),
                       };
 
     my $dist_type = $module->status->installer_type;
@@ -777,13 +776,13 @@ sub get_pkgbuild
 sub create_pkgbuild
 {
     croak 'Invalid arguments to create_pkgbuild' if ( @_ < 2 );
-    my ($self, $destdir, $skiptest) = @_;
+    my ($self, $destdir) = @_;
 
     croak qq{Invalid directory passed to create_pkgbuild: "$destdir" ...
 Directory does not exist or is not writeable}
         unless ( -d $destdir && -w _ );
 
-    my $pkgbuild_text = $self->get_pkgbuild( $skiptest );
+    my $pkgbuild_text = $self->get_pkgbuild();
     my $fqpath        = catfile( $destdir, 'PKGBUILD' );
 
     open my $pkgbuild_file, '>', $fqpath
