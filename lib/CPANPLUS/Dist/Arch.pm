@@ -433,18 +433,24 @@ Package type must be 'bin' or 'src'};
     # Package it up!
     local $ENV{ $destenv } = $destdir;
 
+    my @cmdopts = (($EUID == 0)         => '--asroot',
+                   ($pkg_type eq 'src') => '--source',
+                   $opts{'nocolor'}     => '--nocolor',
+                   $opts{'skiptest'}    => '--nocheck',
+                   $opts{'quiet'}       => '2>&1 >/dev/null');
+    my $i = 0;
+    while ($i < @cmdopts) {
+        if ($cmdopts[$i]) {
+            splice @cmdopts, $i++, 1;
+        }
+        else {
+            splice @cmdopts, $i, 2;
+        }
+    }
+
     my $oldcwd = Cwd::getcwd();
     chdir $status->pkgbase or die "chdir: $OS_ERROR";
-    my $makepkg_cmd = join q{ }, ( 'makepkg',
-                                   '-f', # should we force rebuilding?
-                                   ( $EUID == 0         ? '--asroot'  : () ),
-                                   ( $pkg_type eq 'src' ? '--source'  : () ),
-                                   ( $opts{nocolor}     ? '--nocolor' : () ),
-                                   ( $opts{quiet}       ? '2>&1 >/dev/null'
-                                                        : () ),
-                                  );
-
-    # I tried to use IPC::Cmd here, but colors didn't work...
+    my $makepkg_cmd = join q{ }, 'makepkg', '-f', @cmdopts;
     system $makepkg_cmd;
 
     if ( $CHILD_ERROR ) {

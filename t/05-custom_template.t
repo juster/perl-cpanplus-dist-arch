@@ -48,7 +48,6 @@ pkgdesc = This is a \\"fake\\" package, for testing only.
 pkgname = perl-template-tester
 pkgrel = 1
 pkgver = 1.342
-skiptest = 0
 source = http://search.cpan.org/CPAN/J/JU/JUSTER/Template-Tester-1.342.tar.gz
 url = http://search.cpan.org/dist/Template-Tester
 version = $CPANPLUS::Dist::Arch::VERSION

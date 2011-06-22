@@ -117,9 +117,9 @@ We are now verbose by default!  Hope this is okay.
 
 =item B<--skiptest>
 
-This will I<comment out> the tests in PKGBUILD files that are generated.
-I actually think testing is a good idea and would not recommend this
-unless you know what you are doing.
+This will pass the --nocheck option to makepkg. Automated tests
+that the module author has written for your benefit will be avoided
+when building a package for the module.
 
   WARNING: This affects all pre-requisite module/packages that are
            built and installed; not just the module you specify.
