@@ -6,6 +6,30 @@
 :  \____|_| |_|\__,_|_| |_|\__, |\___||___/
 :                          |___/           
 
+* Release 1.13 [2011-06-26 Sun]
+
+** Use makepkg's --nocheck option to skip tests
+
+   Since pacman 3.4 PKGBUILDs can now have a check() function. Inside
+   this bash function, tests are run to make sure the build package is
+   functioning properly. Since most CPAN modules have tests, the test
+   command (make test or ./Build test) are now placed inside check().
+   Makepkg has a --nocheck option useful for skipping tests which
+   this module now uses instead of commenting out tests.
+
+** Accept dist dirs with "v" version strings                         :BUGFIX:
+
+   cpan2aur now anticipates extracted dist. dirs which have a v in
+   their version.
+
+** Use the new version::parse() instead of the obsolete version::qv()
+
+   Keeping up with the times.
+
+** Better makepkg error handling in cpan2aur :BUGFIX:
+
+   When makepkg failed before we didn't handle it properly.
+
 * Release 1.12 [2011-03-25 Fri]
 
 ** Upgrades for pacman/makepkg 3.5
