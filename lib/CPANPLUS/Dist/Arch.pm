@@ -909,7 +909,7 @@ sub _extract_makedepends
 sub _translate_perl_ver
 {
     my ($perlver) = @_;
-    return $perlver unless $perlver =~ / \A (\d+) [.] (\d{3}) (\d{3}) \z /xms;
+    return $perlver unless $perlver =~ /\A(\d+)[.](\d{3})(\d{1,3})\z/;
     return sprintf '%d.%d.%d', $1, $2, $3;
 }
 
