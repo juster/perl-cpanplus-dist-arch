@@ -6,6 +6,24 @@
 :  \____|_| |_|\__,_|_| |_|\__, |\___||___/
 :                          |___/           
 
+
+* Release 1.14 [2011-07-06 Wed]
+
+** Core perl modules no longer depend-able
+
+   Because the perl package no longer has a provides list for all the
+   core perl modules we cannot depend on any packages for distributions
+   that perl comes with.
+
+** Match perl versions with 0's rounded off the end.                 :BUGFIX:
+
+   Like the version string 5.00503 for example. It should convert to
+   5.5.30. Reported by xbj9000 on the perl-cpanplus-dist-arch AUR page.
+
+** perl-cpanplus-dist-arch moved to [community]
+
+   Cool! I hope?
+
 * Release 1.13 [2011-06-26 Sun]
 
 ** Use makepkg's --nocheck option to skip tests
