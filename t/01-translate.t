@@ -34,7 +34,6 @@ my %pkgname_of =
       # An interesting conflict, mentioned by xenoterracide...
       'Perl-Version'             => 'perl-perl-version',
       'version'                  => 'perl-version',
-      
 
       # Test overridden names
       'libwww-perl'       => 'perl-libwww',
@@ -77,8 +76,8 @@ my %perlpkgver_of =
     ( '5.006001' => '5.6.1',
       '5.6.1'    => '5.6.1',
       '5.012001' => '5.12.1',
+      '5.01234'      => '5.12.340',   # accept missing trailing zeros
       '5.0123456789' => 5.0123456789, # not 6 decimals? pass through
-      '5.01234'      => 5.01234,
       '.012345'  => '.012345',        # must have a major ver number
      );
 
