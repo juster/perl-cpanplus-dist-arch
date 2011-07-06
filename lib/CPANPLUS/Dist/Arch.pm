@@ -938,16 +938,33 @@ sub _translate_cpan_deps
             next CPAN_DEP_LOOP;
         }
 
-        # The perl package provides array has been completely
-        # removed. This means we cannot explicitly depend on any
-        # modules that are bundled with perl, even if we need a
-        # specific version. Otherwise users will install package
-        # they don't need.
+# Ideally we could take advantage of the perl package's provides list
+# and add dependencies for core modules.
+
+# This is more robust and handles the problem of packages built
+# with a different version of perl than the perl that is present
+# when the package is installed.
+
+# The problem is that the perl package provides list still needs work.
+# While I was trying to generate a provides list I noticed the
+# Module::CoreList module had some incorrect version numbers
+# as well. So until I get around to reporting these bugs I will
+# just go back to not depending on packages provided by perl.
 
         # 0+$] is needed to force the perl version into number-dom
         # otherwise trailing zeros cause problems
-        next CPAN_DEP_LOOP
-            if defined $Module::CoreList::version{0+$]}->{$modname};
+        my $bundled_version = $Module::CoreList::version{ 0+$] }->{$modname};
+        if ( defined $bundled_version ) {
+            # Avoid parsing an empty string (causes an error) or 0.
+            next CPAN_DEP_LOOP unless $depver;
+
+            # Avoid parsing a bundled version of 0. Is this possible?
+            if ( $bundled_version ) {
+                my $bundle_vobj = version->parse( $bundled_version );
+                my $dep_vobj    = version->parse( $depver );
+                next CPAN_DEP_LOOP if $bundle_vobj >= $dep_vobj;
+            }
+        }
 
         # Translate the module's distribution name into a package name...
         my $modobj  = $backend->module_tree( $modname )
@@ -963,7 +980,7 @@ sub _translate_cpan_deps
 
         # XXX: We pray that the module version is the same as the
         # distribution version...
-
+        
         # If two module prereqs are in the same CPAN distribution then
         # the version required for the main module will override.
         # (because versions specified for other modules in the dist
