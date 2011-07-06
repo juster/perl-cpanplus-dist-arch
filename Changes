@@ -7,6 +7,14 @@
 :                          |___/           
 
 
+* Release 1.15 [2011-07-06 Wed]
+
+** Depend on perl core modules again
+
+   After getting some coffee in me I realized that it's ok to depend
+   on core perl modules because we only depend on them if the
+   version we need is greater than the bundled version.
+
 * Release 1.14 [2011-07-06 Wed]
 
 ** Core perl modules no longer depend-able
