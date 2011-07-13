@@ -972,20 +972,18 @@ sub _translate_cpan_deps
         my $cpanpkg = $modobj->package_name;
         my $pkgname = dist_pkgname( $cpanpkg );
 
-        # If the dep is for a module inside the CPAN distribution
-        # ignore the version number. (There is no way to cross
-        # reference old module versions to find which version of
-        # distribution provides them)
-        undef $depver unless _is_main_module( $modname, $cpanpkg );
-
-        # XXX: We pray that the module version is the same as the
-        # distribution version...
-        
         # If two module prereqs are in the same CPAN distribution then
         # the version required for the main module will override.
         # (because versions specified for other modules in the dist
         # are 0)
-        $pkgdeps{ $pkgname } ||= ( $depver ? dist_pkgver( $depver ) : 0 );
+        undef $depver unless _is_main_module( $modname, $cpanpkg );
+
+        # XXX: We pray that the module version is the same as the
+        # distribution version...
+
+        # Version strings of '0.0' caused problems...
+        $depver = ( $depver == 0 ? 0 : dist_pkgver( $depver ));
+        $pkgdeps{ $pkgname } ||= $depver;
     }
 
     return \%pkgdeps;
