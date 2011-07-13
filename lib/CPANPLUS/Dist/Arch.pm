@@ -1335,6 +1335,7 @@ sub _calc_tarballmd5
 #    my $tarball_fqp = $self->status->pkgbase . '/' . $module->package;
     open my $distfile, '<', $tarball_fqp
         or die "failed to get md5 of $tarball_fqp: $OS_ERROR";
+    binmode $distfile;
 
     my $md5 = Digest::MD5->new;
     $md5->addfile($distfile);
