@@ -26,3 +26,4 @@ Makefile.PL
 .shipit
 PKGBUILD
 TODO
+META.json

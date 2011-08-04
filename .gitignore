@@ -7,3 +7,4 @@ _build/*
 blib/*
 *.tmp
 *.bak
+META.json
