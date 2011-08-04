@@ -10,7 +10,7 @@ Tests CPAN version to package version translation.
 use warnings;
 use strict;
 
-use Test::More tests => 34;
+use Test::More;
 
 BEGIN {
     use_ok( 'CPANPLUS::Dist::Arch', qw(:all) );
@@ -79,6 +79,8 @@ my %perlpkgver_of =
       '5.01234'      => '5.12.340',   # accept missing trailing zeros
       '5.0123456789' => 5.0123456789, # not 6 decimals? pass through
       '.012345'  => '.012345',        # must have a major ver number
+      'v5.8.0'   => '5.8.0',
+      '5.v8.0'   => '5.v8.0'
      );
 
 *_perl_ver = *CPANPLUS::Dist::Arch::_translate_perl_ver;
@@ -87,3 +89,5 @@ while ( my ($decimal, $dotdecimal) = each %perlpkgver_of ) {
     is( _perl_ver( $decimal ), $dotdecimal,
         "Conversion of perl version $decimal" );
 }
+
+done_testing

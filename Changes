@@ -7,6 +7,13 @@
 :                          |___/           
 
 
+* Release 1.17 [2011-08-03 Wed]
+
+** If at first you don't succeed, try again harder.
+
+   Okay the last fix didn't really work. Really fix it this time
+   and add a test.
+
 * Release 1.16 [2011-08-03 Wed]
 
 ** Remove any leading 'v' char in front of versions for perl.

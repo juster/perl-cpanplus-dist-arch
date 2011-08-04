@@ -6,7 +6,7 @@ use strict;
 use CPANPLUS::Dist::Base   qw();
 use Exporter               qw(import);
 
-our $VERSION     = '1.16';
+our $VERSION     = '1.17';
 our @EXPORT      = qw();
 our @EXPORT_OK   = qw(dist_pkgname dist_pkgver);
 our %EXPORT_TAGS = ( 'all' => [ @EXPORT_OK ] );
@@ -909,7 +909,11 @@ sub _extract_makedepends
 sub _translate_perl_ver
 {
     my ($perlver) = @_;
-    return $perlver unless $perlver =~ /\Av?(\d+)[.](\d{3})(\d{1,3})\z/;
+
+    # Fix perl-style vstrings which have a leading "v".
+    return $perlver if $perlver =~ s/\Av//;
+
+    return $perlver unless $perlver =~ /\A(\d+)[.](\d{3})(\d{1,3})\z/;
 
     # Re-apply the missing trailing zeroes.
     my $patch = $3;
