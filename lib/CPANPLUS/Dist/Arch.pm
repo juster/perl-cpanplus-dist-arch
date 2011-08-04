@@ -909,7 +909,7 @@ sub _extract_makedepends
 sub _translate_perl_ver
 {
     my ($perlver) = @_;
-    return $perlver unless $perlver =~ /\A(\d+)[.](\d{3})(\d{1,3})\z/;
+    return $perlver unless $perlver =~ /\Av?(\d+)[.](\d{3})(\d{1,3})\z/;
 
     # Re-apply the missing trailing zeroes.
     my $patch = $3;
