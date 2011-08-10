@@ -957,17 +957,12 @@ sub _translate_cpan_deps
 
         # 0+$] is needed to force the perl version into number-dom
         # otherwise trailing zeros cause problems
-        my $bundled_version = $Module::CoreList::version{ 0+$] }->{$modname};
-        if ( defined $bundled_version ) {
-            # Avoid parsing an empty string (causes an error) or 0.
-            next CPAN_DEP_LOOP unless $depver;
-
-            # Avoid parsing a bundled version of 0. Is this possible?
-            if ( $bundled_version ) {
-                my $bundle_vobj = version->parse( $bundled_version );
-                my $dep_vobj    = version->parse( $depver );
-                next CPAN_DEP_LOOP if $bundle_vobj >= $dep_vobj;
-            }
+        my $corever = $Module::CoreList::version{ 0+$] }->{$modname};
+        if ( $corever ) {
+            next CPAN_DEP_LOOP unless $depver; # avoids empty string
+            my $corev = version->parse( $corever );
+            my $depv  = version->parse( $depver );
+            next CPAN_DEP_LOOP if $corev >= $depv;
         }
 
         # Translate the module's distribution name into a package name...
