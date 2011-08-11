@@ -1,6 +1,6 @@
 package CPANPLUS::Dist::Arch;
 
-use warnings;
+use warnings 'FATAL' => 'all';
 use strict;
 
 use CPANPLUS::Dist::Base   qw();
