@@ -981,7 +981,7 @@ sub _translate_cpan_deps
         # distribution version...
 
         # Version strings of '0.0' caused problems...
-        $depver = ( $depver == 0 ? 0 : dist_pkgver( $depver ));
+        $depver = ( !$depver || $depver == 0 ? 0 : dist_pkgver( $depver ));
         $pkgdeps{ $pkgname } ||= $depver;
     }
 
