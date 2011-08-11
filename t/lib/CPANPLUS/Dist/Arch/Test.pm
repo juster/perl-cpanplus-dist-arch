@@ -18,5 +18,7 @@ sub new
 
 sub _calc_tarballmd5 { '12345MD5SUM12345' }
 
+sub _calc_shasum { my (undef, $size) = @_; "12345SHA${size}SUM12345" }
+
 
 1;

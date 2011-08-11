@@ -116,6 +116,12 @@ makedepends=([% makedepends %])
 url='[% url %]'
 source=('[% source %]')
 md5sums=('[% md5sums %]')
+[% IF sha1sums -%]
+sha1sums=('[% sha1sums %]')
+sha256sums=('[% sha256sums %]')
+sha384sums=('[% sha384sums %]')
+sha512sums=('[% sha512sums %]')
+[% END -%]
 _distdir="${srcdir}/[% distdir %]"
 
 build() {
@@ -674,6 +680,12 @@ sub get_pkgvars
         unless ( $status->prepared );
 
     my $deps_ref = $self->_get_pkg_deps;
+    my @shavars;
+    if ( eval { require Digest::SHA } ) {
+        @shavars =
+            map { ( "sha${_}sums" => $self->_calc_shasum($_) ) }
+                qw/1 256 384 512/;
+    }
 
     return ( pkgname  => $status->pkgname,
              pkgver   => $status->pkgver,
@@ -687,6 +699,7 @@ sub get_pkgvars
              url      => $self->_get_disturl,
              source   => $self->_get_srcurl,
              md5sums  => $self->_calc_tarballmd5,
+             @shavars,
 
              depshash => $deps_ref,
             );
@@ -1331,7 +1344,6 @@ sub _calc_tarballmd5
     my $module = $self->parent;
 
     my $tarball_fqp = $module->_status->fetch;
-#    my $tarball_fqp = $self->status->pkgbase . '/' . $module->package;
     open my $distfile, '<', $tarball_fqp
         or die "failed to get md5 of $tarball_fqp: $OS_ERROR";
     binmode $distfile;
@@ -1342,6 +1354,26 @@ sub _calc_tarballmd5
 
     return $md5->hexdigest;
 }
+
+#---INSTANCE METHOD---
+# Usage    : my $shasum = $self->calc_shasum(512);
+# Params   : The bitsizes to use for the SHA digest calculated.
+# Throws   : failed to get sha<size>sum of <tarball>:\n...
+# Returns  : Hex-string checksum of the tarball for the bit size
+#            provided as a parameter.
+#---------------------
+sub _calc_shasum
+{
+    my ($self, $size) = @_;
+    my $module = $self->parent;
+    my $fqp    = $module->_status->fetch;
+    my $sum    = eval {
+        Digest::SHA->new( $size )->addfile( $fqp, q{b} )->hexdigest;
+    };
+    return $sum if $sum;
+    die "failed to get sha${size}sum of $fqp:\n$EVAL_ERROR";
+}
+
 
 #---HELPER FUNCTION---
 # Purpose : Split the text into everything before the tags, inside tags, and
