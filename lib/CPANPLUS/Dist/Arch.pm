@@ -116,10 +116,7 @@ makedepends=([% makedepends %])
 url='[% url %]'
 source=('[% source %]')
 md5sums=('[% md5sums %]')
-[% IF sha1sums -%]
-sha1sums=('[% sha1sums %]')
-sha256sums=('[% sha256sums %]')
-sha384sums=('[% sha384sums %]')
+[% IF sha512sums -%]
 sha512sums=('[% sha512sums %]')
 [% END -%]
 _distdir="${srcdir}/[% distdir %]"
@@ -682,9 +679,7 @@ sub get_pkgvars
     my $deps_ref = $self->_get_pkg_deps;
     my @shavars;
     if ( eval { require Digest::SHA } ) {
-        @shavars =
-            map { ( "sha${_}sums" => $self->_calc_shasum($_) ) }
-                qw/1 256 384 512/;
+        @shavars = ('sha512sums' => $self->_calc_shasum(512));
     }
 
     return ( pkgname  => $status->pkgname,
