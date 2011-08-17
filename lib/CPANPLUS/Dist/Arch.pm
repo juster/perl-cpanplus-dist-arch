@@ -76,7 +76,6 @@ Gtk2           = gtk2-perl
 Cairo          = cairo-perl
 Pango          = pango-perl
 
-SDL_Perl       = sdl_perl
 Perl-Critic    = perl-critic
 Perl-Tidy      = perl-tidy
 App-Ack        = ack
