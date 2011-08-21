@@ -240,6 +240,8 @@ READ_CONF:
     close $mkpkgconf or error "close on makepkg.conf: $!";
 }
 
+# Environment variable has second highest priority for PACKAGER.
+$PACKAGER = $ENV{PACKAGER} if $ENV{PACKAGER};
 
 #-----------------------------------------------------------------------------
 # PUBLIC CPANPLUS::Dist::Base Interface
@@ -769,7 +771,7 @@ sub get_pkgbuild
     # Quote our package desc for bash.
     $pkgvars{pkgdesc} =~ s/ ([\$\"\`]) /\\$1/gxms;
 
-    my $templ_vars = { packager  => $ENV{PACKAGER} || $PACKAGER,
+    my $templ_vars = { packager  => $PACKAGER,
                        version   => $VERSION,
                        %pkgvars,
                        distdir   => $self->get_cpandistdir(),
