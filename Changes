@@ -7,6 +7,41 @@
 :                          |___/           
 
 
+* Release 1.18 [2011-08-21 Sun]
+
+** Trivial fix for $CPANPLUS::Dist::Arch::PACKAGER.
+
+If the PACKAGER environment variable is set then the package variable
+$CPANPLUS::Dist::Arch::PACKAGER will now be set to its value,
+overriding the /etc/makepkg.conf value.
+
+** cpan2aur: Update to match the latest AUR upgrades.
+
+Logins are now HTTPS only. I thought I updated this already but I
+guess that was WWW::AUR instead. Sessions now have lowercase letters
+instead of uppercase letters. This confused the session key
+loading mechanism.
+
+** Add sha512sums to PKGBUILD.
+
+SHA-512 digests are calculated for the "sources" tarball if the
+Digest::SHA module is installed.
+
+** Make all warnings fatal.
+
+Warnings will now stop the program.
+
+** Fix warning messages for undefined module versions.
+
+Warning messages would be printed when a sub-module of a distribution
+is depended on. Sub-modules are modules inside a distribution which
+don't match the name of the distribution. These are generally hidden
+in order to depend only on distributions and not modules. Example
+warning message (word-wrapped):
+
+Use of uninitialized value $depver in numeric eq (==) at
+/usr/share/perl5/vendor_perl/CPANPLUS/Dist/Arch.pm line 984.
+
 * Release 1.17 [2011-08-03 Wed]
 
 ** If at first you don't succeed, try again harder.
