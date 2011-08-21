@@ -26,8 +26,8 @@ sub PKGBUILD_ERRCODE() { 2 }
 sub NEEDLWP_ERRCODE()  { 3 }
 
 # should just make these scalars, too... hrmph
-sub AUR_LOGIN_URI()    { 'http://aur.archlinux.org/' }
-sub AUR_UPLOAD_URI()   { 'http://aur.archlinux.org/pkgsubmit.php' }
+sub AUR_LOGIN_URI()    { 'https://aur.archlinux.org/' }
+sub AUR_UPLOAD_URI()   { 'https://aur.archlinux.org/pkgsubmit.php' }
 sub COOKIE_NAME()      { 'AURSID' }
 sub CAT_LIB()          { 10 };
 
@@ -451,37 +451,43 @@ sub _post_upload
 # as a package.
 sub _load_web_modules
 {
-    my $loaded = eval {
-        require LWP::UserAgent;
-        require HTTP::Cookies;
-        1;
+    _req_or_install( 'perl-libwww',
+                     'LWP::UserAgent', 'HTTP::Cookies' );
+    _req_or_install( 'perl-lwp-protocol-https',
+                     'LWP::Protocol::https');
+}
+
+sub _req
+{
+    my $loaded = 1;
+    for my $mod ( @_ ) {
+        eval "require $mod; 1";
+        if ( $@ ) { $loaded = 0; last; }
     };
+    return $loaded;
+}
 
-    unless ( $loaded ) {
-        my $answer = 1;
+sub _req_or_install
+{
+    my ($package, @modules) = @_;
 
-        $answer = prompt_yn( <<'END_PROMPT' => 'yes' );
-You need the perl-libwww package installed to upload to the AUR.
+    return if _req( @modules );
+
+    my $answer = prompt_yn( <<"END_PROMPT" => 'yes' );
+You need the $package package installed to upload to the AUR.
 Do you want to install it now?
 END_PROMPT
 
-        exit NEEDLWP_ERRCODE unless ( $answer );
+    exit NEEDLWP_ERRCODE unless ( $answer );
 
-        status 'Installing perl-libwww for uploads to the AUR...';
-        my $modobj = find_module( 'LWP' );
-        $modobj->install( type => 'install', format => 'CPANPLUS::Dist::Arch', );
+    status "Installing $package for uploads to the AUR...";
+    my $modobj = find_module( $modules[0] );
+    $modobj->install( target => 'install', prereq_target => 'install',
+                      format => 'CPANPLUS::Dist::Arch' );
 
-        # Try again after we install it!
-        $loaded = eval {
-            require LWP::UserAgent;
-            require HTTP::Cookies;
-            1;
-        };
-
-        error( "Unable to load LWP::UserAgent and HTTP::Cookies" )
-            unless $loaded;
-    }
-
+    # Try again after we install it!
+    my $list = join ', ', @modules;
+    error( "Unable to load $list" ) unless _req( @modules );
     return;
 }
 
