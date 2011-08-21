@@ -337,11 +337,16 @@ sub _load_last_login
     die q{Please 'chmod 600 ~/.cpan2aur', it is not readable}
         unless ( -r $CFGPATH );
 
+    my ($user, $sid);
     open my $cfgfile, q{<}, $CFGPATH or die "open $CFGPATH: $!";
-    my ($user, $sid) = split /:/, <$cfgfile>;
+    while (<$cfgfile>) {
+        chomp;
+        ($user, $sid) = split /:/;
+        last; # only want first line
+    }
     close $cfgfile;
 
-    return () unless ( $user && $sid && $sid =~ /\A[A-F0-9]+\Z/ );
+    return () unless ( $user && $sid && $sid =~ /\A[a-fA-F0-9]+\z/ );
 
     # If the user specified a --name flag, make sure it matches the cached...
     return () if ( $NAME && ( lc $user ne lc $NAME ));
