@@ -50,7 +50,7 @@ my @BAD_METAYML_ABSTRACTS
     = ( q{~}, 'Module abstract (<= 44 characters) goes here' );
 
 # Patterns to use when using pacman for finding library owners.
-my $PACMAN_FINDOWN     = qr/\A[^ ]+ is owned by ([\w-]+) ([\w.-]+)/;
+my $PACMAN_FINDOWN     = qr/\A.*? is owned by /;
 my $PACMAN_FINDOWN_ERR = qr/\Aerror:/;
 
 # Override a package's name to conform to packaging guidelines.
@@ -1578,16 +1578,21 @@ sub _get_lib_pkg
     my $lib_fqp = DynaLoader::dl_findfile($libname)
         or return ();
 
-    my $result = `pacman -Qo $lib_fqp`;
+    $lib_fqp =~ s/([\\\$"`])/\\$1/g;
+    my $result = `LC_ALL=C pacman -Qo "$lib_fqp"`;
     chomp $result;
-
-    if ( $result =~ /$PACMAN_FINDOWN_ERR/ ) {
-        error qq{Could not find owner of linked library }
-            . qq{"$libname", ignoring.};
+    if ( $CHILD_ERROR != 0 || !($result =~ s/$PACMAN_FINDOWN//) ) {
+        if ( $CHILD_ERROR == 127 ) {
+            error q{C-library dep lookup failed. Pacman is missing!?};
+        }
+        else {
+            error qq{Could not find owner of linked library }
+                . qq{"$libname", ignoring.};
+        }
         return ();
     }
 
-    my ($pkgname, $pkgver) = $result =~ /$PACMAN_FINDOWN/;
+    my ($pkgname, $pkgver) = split / /, $result;
     $pkgver =~ s/-\d+\z//; # remove the package revision number
     return ($pkgname => $pkgver);
 }
