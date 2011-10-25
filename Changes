@@ -7,6 +7,17 @@
 :                          |___/           
 
 
+* Release 1.19 [2011-10-25 Tue]
+
+** Detect non-perl XS deps when using non-english locale.            :BUGFIX:
+
+We scrape pacman's output in order to find package owners of C
+libraries that we are linking to. Silly me, I only matched english
+output of pacman. We now force the locale to C when we run pacman
+behind the scenes.
+
+Reported by Franek at https://bbs.archlinux.org/viewtopic.php?id=128890
+
 * Release 1.18 [2011-08-21 Sun]
 
 ** Trivial fix for $CPANPLUS::Dist::Arch::PACKAGER.
