@@ -12,8 +12,8 @@ my $TEST_MODULE = 'Acme::Bleach';
 plan skip_all => 'build testing requires pacman & makepkg installed'
     unless ( CPANPLUS::Dist::Arch::format_available );
 
-plan skip_all => 'skipping slower developer tests'
-    unless $ENV{ 'TEST_RELEASE' };
+plan skip_all => 'skipping the slower release tests'
+    unless $ENV{'RELEASE_TESTING'};
 
 plan tests => 5;
 

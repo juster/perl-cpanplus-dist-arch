@@ -18,7 +18,7 @@ url='http://github.com/juster/perl-cpanplus-dist-arch'
 build() {
   export PERL_MM_OPT="INSTALLDIRS=vendor DESTDIR=$pkgdir"  \
     PERL_MB_OPT="--installdirs vendor --destdir '$pkgdir'" \
-    MODULEBUILDRC='/dev/null' TEST_RELEASE=1
+    MODULEBUILDRC='/dev/null' RELEASE_TESTING=1
 
   cd "$startdir"
   msg 'Building CPANPLUS::Dist::Arch...'
