@@ -1019,8 +1019,6 @@ sub _get_pkg_deps
     # convert them into packages names for 'depends' and 'makedepends'
     # inside of a PKGBUILD.
 
-	printf STDERR "DBG: prereqs = %s\n", pp($prereqs);
-
     my $pkgdeps_ref  = $self->_translate_cpan_deps( $prereqs );
     my $makedeps_ref = $self->_extract_makedepends( $pkgdeps_ref );
 
@@ -1030,10 +1028,6 @@ sub _get_pkg_deps
         ( map { $self->_translate_cpan_deps( $_ ) }
           map { $self->status->metadeps->{ $_ }   }
           qw/ cfg build / );
-
-	use Data::Dump qw(pp);
-	printf STDERR "DBG: pkgdeps = %s\nDBG: makedeps = %s\nDBG: builddeps = %s\n",
-		pp($pkgdeps_ref), pp($makedeps_ref), pp($builddeps_ref);
 
     # 'configure_requires' from META.yml don't show in the prereqs()
     # results but 'build_requires' do... remove duplicates.
@@ -1048,8 +1042,6 @@ sub _get_pkg_deps
     # Merge in the XS C library package deps...
     my $xs_deps = $self->_translate_xs_deps;
     _merge_deps( $pkgdeps_ref, $xs_deps );
-	printf STDERR "DBG: pkgdeps = %s\nDBG: makedeps = %s\n",
-		pp($pkgdeps_ref), pp($makedeps_ref);
     
     # Require perl unless we have a dependency on a module or perl itself.
     $pkgdeps_ref->{'perl'} = 0 unless grep { /^perl/ } keys %$pkgdeps_ref;
