@@ -6,6 +6,29 @@
 :  \____|_| |_|\__,_|_| |_|\__, |\___||___/
 :                          |___/           
 
+* Release 1.20 [2012-04-29 Sun]
+
+** Be more careful removing duplicate makedepends/depends.           :BUGFIX:
+
+The depends list starts off with packages containing the modules
+in the META.json's build.requires. The build.requires are merged
+into the makedepends and these are removed from the depends list.
+This was causing a problem with Params::Validate where
+perl-module-implementation was showing up only on the makedepends list.
+
+Now this should be fixed because the build.requires is a different
+version than the runtime.requires. We don't remove seemingly duplicate
+deps that have a differing version string.
+
+However, this is just a hackish fix.  A better fix would be to only use
+the META.yml if it is available or else use the pre-requisites CPP provides.
+
+Reported by Florian Pritz (Bluewind)
+
+** Use META.json if it is available.
+
+Now that META.json is more prevalent we can use it instead of META.yml
+when it is available.
 
 * Release 1.19 [2011-10-25 Tue]
 
