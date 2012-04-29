@@ -948,6 +948,7 @@ sub _translate_cpan_deps
         # Sometimes a perl version is given as a prerequisite
         if ( $modname eq 'perl' ) {
             $pkgdeps{perl} = _translate_perl_ver( $depver );
+            _DEBUG "req on perl $depver -> $pkgdeps{perl}";
             next CPAN_DEP_LOOP;
         }
 
@@ -1018,6 +1019,8 @@ sub _get_pkg_deps
     # convert them into packages names for 'depends' and 'makedepends'
     # inside of a PKGBUILD.
 
+	printf STDERR "DBG: prereqs = %s\n", pp($prereqs);
+
     my $pkgdeps_ref  = $self->_translate_cpan_deps( $prereqs );
     my $makedeps_ref = $self->_extract_makedepends( $pkgdeps_ref );
 
@@ -1028,15 +1031,25 @@ sub _get_pkg_deps
           map { $self->status->metadeps->{ $_ }   }
           qw/ cfg build / );
 
+	use Data::Dump qw(pp);
+	printf STDERR "DBG: pkgdeps = %s\nDBG: makedeps = %s\nDBG: builddeps = %s\n",
+		pp($pkgdeps_ref), pp($makedeps_ref), pp($builddeps_ref);
+
     # 'configure_requires' from META.yml don't show in the prereqs()
-    # results but 'build_requires' do... remove them.
-    delete $pkgdeps_ref->{ $_ } for ( keys %$builddeps_ref );
+    # results but 'build_requires' do... remove duplicates.
+    for my $d ( keys %$builddeps_ref ) {
+        if ( eval { $pkgdeps_ref->{$d} eq $builddeps_ref->{$d} } ) {
+            delete $pkgdeps_ref->{$d}
+        }
+    }
     _merge_deps( $makedeps_ref, $cfgdeps_ref );
     _merge_deps( $makedeps_ref, $builddeps_ref );
 
     # Merge in the XS C library package deps...
     my $xs_deps = $self->_translate_xs_deps;
     _merge_deps( $pkgdeps_ref, $xs_deps );
+	printf STDERR "DBG: pkgdeps = %s\nDBG: makedeps = %s\n",
+		pp($pkgdeps_ref), pp($makedeps_ref);
     
     # Require perl unless we have a dependency on a module or perl itself.
     $pkgdeps_ref->{'perl'} = 0 unless grep { /^perl/ } keys %$pkgdeps_ref;
@@ -1236,8 +1249,15 @@ sub _scan_metayml
     # Default to an empty list of deps
     $status->metadeps( { 'cfg' => {}, 'build' => {} } );
 
-    my $metapath = catfile( $modobj->status->extract, 'META.yml' );
-    return unless -f $metapath;
+    my $metapath;
+    for my $ext (qw/json yml/) {
+        my $p = catfile( $modobj->status->extract, "META.$ext" );
+        if ( -f $p ) {
+            $metapath = $p;
+            last;
+        }
+    }
+    return unless $metapath;
     
     my $meta_ref = eval { Parse::CPAN::Meta::LoadFile( $metapath ) }
         or return;
