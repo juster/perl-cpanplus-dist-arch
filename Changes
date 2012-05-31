@@ -6,6 +6,25 @@
 :  \____|_| |_|\__,_|_| |_|\__, |\___||___/
 :                          |___/           
 
+* Release 1.21 [2012-05-31 Thu]
+
+** Developer versions nuked to hell.                                  :BUGFIX:
+
+Developer versions on CPAN have a trailing underscore and numeric
+portion (eg 1.2.3_4). These are a largely misunderstood nuisance
+which require special logic on the part of perl/CPAN to compare versions.
+A dev ver drops the trailing number if compared against a non-dev ver
+string. So 1.2.3_4 == 1.2.3 but 1.2.3_4 < 1.2.3_5.
+
+Previously I tried to preserve them but because pacman mercifully
+has no special logic to compare them with non-developer version
+strings I decided to just remove them entirely from pkgvers.
+
+Long story short... 1.2.3_4 is not equivalent to 1.2.3.4 so why
+even try to make it so.
+
+Reported by Florian Pritz (Bluewind)
+
 * Release 1.20 [2012-04-29 Sun]
 
 ** Be more careful removing duplicate makedepends/depends.           :BUGFIX:

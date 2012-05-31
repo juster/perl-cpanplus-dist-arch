@@ -570,21 +570,18 @@ sub dist_pkgname
 
 sub dist_pkgver
 {
-    croak "Must provide arguments to pacman_version" if ( @_ == 0 );
     my ($version) = @_;
 
-    # Package versions should be numbers and decimal points only...
-    $version =~ tr/-/./;
-    $version =~ tr/_0-9.-//cd;
+    # Remove developer versions because pacman has no special logic
+    # to handle comparing them to regular versions such as perl uses.
+    $version =~ s/_[^_]+\z//;
 
-    # Developer packages have a ..._## at the end though...
-    unless (( $version =~ tr/_/_/ == 1 ) && ( $version =~ /\d_\d+$/ )) {
-        $version =~ tr/_//d; # Delete underscores otherwise.
-    }
+    # Package versions should be numbers and decimal points only...
+    $version =~ tr/-_/../;
+    $version =~ tr/0-9.//cd;
 
     $version =~ tr/././s;
-    $version =~ s/[.]$//;
-    $version =~ s/^[.]//;
+    $version =~ s/^[.]|[.]$//g;
 
     return $version;
 }
