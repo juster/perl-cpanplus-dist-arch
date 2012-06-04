@@ -6,7 +6,7 @@ use strict;
 use CPANPLUS::Dist::Base   qw();
 use Exporter               qw(import);
 
-our $VERSION     = '1.21';
+our $VERSION     = '1.22';
 our @EXPORT      = qw();
 our @EXPORT_OK   = qw(dist_pkgname dist_pkgver);
 our %EXPORT_TAGS = ( 'all' => [ @EXPORT_OK ] );
@@ -410,7 +410,6 @@ Package type must be 'bin' or 'src'};
 
     my ($destenv, $destdir) = $self->_calc_setdest( $pkg_type );
     $destdir = $opts{'destdir'} || $status->destdir || $destdir;
-    $destdir = Cwd::abs_path( $destdir );
 
     # Create directories for building and delivering the new package.
     MKDIR_LOOP:
@@ -423,6 +422,7 @@ Package type must be 'bin' or 'src'};
 
         make_path( $dir, { 'verbose' => $opts{'verbose'} ? 1 : 0 });
     }
+    $destdir = Cwd::abs_path( $destdir );
 
     # Prepare our 'makepkg' package building directory,
     # namely the PKGBUILD and source tarball files...
@@ -1635,3 +1635,4 @@ sub _get_mm_xs_deps
 }
 
 1; # End of CPANPLUS::Dist::Arch
+
