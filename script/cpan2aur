@@ -398,13 +398,7 @@ sub _new_login_sid
 Got status: ", $resp->status_line )
         if !( $resp->code == 302  && !$resp->is_success );
 
-    my $sid;
-    $ua->cookie_jar()->scan( sub { $sid = $_[2] if $_[1] eq COOKIE_NAME; } );
-
-    die "ERROR Login did not supply us with an AURSID cookie\n"
-        unless ( $sid );
-
-    return $sid;
+    return _scan_aursid($ua);
 }
 
 # Params: $sid - Session ID to login the AUR with.
@@ -425,17 +419,30 @@ sub _mk_session_cookie
     return $cookie_obj;
 }
 
+sub _scan_aursid
+{
+    my ($ua) = @_;
+    my $sid;
+    $ua->cookie_jar->scan(sub { $sid = $_[2] if ($_[1] eq 'AURSID') });
+    unless($sid){
+        Carp::confess 'AURSID cookie is missing';
+    }
+    return $sid;
+}
+
 # Params: $ua - LWP::UserAgent object, should have SID cookie in it.
 #         $pkg_path - Path of source package file to upload.
 sub _post_upload
 {
     my ($ua, $pkg_path) = @_;
 
+    my $sid = _scan_aursid($ua);
     my $resp = $ua->post( AUR_UPLOAD_URI,
                           'Content-Type' => 'form-data',
                           'Content'      => [ category  => CAT_LIB(),
                                               submit    => 'Upload',
                                               pkgsubmit => 1,
+                                              token     => $sid,
                                               pfile     => [ $pkg_path ],
                                              ] );
 
