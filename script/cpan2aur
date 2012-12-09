@@ -26,8 +26,8 @@ sub PKGBUILD_ERRCODE() { 2 }
 sub NEEDLWP_ERRCODE()  { 3 }
 
 # should just make these scalars, too... hrmph
-sub AUR_LOGIN_URI()    { 'https://aur.archlinux.org/' }
-sub AUR_UPLOAD_URI()   { 'https://aur.archlinux.org/pkgsubmit.php' }
+sub AUR_LOGIN_URI()    { 'https://aur.archlinux.org/login/' }
+sub AUR_UPLOAD_URI()   { 'https://aur.archlinux.org/submit/' }
 sub COOKIE_NAME()      { 'AURSID' }
 sub CAT_LIB()          { 10 };
 
