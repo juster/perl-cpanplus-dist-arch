@@ -6,6 +6,12 @@
 :  \____|_| |_|\__,_|_| |_|\__, |\___||___/
 :                          |___/           
 
+* Release 1.24 [2012-12-11 Tue]
+
+** Update cpan2aur for AUR website changes again.
+
+The URIs for login and package submit were changed to /login/ and /submit/.
+
 * Release 1.23 [2012-06-27 Wed]
 
 ** Update cpan2aur for AUR website changes.
