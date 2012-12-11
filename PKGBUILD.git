@@ -1,7 +1,7 @@
 # -*- Mode: shell-script; sh-basic-offset: 2 -*-
 # Contributor: Justin Davis <jrcd83@gmail.com>
 pkgname='perl-cpanplus-dist-arch-git'
-pkgver='20110211'
+pkgver='20121211'
 pkgrel='1'
 pkgdesc='Developer release for CPANPLUS::Dist::Arch perl module'
 arch=('any')
@@ -15,7 +15,7 @@ url='http://github.com/juster/perl-cpanplus-dist-arch'
 md5sums=()
 source=()
 
-_gitroot='git://github.com/juster/perl-cpanplus-dist-arch.git'
+_gitroot='https://github.com/juster/perl-cpanplus-dist-arch.git'
 _gitbranch=${BRANCH:-'master'}
 
 build() {
