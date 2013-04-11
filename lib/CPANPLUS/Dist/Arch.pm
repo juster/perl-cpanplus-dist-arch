@@ -118,7 +118,7 @@ md5sums=('[% md5sums %]')
 [% IF sha512sums -%]
 sha512sums=('[% sha512sums %]')
 [% END -%]
-_distdir="${srcdir}/[% distdir %]"
+_distdir="[% distdir %]"
 
 build() {
   ( export PERL_MM_USE_DEFAULT=1 PERL5LIB=""                 \
@@ -127,7 +127,7 @@ build() {
       PERL_MB_OPT="--installdirs vendor --destdir '$pkgdir'" \
       MODULEBUILDRC=/dev/null
 
-    cd "$_distdir"
+    cd "$srcdir/$_distdir"
 [% IF is_makemaker -%]
     /usr/bin/perl Makefile.PL
     make
@@ -140,7 +140,7 @@ build() {
 }
 
 check() {
-  cd "$_distdir"
+  cd "$srcdir/$_distdir"
   ( export PERL_MM_USE_DEFAULT=1 PERL5LIB=""
 [% IF is_makemaker -%]
     make test
@@ -152,7 +152,7 @@ check() {
 }
 
 package() {
-  cd "$_distdir"
+  cd "$srcdir/$_distdir"
 [% IF is_makemaker -%]
   make install
 [% END -%]
