@@ -657,11 +657,19 @@ sub set_pkgrel
 # Converts a dependency hash into a dependency string for PKGBUILD
 sub _deps_string
 {
-    my ($deps_ref) = @_;
-    return ( join ' ',
-             map { qq{'$_'} }
-             map { $deps_ref->{$_} ? qq{$_>=$deps_ref->{$_}} : $_ }
-             sort keys %$deps_ref );
+    my ($deps) = @_;
+    my @strs;
+    for my $d (sort keys %$deps) {
+        my $v = $deps->{$d};
+        if ( !$v ) {
+            push @strs, $d;
+        } elsif ( ref $v ) {
+            push @strs, map { $d . $_ } @$v;
+        } else {
+            push @strs, "$d>=$v";
+        }
+    }
+    return join ' ', map { qq{'$_'} } @strs;
 }
 
 sub get_pkgvars
@@ -927,6 +935,50 @@ sub _translate_perl_ver
     return sprintf '%d.%d.%d', $1, $2, $patch;
 }
 
+#---HELPER FUNCTION---
+# Translate a single CPAN dependency version specification.
+# This returns either a pacman version string or an arrayref of pacman version
+# specifications consisting of operators and versions concatenated.
+#
+# The input version spec may be from META.yml and could contain multiple version
+# comparisons. Real world example: ">= 0, != 6.04, != 6.05"
+# If this is the case, more than one version comparison is returned as an arrayref:
+# [ "<6.04", ">6.04", "<6.05", ">6.05" ].
+# In this example != is converted into > and < and >=0 is removed.
+sub _tranvspec
+{
+    my ($vspec) = @_;
+
+    # The simplest case is a version.
+    return dist_pkgver($vspec) if ($vspec =~ /^[0-9a-zA-Z._-]+$/);
+
+    # See VERSION SPECIFICATIONS in
+    # http://module-build.sourceforge.net/META-spec-v1.4.html
+    my @specs;
+    for my $opver (split /\s*,\s*/, $vspec) {
+        if ($opver !~ /^([<>]=?|[!=]=) +([0-9a-zA-Z._-]+)$/) {
+        	die "invalid META version spec: $vspec"
+        }
+        my ($op, $ver) = ($1, $2);
+        $ver = dist_pkgver($ver);
+
+        # The META spec's != operator is a special case because the PKGBUILD
+        # spec has no direct equivalent.
+        if ($op eq '!=') {
+            push @specs, "<$ver", ">$ver";
+        } elsif ($op eq '>=' && $ver eq '0') {
+            # Don't add >=0 to the list of ver specs.
+        } else {
+            push @specs, "$op$ver";
+        }
+    }
+    if (@specs == 0) {
+        return 0;
+    } else {
+        return \@specs;
+    }
+}
+
 #---PRIVATE METHOD---
 # Translates CPAN module dependencies into ArchLinux package dependencies.
 sub _translate_cpan_deps
@@ -978,18 +1030,14 @@ sub _translate_cpan_deps
         my $cpanpkg = $modobj->package_name;
         my $pkgname = dist_pkgname( $cpanpkg );
 
-        # If two module prereqs are in the same CPAN distribution then
-        # the version required for the main module will override.
-        # (because versions specified for other modules in the dist
-        # are 0)
-        undef $depver unless _is_main_module( $modname, $cpanpkg );
-
-        # XXX: We pray that the module version is the same as the
-        # distribution version...
-
-        # Version strings of '0.0' caused problems...
-        $depver = ( !$depver || $depver == 0 ? 0 : dist_pkgver( $depver ));
-        $pkgdeps{ $pkgname } ||= $depver;
+        my $v;
+        # versions of '0.0' are considered true, hence check != 0
+        if ( $depver && $depver != 0 && _is_main_module( $modname, $cpanpkg )) {
+            $v = _tranvspec( $depver );
+        } else {
+            $v = 0;
+        }
+        $pkgdeps{ $pkgname } ||= $v;
     }
 
     return \%pkgdeps;
