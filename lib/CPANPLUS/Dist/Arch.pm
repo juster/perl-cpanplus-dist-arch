@@ -1030,12 +1030,12 @@ sub _translate_cpan_deps
         my $cpanpkg = $modobj->package_name;
         my $pkgname = dist_pkgname( $cpanpkg );
 
-        my $v;
-        # versions of '0.0' are considered true, hence check != 0
-        if ( $depver && $depver != 0 && _is_main_module( $modname, $cpanpkg )) {
-            $v = _tranvspec( $depver );
-        } else {
-            $v = 0;
+        my $v = 0;
+        # Normalize empty/0/0.0 depver into the value 0.
+        if ( $depver && $depver !~ /^0+[.]0+$/ ) {
+            if ( _is_main_module( $modname, $cpanpkg )) {
+                $v = _tranvspec( $depver );
+            }
         }
         $pkgdeps{ $pkgname } ||= $v;
     }
