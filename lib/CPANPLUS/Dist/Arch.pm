@@ -45,10 +45,6 @@ you must have a sudo-like command specified in your CPANPLUS
 configuration.
 END_MSG
 
-# META.yml abstract entries we should ignore.
-my @BAD_METAYML_ABSTRACTS
-    = ( q{~}, 'Module abstract (<= 44 characters) goes here' );
-
 # Patterns to use when using pacman for finding library owners.
 my $PACMAN_FINDOWN     = qr/\A.*? is owned by /;
 my $PACMAN_FINDOWN_ERR = qr/\Aerror:/;
@@ -112,6 +108,9 @@ license=('PerlArtistic' 'GPL')
 options=('!emptydirs')
 depends=([% depends %])
 makedepends=([% makedepends %])
+[% IF conflicts -%]
+conflicts=([% conflicts %])
+[% END %]
 url='[% url %]'
 source=('[% source %]')
 md5sums=('[% md5sums %]')
@@ -281,7 +280,7 @@ sub init
 
     $self->status->mk_accessors( qw{ pkgname  pkgver  pkgbase pkgdesc
                                      pkgurl   pkgsize arch    pkgrel
-                                     builddir destdir metadeps
+                                     builddir destdir metareqs
 
                                      pkgbuild_templ tt_init_args } );
 
@@ -654,20 +653,14 @@ sub set_pkgrel
 }
 
 #---HELPER FUNCTION---
-# Converts a dependency hash into a dependency string for PKGBUILD
-sub _deps_string
+# Converts a specification aref into a pkg specification (i.e. depends).
+# This can be used as a PKGBUILD field's value.
+sub _specstr
 {
-    my ($deps) = @_;
+    my ($a) = @_;
     my @strs;
-    for my $d (sort keys %$deps) {
-        my $v = $deps->{$d};
-        if ( !$v ) {
-            push @strs, $d;
-        } elsif ( ref $v ) {
-            push @strs, map { $d . $_ } @$v;
-        } else {
-            push @strs, "$d>=$v";
-        }
+    for my $x (@$a) {
+        push @strs, join q{}, @$x;
     }
     return join ' ', map { qq{'$_'} } @strs;
 }
@@ -682,28 +675,31 @@ sub get_pkgvars
     croak 'prepare() must be called before get_pkgvars()'
         unless ( $status->prepared );
 
-    my $deps_ref = $self->_get_pkg_deps;
+    my $pkgrels = $self->_get_pkg_rels;
     my @shavars;
+
+    my %vars = ( pkgname  => $status->pkgname,
+                 pkgver   => $status->pkgver,
+                 pkgrel   => $status->pkgrel,
+                 arch     => $status->arch,
+                 pkgdesc  => $status->pkgdesc,
+    
+                 url      => $self->_get_disturl,
+                 source   => $self->_get_srcurl,
+                 md5sums  => $self->_calc_tarballmd5,
+    
+                 pkgrels  => $pkgrels,
+    );
     if ( eval { require Digest::SHA } ) {
-        @shavars = ('sha512sums' => $self->_calc_shasum(512));
+        $vars{'sha512sums'} = $self->_calc_shasum(512);
     }
-
-    return ( pkgname  => $status->pkgname,
-             pkgver   => $status->pkgver,
-             pkgrel   => $status->pkgrel,
-             arch     => $status->arch,
-             pkgdesc  => $status->pkgdesc,
-
-             depends     => _deps_string( $deps_ref->{'depends'} ),
-             makedepends => _deps_string( $deps_ref->{'makedepends'} ),
-
-             url      => $self->_get_disturl,
-             source   => $self->_get_srcurl,
-             md5sums  => $self->_calc_tarballmd5,
-             @shavars,
-
-             depshash => $deps_ref,
-            );
+    for (qw/depends makedepends checkdepends conflicts/) {
+	    if ($pkgrels->{$_}) {
+            $vars{$_} = _specstr($pkgrels->{$_});
+        }
+    }
+    
+    return %vars;
 }
 
 sub get_pkgvars_ref
@@ -858,76 +854,176 @@ sub _fallback_destdir
     catdir( shift->_cpanp_user_basedir, 'pkg' );
 }
 
-#---HELPER FUNCTION---
-# Decide if the dist. is named after the module.
-sub _is_main_module
-{
-    my ($mod_name, $dist_name) = @_;
 
-    $mod_name =~ tr/:/-/s;
-    return (lc $mod_name) eq (lc $dist_name);
+#-----------------------------------------------------------------------------
+# PACKAGE RELATIONSHIP FUNCTIONS
+#-----------------------------------------------------------------------------
+
+#---HELPER FUNCTION---
+# Perform very simple merging of version specs with identical names/operators.
+# NOTE: This only works with perl/CPAN/numerical versions.
+#---------------------
+sub _mergespecs
+{
+    my ($a, $b) = @_;
+    my ($name, $op) = @$a; # names and ops should be identical
+
+    # Check for undefined versions which indicate a dependency on a module
+    # which is not the main module of the distribution.
+    my ($x, $y) = ($a->[2], $b->[2]);
+    if (defined $x && defined $y) {
+        # Do nothing, moves on to the version check.
+    } elsif (!defined $x && defined $y) {
+        return [ $name, $op, $y ];
+    } elsif (defined $x && !defined $y) {
+        return [ $name, $op, $x ];
+    } else {
+        # both identical and undef
+        return [ $name, $op, undef ];
+    }
+
+    ($x, $y) = (version->new($x), version->new($y));
+    my $v;
+    if ( $op =~ /^</ ) {
+        $v = ( $x < $y ? $x : $y );
+    } elsif ( $op =~ /^>/ ) {
+        $v = ( $x > $y ? $x : $y );
+    } else {
+        return undef;
+    }
+    
+    return [ $name, $op, $v ];
 }
 
 #---HELPER FUNCTION---
-# Merges the right-hand deps into the left-hand deps.
-sub _merge_deps
+# Normalize perl/CPAN version specifications. (we use numeric version cmp)
+# Each spec is an arrayref containing a name, operator, and value.
+# Sorts them and remove redundancies, 
+#---------------------
+sub _normspecs
 {
-    my ($left_deps, $right_deps) = @_;
+    my ($a) = @_;
+    return if (@$a == 0);
 
-    MERGE_LOOP:
-    while ( my ( $pkg, $ver ) = each %$right_deps ) {
-        if ( $left_deps->{ $pkg } ) {
-            my $leftver  = version->parse( $left_deps->{ $pkg } );
-            my $rightver = version->parse( $ver );
-
-            next MERGE_LOOP if $leftver > $rightver;
+    @$a = sort _vspecs @$a;
+    my $i = 0;
+    my $x;
+    SPECLOOP:
+    while ($i < $#$a) {
+        if ($a->[$i][0] eq $a->[$i+1][0] && $a->[$i][1] eq $a->[$i+1][1]) {
+            # Versions may not be defined, leave _mergespecs to handle it.
+            if (eval { $a->[$i][2] eq $a->[$i+1][2] }) {
+                # Remove duplicates.
+                splice @$a, $i+1, 1;
+                next SPECLOOP;
+            } elsif ($x = _mergespecs($a->[$i], $a->[$i+1])) {
+                $a->[$i] = $x;
+                splice @$a, $i+1, 1;
+                next SPECLOOP;
+            }
         }
-        $left_deps->{ $pkg } = $ver;
+        $i++;
     }
-
-    return $left_deps;
 }
 
-#---PRIVATE METHOD---
-sub _extract_makedepends
+#---SORTING FUNCTION---
+# Provided for use by the sort builtin, for sorting version specifications.
+#----------------------
+sub _vspecs
 {
-    my ($self, $deps_ref) = @_;
-    my %makedeps;
+	our ($a, $b);
+    $a->[0] cmp $b->[0] or $a->[1] cmp $b->[1];
+}
 
-    my $cpanpkg = $self->parent->package_name;
-
-    # Do not separate test modules into makedeps if we are ourself
-    # a test module...
-    unless ( $cpanpkg =~ /^Test-/ ) {
-        for my $testdep ( grep { /perl-test-/ } keys %$deps_ref ) {
-            $makedeps{ $testdep } = delete $deps_ref->{ $testdep };
-        }
-        
-        # Also extract Pod::Coverage module into makedepends
-        for my $dep ( qw/ perl-pod-coverage / ) {
-            $makedeps{ $dep } = delete $deps_ref->{ $dep }
-                if exists $deps_ref->{$dep};
+sub _yankspecs (&$)
+{
+    my ($sub, $a) = @_;
+    my @b;
+    my $i = 0;
+    while ($i <= $#$a) {
+        local $_ = $a->[$i][0];
+        if ($sub->($a->[$i])) {
+            push @b, splice(@$a, $i, 1);
+        } else {
+            $i++;
         }
     }
+    return @b;
+}
 
-    for my $extdep ( grep { /perl-extutils-/ } keys %$deps_ref ) {
-        $makedeps{ $extdep } = delete $deps_ref->{ $extdep };
+sub _yanktestmods
+{
+    _yankspecs { /^Test|^Pod::Coverage/ } shift;
+}
+
+sub _yankmakemods
+{
+    _yankspecs { /^ExtUtils-/ } shift;
+}
+
+#---HELPER FUNCTION---
+# Decide if the module is named after the distribution.
+#---------------------
+sub _ismainmod
+{
+    my ($m, $d) = @_;
+    $m =~ tr/:/-/s;
+    return (lc $m) eq (lc $d);
+}
+
+#---HELPER FUNCTION---
+# Converts specifications upon modules into specifications upon distributions.
+#---------------------
+sub _distspecs
+{
+    my ($be, $a) = @_;
+    for my $i ( 0 .. $#$a ) {
+        my $mod = $a->[$i][0];
+        next if ($mod eq 'perl');
+
+        my $dist = $be->module_tree($mod)->package_name;
+        unless ($dist) {
+            die "failed to find a CPAN distribution containing: $mod";
+        }
+        unless (_ismainmod($mod, $dist)) {
+            undef $a->[$i][2];
+        }
+        $a->[$i][0] = $dist;
     }
+}
 
-    return \%makedeps;
+#---HELPER FUNCTION---
+# Converts specifications upon distributions into specifications upon packages.
+#---------------------
+sub _pkgspecs
+{
+    my ($a) = @_;
+    for my $i (0 .. $#$a) {
+        $a->[$i][0] = dist_pkgname($a->[$i][0]);
+        my $v = $a->[$i][2];
+        if (!defined $v) {
+            $v = 0;
+        } elsif ($a->[$i][0] eq 'perl') {
+            $v = _transperlver($v);
+        } else {
+            $v = dist_pkgver($v);
+        }
+        $a->[$i][2] = $v;
+    }
 }
 
 #---HELPER FUNCTION---
 # Converts a decimal perl version (like $]) into the dotted decimal
 # form that the official ArchLinux perl package uses.
-sub _translate_perl_ver
+#---------------------
+sub _transperlver
 {
     my ($perlver) = @_;
 
     # Fix perl-style vstrings which have a leading "v".
-    return $perlver if $perlver =~ s/\Av//;
+    return $perlver if ($perlver =~ s/\Av//);
 
-    return $perlver unless $perlver =~ /\A(\d+)[.](\d{3})(\d{1,3})\z/;
+    return $perlver unless ($perlver =~ /\A(\d+)[.](\d{3})(\d{1,3})\z/);
 
     # Re-apply the missing trailing zeroes.
     my $patch = $3;
@@ -937,40 +1033,20 @@ sub _translate_perl_ver
 
 #---HELPER FUNCTION---
 # Translate a single CPAN dependency version specification.
-# This returns either a pacman version string or an arrayref of pacman version
-# specifications consisting of operators and versions concatenated.
-#
-# The input version spec may be from META.yml and could contain multiple version
-# comparisons. Real world example: ">= 0, != 6.04, != 6.05"
-# If this is the case, more than one version comparison is returned as an arrayref:
-# [ "<6.04", ">6.04", "<6.05", ">6.05" ].
-# In this example != is converted into > and < and >=0 is removed.
-sub _tranvspec
+sub _scanvspec
 {
-    my ($vspec) = @_;
+    my ($vspec, $conflicts) = @_;
 
     # The simplest case is a version.
-    return dist_pkgver($vspec) if ($vspec =~ /^[0-9a-zA-Z._-]+$/);
+    return $vspec if ($vspec =~ /^[0-9a-zA-Z._-]+$/);
 
-    # See VERSION SPECIFICATIONS in
-    # http://module-build.sourceforge.net/META-spec-v1.4.html
     my @specs;
     for my $opver (split /\s*,\s*/, $vspec) {
         if ($opver !~ /^([<>]=?|[!=]=) +([0-9a-zA-Z._-]+)$/) {
         	die "invalid META version spec: $vspec"
         }
         my ($op, $ver) = ($1, $2);
-        $ver = dist_pkgver($ver);
-
-        # The META spec's != operator is a special case because the PKGBUILD
-        # spec has no direct equivalent.
-        if ($op eq '!=') {
-            push @specs, "<$ver", ">$ver";
-        } elsif ($op eq '>=' && $ver eq '0') {
-            # Don't add >=0 to the list of ver specs.
-        } else {
-            push @specs, "$op$ver";
-        }
+        push @specs, [ $op, $ver ];
     }
     if (@specs == 0) {
         return 0;
@@ -979,120 +1055,213 @@ sub _tranvspec
     }
 }
 
-#---PRIVATE METHOD---
-# Translates CPAN module dependencies into ArchLinux package dependencies.
-sub _translate_cpan_deps
+sub _scanvspecs
 {
-    my ($self, $moddeps_ref) = @_;
-
-    my $modobj  = $self->parent;
-    my $backend = $modobj->parent;
-
-    my %pkgdeps;
-
-    CPAN_DEP_LOOP:
-    for my $modname ( keys %$moddeps_ref ) {
-        my $depver = $moddeps_ref->{$modname};
-
-        # Sometimes a perl version is given as a prerequisite
-        if ( $modname eq 'perl' ) {
-            $pkgdeps{perl} = _translate_perl_ver( $depver );
-            _DEBUG "req on perl $depver -> $pkgdeps{perl}";
-            next CPAN_DEP_LOOP;
+    my ($specs, $deps, $cons) = @_;
+    while (my ($k, $v) = each %$specs) {
+        my $vs = _scanvspec($v);
+        unless (ref $vs) {
+            push @$deps, [ $k, '>=', $vs ];
+            next;
         }
-
-# Ideally we could take advantage of the perl package's provides list
-# and add dependencies for core modules.
-
-# This is more robust and handles the problem of packages built
-# with a different version of perl than the perl that is present
-# when the package is installed.
-
-# The problem is that the perl package provides list still needs work.
-# While I was trying to generate a provides list I noticed the
-# Module::CoreList module had some incorrect version numbers
-# as well. So until I get around to reporting these bugs I will
-# just go back to not depending on packages provided by perl.
-
-        # 0+$] is needed to force the perl version into number-dom
-        # otherwise trailing zeros cause problems
-        my $corever = $Module::CoreList::version{ 0+$] }->{$modname};
-        if ( $corever ) {
-            next CPAN_DEP_LOOP unless $depver; # avoids empty string
-            my $corev = version->parse( $corever );
-            my $depv  = version->parse( $depver );
-            next CPAN_DEP_LOOP if $corev >= $depv;
-        }
-
-        # Translate the module's distribution name into a package name...
-        my $modobj  = $backend->module_tree( $modname )
-            or next CPAN_DEP_LOOP;
-        my $cpanpkg = $modobj->package_name;
-        my $pkgname = dist_pkgname( $cpanpkg );
-
-        my $v = 0;
-        # Normalize empty/0/0.0 depver into the value 0.
-        if ( $depver && $depver !~ /^0+[.]0+$/ ) {
-            if ( _is_main_module( $modname, $cpanpkg )) {
-                $v = _tranvspec( $depver );
+        for my $x (@$vs) {
+            my ($op, $ver) = @$x;
+            if ($op eq '!=') {
+                unless (defined $cons) {
+                    die qq{unable to process "$k != $ver" in a conficts list};
+                }
+                push @$cons, [ $k, '=', $ver ];
+            } else {
+                push @$deps, [ $k, $op, $ver ];
             }
         }
-        $pkgdeps{ $pkgname } ||= $v;
     }
-
-    return \%pkgdeps;
+    return;
 }
 
 #---PRIVATE METHOD---
-# Usage    : my $deps_ref = $self->_get_pkg_deps()
-# Purpose  : Converts our module's deps into makedepends and depends.
-# Returns  : A hashref of dependencies. Top level keys are
-#            'makedepends' and 'depends'. Beneath these are package
-#            names with values being package versions.
+# Purpose  : Converts our CPAN requirements and conflicts into PKGBUILD
+#            checkdepends, makedepends, depends, and conflicts
+# Returns  : A hashref of package relations.
+#            Top level keys are 'makedepends', 'depends', and 'conflicts'.
+#            The values of these keys are arrayrefs. Every three elements
+#            specify a package name, operator (e.g. <=, =, etc) and version.
 #---------------------
-sub _get_pkg_deps
+sub _get_pkg_rels
 {
-    croak 'Invalid arguments to _get_pkg_deps method'
-        if @_ != 1;
+    croak 'Invalid arguments to _get_pkg_rels method' if (@_ != 1);
     my ($self) = @_;
 
-    my $module  = $self->parent;
-    my $backend = $module->parent;
-    my $prereqs = $module->status->prereqs;
-
-    # Take our CPAN and META.yml dependencies (of distribution names) and
-    # convert them into packages names for 'depends' and 'makedepends'
-    # inside of a PKGBUILD.
-
-    my $pkgdeps_ref  = $self->_translate_cpan_deps( $prereqs );
-    my $makedeps_ref = $self->_extract_makedepends( $pkgdeps_ref );
-
-    # Merge 'configure_requires' and 'build_requires' from META.yml into
-    # the makedepends for PKGBUILD.
-    my ( $cfgdeps_ref, $builddeps_ref ) =
-        ( map { $self->_translate_cpan_deps( $_ ) }
-          map { $self->status->metadeps->{ $_ }   }
-          qw/ cfg build / );
-
-    # 'configure_requires' from META.yml don't show in the prereqs()
-    # results but 'build_requires' do... remove duplicates.
-    for my $d ( keys %$builddeps_ref ) {
-        if ( eval { $pkgdeps_ref->{$d} eq $builddeps_ref->{$d} } ) {
-            delete $pkgdeps_ref->{$d}
+    my $module = $self->parent;
+    my (@deps, @mkdeps, @chdeps, @cons);
+    if (defined $self->status->metareqs) {
+ print STDERR "DBG: using META requisites\n";
+        my $r = $self->status->metareqs;
+        _scanvspecs($r->{'configure'}{'requires'}, \@mkdeps, \@cons);
+        _scanvspecs($r->{'configure'}{'conflicts'}, \@cons, undef);
+        _scanvspecs($r->{'build'}{'requires'}, \@mkdeps, \@cons);
+        _scanvspecs($r->{'build'}{'conflicts'}, \@cons, undef);
+        _scanvspecs($r->{'test'}{'requires'}, \@chdeps, \@cons);
+        _scanvspecs($r->{'test'}{'conflicts'}, \@cons, undef);
+        _scanvspecs($r->{'runtime'}{'requires'}, \@deps, \@cons);
+        _scanvspecs($r->{'runtime'}{'conflicts'}, \@cons, undef);
+    } else {
+        my $reqs = $module->status->prereqs;
+        while (my ($k, $v) = each %$reqs) {
+            push @deps, [ $k, '>=', $v ];
+        }
+        my $d = $module->package_name;
+        unless ($d =~ /^ExtUtils-/) {
+            @mkdeps = _yankmakemods(\@deps);
+        }
+        unless ($d =~ /^Test-/) {
+            @chdeps = _yanktestmods(\@deps);
         }
     }
-    _merge_deps( $makedeps_ref, $cfgdeps_ref );
-    _merge_deps( $makedeps_ref, $builddeps_ref );
+    
+    for my $a (\@deps, \@mkdeps, \@chdeps, \@cons) {
+        _normspecs($a);
+   printf STDERR "PRE: %s\n", join ' ',
+     map {
+       join '', @{$_}[0,1], (defined $_->[2] ? $_->[2] : 'undef');
+     } @$a;
+        _distspecs($module->parent, $a); # $module->parent is CPANPLUS::Backend
+   printf STDERR "AFT: %s\n", join ' ',
+     map {
+       join '', @{$_}[0,1], (defined $_->[2] ? $_->[2] : 'undef');
+     } @$a;
+    	_normspecs($a);
+        _pkgspecs($a);
+    }
+# for my $r (\@deps, \@mkdeps, \@chdeps, \@cons) {
+# } 
+    # ... version specs are in terms of packages now.
 
-    # Merge in the XS C library package deps...
-    my $xs_deps = $self->_translate_xs_deps;
-    _merge_deps( $pkgdeps_ref, $xs_deps );
+    # Merge in the XS package deps if they exist.
+    my $xsdeps = $self->_transxsdeps();
+    if (@$xsdeps) {
+        push @deps, @$xsdeps;
+        @deps = sort _vspecs @deps;
+    }
     
     # Require perl unless we have a dependency on a module or perl itself.
-    $pkgdeps_ref->{'perl'} = 0 unless grep { /^perl/ } keys %$pkgdeps_ref;
+    unless (grep { $_->[0] =~ /^perl/ } @deps) {
+        unshift @deps, [ 'perl', '>=', '0' ];
+    }
 
-    return { 'depends' => $pkgdeps_ref, 'makedepends' => $makedeps_ref };
+    return {
+        'depends' => \@deps,
+        'makedepends' => \@mkdeps,
+        'checkdepends' => \@chdeps,
+        'conflicts' => \@cons,
+    };
 }
+
+#-----------------------------------------------------------------------------
+# XS module library dependency hunting
+#-----------------------------------------------------------------------------
+
+#---INSTANCE METHOD---
+# Purpose  : Attempts to find non-perl dependencies in XS modules.
+# Returns  : A hashref of 'package name' => 'minimum version'.
+#            (Minimum version will be the current installed version
+#             of the library)
+#---------------------
+sub _transxsdeps
+{
+    my $self = shift;
+
+    my $modstat   = $self->parent->status;
+    my $inst_type = $modstat->installer_type;
+    my $distcpan  = $modstat->dist_cpan;
+
+    # Delegate to the other methods depending on the dist type...
+    my $libs_ref = ( $inst_type eq 'CPANPLUS::Dist::MM'
+                     ? $self->_get_mm_xs_deps($distcpan) : [] );
+    # TODO: figure out how to do this with Module::Build
+
+    # Turn the linker flags into package deps...
+    return [ map {
+        my ($pkg, $ver) = $self->_get_lib_pkg($_);
+        [ $pkg, '>=', $ver ]
+    } @$libs_ref ];
+}
+
+#---INSTANCE METHOD---
+# Usage    : %pkg = $self->_get_lib_pkg($lib)
+# Params   : $lib - Can be a dynamic library name, with/without lib prefix
+#                   or the -l<name> flag that is passed to the linker.
+#                   (anything DynaLoader::dl_findfile accepts)
+# Returns  : A hash (or two element list) of:
+#            'package name' => 'installed version'
+#            or an empty list if the lib/package owner could not be found.
+#---------------------
+sub _get_lib_pkg
+{
+    my ($self, $libname) = @_;
+
+    my $lib_fqp = DynaLoader::dl_findfile($libname)
+        or return ();
+
+    $lib_fqp =~ s/([\\\$"`])/\\$1/g;
+    my $result = `LC_ALL=C pacman -Qo "$lib_fqp"`;
+    chomp $result;
+    if ( $CHILD_ERROR != 0 || !($result =~ s/$PACMAN_FINDOWN//) ) {
+        if ( $CHILD_ERROR == 127 ) {
+            error q{C-library dep lookup failed. Pacman is missing!?};
+        }
+        else {
+            error qq{Could not find owner of linked library }
+                . qq{"$libname", ignoring.};
+        }
+        return ();
+    }
+
+    my ($pkgname, $pkgver) = split / /, $result;
+    $pkgver =~ s/-\d+\z//; # remove the package revision number
+    return ($pkgname, $pkgver);
+}
+
+sub _unique(@)
+{
+    my %seen;
+    return map { $seen{$_}++ ? () : $_ } @_;
+}
+
+#---INSTANCE METHOD---
+# Usage    : my $deps_ref = $self->_get_mm_xs_deps($dist_obj);
+# Params   : $dist_obj - A CPANPLUS::Dist::MM object
+# Returns  : Arrayref of library flags (-l...) passed to the linker on build.
+#---------------------
+sub _get_mm_xs_deps
+{
+    my ($self, $dist) = @_;
+
+    my $field_srch = '\A(?:EXTRALIBS|LDLOADLIBS|BSLOADLIBS) = (.+)\z';
+
+    my $mkfile_fqp = $dist->status->makefile
+        or die "Internal error: makefile() path is unset in our object";
+
+    open my $mkfile, '<', $mkfile_fqp
+        or die "Internal error: failed to open Makefile at $mkfile_fqp ... $!";
+    my @libs = _unique map { chomp; (/$field_srch/o) } <$mkfile>;
+    close $mkfile;
+
+    return [ grep { /\A-l/ } map { split } @libs ];
+}
+
+#---HELPER FUNCTION---
+sub _find_xs_files
+{
+    my ($dirpath) = @_;
+    return -f "$dirpath/typemap" || scalar glob "$dirpath/*.xs";
+}
+
+
+#-----------------------------------------------------------------------------
+# CPAN Distribution Scraping
+#-----------------------------------------------------------------------------
+
 
 #---HELPER FUNCTION---
 sub _pod_pkgdesc
@@ -1187,13 +1356,6 @@ sub _readme_pkgdesc
     return undef;
 }
 
-#---HELPER FUNCTION---
-sub _find_xs_files
-{
-    my ($dirpath) = @_;
-    return -f "$dirpath/typemap" || scalar glob "$dirpath/*.xs";
-}
-
 #---PRIVATE METHOD---
 # Try to find out if this distribution has any XS files.
 # If it does, then the arch PKGBUILD field should be ('i686', 'x86_64').
@@ -1254,7 +1416,7 @@ sub _prepare_pkgdesc
 
     my @pkgdesc_srcs =
         (
-         # 1. We checked the META.yml earlier in the _scan_metayml method.
+         # 1. We checked the META.yml earlier in the _scanmeta method.
 
          # 2. Registered modules have their description stored in the object.
          sub { $module->description },
@@ -1275,39 +1437,74 @@ sub _prepare_pkgdesc
     return $status->pkgdesc( $pkgdesc || q{} );
 }
 
-#--- PRIVATE METHOD ---
-# We read the META.yml file with Parse::CPAN::META and extract
-# data needed for makedepends and pkgdesc if we can.
-sub _scan_metayml
+#----------------------------
+#  META Spec File Functions
+#----------------------------
+
+sub _metapath
 {
-    my ($self) = @_;
-    my ($status, $modobj) = ($self->status, $self->parent);
-
-    # Default to an empty list of deps
-    $status->metadeps( { 'cfg' => {}, 'build' => {} } );
-
+    my ($mod) = @_;
     my $metapath;
     for my $ext (qw/json yml/) {
-        my $p = catfile( $modobj->status->extract, "META.$ext" );
-        if ( -f $p ) {
+        my $p = catfile($mod->status->extract, "META.$ext");
+        if (-f $p) {
             $metapath = $p;
             last;
         }
     }
-    return unless $metapath;
-    
-    my $meta_ref = eval { Parse::CPAN::Meta::LoadFile( $metapath ) }
-        or return;
+    return $metapath;	
+}
 
-    $status->metadeps->{'cfg'}   = $meta_ref->{'configure_requires'};
-    $status->metadeps->{'build'} = $meta_ref->{'build_requires'};
-
-    my $pkgdesc = $meta_ref->{'abstract'} or return;
-    for my $baddesc ( @BAD_METAYML_ABSTRACTS ) {
-        return if $pkgdesc eq $baddesc;
+# Smooth over differences between incompatible META specs.
+sub _metareqs
+{
+    my ($meta) = @_;
+    my $r;
+    if (defined $meta->{'meta-spec'} &&
+        $meta->{'meta-spec'}{'url'} =~ /cpan[.]org/) {
+        $r = $meta->{'prereqs'};
+    } else {
+        for (qw/configure build/) {
+            $r->{$_}{'requires'} = $meta->{"${_}_requires"};
+        }
+        $r->{'runtime'}{'requires'} = $meta->{'requires'};
+        $r->{'build'}{'conflicts'} = $meta->{'conflicts'};
     }
+    return $r;
+}
+
+sub _metadesc
+{
+    my ($meta) = @_;
+    my $d = $meta->{'abstract'} or return undef;
+
+    # META.yml abstract entries we should ignore.
+    my @bad = ( q{~}, 'Module abstract (<= 44 characters) goes here' );
+    for my $b ( @bad ) {
+        return if ( $d eq $b );
+    }
+    return $d;
     
-    $status->pkgdesc( $pkgdesc );
+}
+
+#--- PRIVATE METHOD ---
+# We read the META.json or META.yml file with Parse::CPAN::META and extract
+# data needed for makedepends and pkgdesc if we can.
+#----------------------
+sub _scanmeta
+{
+    my ($self) = @_;
+    my ($status, $modobj) = ($self->status, $self->parent);
+
+    # Leave metareqs undef if there is no META.yml/META.json.
+    my $path = _metapath($modobj) or return;    
+    my $meta = eval { Parse::CPAN::Meta::LoadFile($path) };
+    return unless ($meta);
+
+    my $reqs = _metareqs($meta);
+    my $desc = _metadesc($meta);
+    $status->metareqs($reqs);
+    $status->pkgdesc($desc);
     return;
 }
 
@@ -1346,9 +1543,9 @@ sub _prepare_status
     $status->tt_init_args( {} );
 
     $self->_prepare_arch();
-    $self->_scan_metayml();
+    $self->_scanmeta();
 
-    # _scan_metayml() might find a pkgdesc for us
+    # _scanmeta() might find a pkgdesc for us
     $self->_prepare_pkgdesc() unless $status->pkgdesc();
 
     return $status;
@@ -1587,99 +1784,6 @@ sub _process_template
                }xmseg;
 
     return $templ;
-}
-
-
-#-----------------------------------------------------------------------------
-# XS module library dependency hunting
-#-----------------------------------------------------------------------------
-
-
-#---INSTANCE METHOD---
-# Usage    : $deps_ref = $self->_translate_xs_deps;
-# Purpose  : Attempts to find non-perl dependencies in XS modules.
-# Returns  : A hashref of 'package name' => 'minimum version'.
-#            (Minimum version will be the current installed version
-#             of the library)
-#---------------------
-sub _translate_xs_deps
-{
-    my $self = shift;
-
-    my $modstat   = $self->parent->status;
-    my $inst_type = $modstat->installer_type;
-    my $distcpan  = $modstat->dist_cpan;
-
-    # Delegate to the other methods depending on the dist type...
-    my $libs_ref = ( $inst_type eq 'CPANPLUS::Dist::MM'
-                     ? $self->_get_mm_xs_deps($distcpan) : [] );
-    # TODO: figure out how to do this with Module::Build
-
-    # Turn the linker flags into package deps...
-    return +{ map { $self->_get_lib_pkg($_) } @$libs_ref };
-}
-
-#---INSTANCE METHOD---
-# Usage    : %pkg = $self->_get_lib_pkg($lib)
-# Params   : $lib - Can be a dynamic library name, with/without lib prefix
-#                   or the -l<name> flag that is passed to the linker.
-#                   (anything DynaLoader::dl_findfile accepts)
-# Returns  : A hash (or two element list) of:
-#            'package name' => 'installed version'
-#            or an empty list if the lib/package owner could not be found.
-#---------------------
-sub _get_lib_pkg
-{
-    my ($self, $libname) = @_;
-
-    my $lib_fqp = DynaLoader::dl_findfile($libname)
-        or return ();
-
-    $lib_fqp =~ s/([\\\$"`])/\\$1/g;
-    my $result = `LC_ALL=C pacman -Qo "$lib_fqp"`;
-    chomp $result;
-    if ( $CHILD_ERROR != 0 || !($result =~ s/$PACMAN_FINDOWN//) ) {
-        if ( $CHILD_ERROR == 127 ) {
-            error q{C-library dep lookup failed. Pacman is missing!?};
-        }
-        else {
-            error qq{Could not find owner of linked library }
-                . qq{"$libname", ignoring.};
-        }
-        return ();
-    }
-
-    my ($pkgname, $pkgver) = split / /, $result;
-    $pkgver =~ s/-\d+\z//; # remove the package revision number
-    return ($pkgname => $pkgver);
-}
-
-sub _unique(@)
-{
-    my %seen;
-    return map { $seen{$_}++ ? () : $_ } @_;
-}
-
-#---INSTANCE METHOD---
-# Usage    : my $deps_ref = $self->_get_mm_xs_deps($dist_obj);
-# Params   : $dist_obj - A CPANPLUS::Dist::MM object
-# Returns  : Arrayref of library flags (-l...) passed to the linker on build.
-#---------------------
-sub _get_mm_xs_deps
-{
-    my ($self, $dist) = @_;
-
-    my $field_srch = '\A(?:EXTRALIBS|LDLOADLIBS|BSLOADLIBS) = (.+)\z';
-
-    my $mkfile_fqp = $dist->status->makefile
-        or die "Internal error: makefile() path is unset in our object";
-
-    open my $mkfile, '<', $mkfile_fqp
-        or die "Internal error: failed to open Makefile at $mkfile_fqp ... $!";
-    my @libs = _unique map { chomp; (/$field_srch/o) } <$mkfile>;
-    close $mkfile;
-
-    return [ grep { /\A-l/ } map { split } @libs ];
 }
 
 1; # End of CPANPLUS::Dist::Arch
