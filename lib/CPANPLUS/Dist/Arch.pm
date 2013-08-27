@@ -947,7 +947,7 @@ sub _yankspecs (&$)
     my $i = 0;
     while ($i <= $#$a) {
         local $_ = $a->[$i][0];
-        if ($sub->($a->[$i])) {
+        if ($sub->(@{$a->[$i]})) {
             push @b, splice(@$a, $i, 1);
         } else {
             $i++;
@@ -964,6 +964,14 @@ sub _yanktestmods
 sub _yankmakemods
 {
     _yankspecs { /^ExtUtils-/ } shift;
+}
+
+sub _yankcoremods
+{
+    _yankspecs {
+        my $v = $Module::CoreList::version{0+$]}{$_[0]};
+        return ($v && (version->new($v) >= version->new($_[2])));
+    } shift;
 }
 
 #---HELPER FUNCTION---
@@ -1140,13 +1148,14 @@ sub _get_pkg_rels
         }
     }
     
+    my $be = $module->parent; # $module->parent is a CPANPLUS::Backend
     for my $a (\@deps, \@mkdeps, \@chdeps, \@cons) {
+        _yankcoremods($a);
         _normspecs($a);
-        _distspecs($module->parent, $a); # $module->parent is CPANPLUS::Backend
+        _distspecs($be, $a); # specs are now on dist. names
         _normspecs($a);
-        _pkgspecs($a);
+        _pkgspecs($a); # specs are now on package names
     }
-    # ... version specs are in terms of packages now.
 
     # Merge in the XS package deps if they exist.
     my $xsdeps = $self->_transxsdeps();
