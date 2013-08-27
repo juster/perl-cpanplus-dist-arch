@@ -107,10 +107,15 @@ arch=([% arch %])
 license=('PerlArtistic' 'GPL')
 options=('!emptydirs')
 depends=([% depends %])
+[% IF makedepends -%]
 makedepends=([% makedepends %])
+[% END -%]
+[% IF checkdepends -%]
+checkdepends=([% checkdepends %])
+[% END -%]
 [% IF conflicts -%]
 conflicts=([% conflicts %])
-[% END %]
+[% END -%]
 url='[% url %]'
 source=('[% source %]')
 md5sums=('[% md5sums %]')
@@ -1118,12 +1123,6 @@ sub _pruneperldep
     }
 }
 
-sub _prunedups
-{
-    my ($a, $b) = @_;
-    
-}
-
 #---PRIVATE METHOD---
 # Purpose  : Converts our CPAN requirements and conflicts into PKGBUILD
 #            checkdepends, makedepends, depends, and conflicts
@@ -1500,6 +1499,15 @@ sub _metareqs
         }
         $r->{'runtime'}{'requires'} = $meta->{'requires'};
         $r->{'build'}{'conflicts'} = $meta->{'conflicts'};
+        
+        # When upgrading, try to detect testing requirements.
+        if ($meta->{'name'} !~ /^Test-/) {
+            for my $m (keys %{$r->{'build'}{'requires'}}) {
+                if ($m =~ /^Test::/) {
+                    $r->{'test'}{'requires'}{$m} = delete $r->{'build'}{'requires'}{$m};
+                }
+            }
+        }
     }
     return $r;
 }
