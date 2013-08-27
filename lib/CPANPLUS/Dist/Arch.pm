@@ -933,9 +933,9 @@ sub _normspecs
         if (!defined $x) {
             $i++;
         } elsif ($x <= 0) {
-            splice @$a, $x, 1;
+            splice @$a, $i+1, 1;
         } else {
-            splice @$a, $x+1, 1;
+            splice @$a, $i, 1;
         }
     }
     return;
@@ -1210,6 +1210,7 @@ sub _get_pkg_rels
         'conflicts' => \@cons,
     };
 }
+
 
 #-----------------------------------------------------------------------------
 # XS module library dependency hunting
