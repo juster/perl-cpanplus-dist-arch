@@ -1123,6 +1123,29 @@ sub _pruneperldep
     }
 }
 
+#---HELPER FUNCTION---
+# Remove duplicate dependencies. If a package verspec is in depends, then the identical
+# verspec does not need to be in makedepends or checkdepends.
+#
+# Given A and B, remove any duplicates from the array B.
+#---------------------
+sub _prunedups
+{
+    my ($a, $b) = @_;
+    for my $x (@$a) {
+        my $i = 0;
+        while ($i <= $#$b) {
+            # remember that _cmpspecs may be undef
+            if (eval { _cmpspecs($x, $b->[$i]) == 0 }) {
+                splice @$b, $i, 1;
+            } else {
+                $i++;
+            }
+        }
+    }
+    return;
+}
+
 #---PRIVATE METHOD---
 # Purpose  : Converts our CPAN requirements and conflicts into PKGBUILD
 #            checkdepends, makedepends, depends, and conflicts
@@ -1179,6 +1202,7 @@ sub _get_pkg_rels
         # Require perl unless we have a dependency on a module or perl itself.
         unshift @deps, [ 'perl', '>=', '0' ];
     }
+    _prunedups(\@deps, $_) for (\@mkdeps, \@chdeps);
     return {
         'depends' => \@deps,
         'makedepends' => \@mkdeps,
