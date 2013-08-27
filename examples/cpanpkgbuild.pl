@@ -1,6 +1,7 @@
 #!/usr/bin/perl
 
 use CPANPLUS::Backend;
+use CPANPLUS::Dist::Arch;
 
 if(@ARGV < 1){
     print STDERR "usage: cpanpkgbuild.pl [module]\n";
@@ -8,11 +9,6 @@ if(@ARGV < 1){
 }
 
 $m = shift;
-if(!eval { require CPANPLUS::Dist::Arch; }){
-    print STDERR "error: failed to load CPANPLUS::Dist::Arch\n";
-    exit 1;
-}
-
 $cb = new CPANPLUS::Backend;
 $x  = $cb->module_tree($m);
 if(!$x){
