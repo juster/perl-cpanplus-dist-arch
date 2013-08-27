@@ -683,18 +683,16 @@ sub get_pkgvars
                  pkgrel   => $status->pkgrel,
                  arch     => $status->arch,
                  pkgdesc  => $status->pkgdesc,
-    
                  url      => $self->_get_disturl,
                  source   => $self->_get_srcurl,
                  md5sums  => $self->_calc_tarballmd5,
-    
                  pkgrels  => $pkgrels,
     );
     if ( eval { require Digest::SHA } ) {
         $vars{'sha512sums'} = $self->_calc_shasum(512);
     }
     for (qw/depends makedepends checkdepends conflicts/) {
-	    if ($pkgrels->{$_}) {
+        if ($pkgrels->{$_}) {
             $vars{$_} = _specstr($pkgrels->{$_});
         }
     }
@@ -859,46 +857,59 @@ sub _fallback_destdir
 # PACKAGE RELATIONSHIP FUNCTIONS
 #-----------------------------------------------------------------------------
 
+#---HELPER FUNCTION--
+# Merge two version operators, if possible.
+#--------------------
+sub _mergevops
+{
+    my ($op, $x, $y) = @_;
+    return $x if ($x eq $y);
+
+    ($x, $y) = (version->new($x), version->new($y));
+    if ($op =~ /^</) {
+        return ($x < $y ? $x : $y);
+    } elsif ( $op =~ /^>/ ) {
+        return ($x > $y ? $x : $y);
+    } else {
+        # We cannot merge specs other than <, <=, >, and >=.
+        return undef;
+    }
+}
+
 #---HELPER FUNCTION---
 # Perform very simple merging of version specs with identical names/operators.
-# NOTE: This only works with perl/CPAN/numerical versions.
+#
+# Checks for undefined versions which indicate a dependency on a module
+# which is not the main module of the distribution. Version specs which define
+# a version replace other specs with identical names, operators, and no version.
+#
+# We use the version module so this only works with perl/CPAN/numerical versions.
 #---------------------
 sub _mergespecs
 {
     my ($a, $b) = @_;
-    my ($name, $op) = @$a; # names and ops should be identical
+    my ($x, $y, $v);
 
-    # Check for undefined versions which indicate a dependency on a module
-    # which is not the main module of the distribution.
-    my ($x, $y) = ($a->[2], $b->[2]);
-    if (defined $x && defined $y) {
-        # Do nothing, moves on to the version check.
-    } elsif (!defined $x && defined $y) {
-        return [ $name, $op, $y ];
-    } elsif (defined $x && !defined $y) {
-        return [ $name, $op, $x ];
-    } else {
-        # both identical and undef
-        return [ $name, $op, undef ];
-    }
-
-    ($x, $y) = (version->new($x), version->new($y));
-    my $v;
-    if ( $op =~ /^</ ) {
-        $v = ( $x < $y ? $x : $y );
-    } elsif ( $op =~ /^>/ ) {
-        $v = ( $x > $y ? $x : $y );
-    } else {
+    if ($a->[0] ne $b->[0] || $a->[1] ne $b->[1]) {
+        # The most common case is that names won't even match.
         return undef;
+    } elsif (defined ($x = $a->[2]) && defined ($y = $b->[2])) {
+        $v = _mergevops($a->[1], $x, $y);
+        return ($v ? [ $a->[0], $a->[1], $v ] : undef);
+    } elsif (!defined $x && defined $y) {
+        return $b;
+    } elsif (defined $x && !defined $y) {
+        return $a;
+    } else {
+        return $a;
     }
-    
-    return [ $name, $op, $v ];
 }
 
 #---HELPER FUNCTION---
 # Normalize perl/CPAN version specifications. (we use numeric version cmp)
-# Each spec is an arrayref containing a name, operator, and value.
-# Sorts them and remove redundancies, 
+# Each spec is an aref containing a name, operator, and value.
+# Sorts them and remove redundancies such as specs with the same name
+# and operator.
 #---------------------
 sub _normspecs
 {
@@ -910,19 +921,13 @@ sub _normspecs
     my $x;
     SPECLOOP:
     while ($i < $#$a) {
-        if ($a->[$i][0] eq $a->[$i+1][0] && $a->[$i][1] eq $a->[$i+1][1]) {
-            # Versions may not be defined, leave _mergespecs to handle it.
-            if (eval { $a->[$i][2] eq $a->[$i+1][2] }) {
-                # Remove duplicates.
-                splice @$a, $i+1, 1;
-                next SPECLOOP;
-            } elsif ($x = _mergespecs($a->[$i], $a->[$i+1])) {
-                $a->[$i] = $x;
-                splice @$a, $i+1, 1;
-                next SPECLOOP;
-            }
+        if ($x = _mergespecs($a->[$i], $a->[$i+1])) {
+ no warnings;
+ print STDERR "DBG: merging @{$a->[$i]}\n";
+            splice @$a, $i, 2, $x;
+        } else {
+            $i++;
         }
-        $i++;
     }
 }
 
@@ -931,7 +936,7 @@ sub _normspecs
 #----------------------
 sub _vspecs
 {
-	our ($a, $b);
+    our ($a, $b);
     $a->[0] cmp $b->[0] or $a->[1] cmp $b->[1];
 }
 
@@ -981,14 +986,14 @@ sub _distspecs
         my $mod = $a->[$i][0];
         next if ($mod eq 'perl');
 
-        my $dist = $be->module_tree($mod)->package_name;
-        unless ($dist) {
+        my ($x, $y);
+        if (!($x = $be->module_tree($mod)) || !($y = $x->package_name)) {
             die "failed to find a CPAN distribution containing: $mod";
         }
-        unless (_ismainmod($mod, $dist)) {
+        if (!_ismainmod($mod, $y)) {
             undef $a->[$i][2];
         }
-        $a->[$i][0] = $dist;
+        $a->[$i][0] = $y;
     }
 }
 
@@ -1043,7 +1048,7 @@ sub _scanvspec
     my @specs;
     for my $opver (split /\s*,\s*/, $vspec) {
         if ($opver !~ /^([<>]=?|[!=]=) +([0-9a-zA-Z._-]+)$/) {
-        	die "invalid META version spec: $vspec"
+            die "invalid META version spec: $vspec"
         }
         my ($op, $ver) = ($1, $2);
         push @specs, [ $op, $ver ];
@@ -1079,6 +1084,27 @@ sub _scanvspecs
     return;
 }
 
+#---HELPER FUNCTION---
+sub _scanstage
+{
+    my ($s, $r, $c) = @_;
+    _scanvspecs($s->{'requires'}, $r, $c);
+    _scanvspecs($s->{'conflicts'}, $c, undef);
+}
+
+#---HELPER FUNCTION---
+# Clean up deps for the sake of humans.
+#---------------------
+sub _pruneperldep
+{
+    my ($d) = @_;
+    if ((grep { $_->[0] =~ /^perl/ } @$d) > 1) {
+        # Remove a redundant dependency on perl itself if a perl- package is
+        # depended on.
+        @$d = grep { $_->[0] ne 'perl' || $_->[2] } @$d;
+    }
+}
+
 #---PRIVATE METHOD---
 # Purpose  : Converts our CPAN requirements and conflicts into PKGBUILD
 #            checkdepends, makedepends, depends, and conflicts
@@ -1095,16 +1121,11 @@ sub _get_pkg_rels
     my $module = $self->parent;
     my (@deps, @mkdeps, @chdeps, @cons);
     if (defined $self->status->metareqs) {
- print STDERR "DBG: using META requisites\n";
         my $r = $self->status->metareqs;
-        _scanvspecs($r->{'configure'}{'requires'}, \@mkdeps, \@cons);
-        _scanvspecs($r->{'configure'}{'conflicts'}, \@cons, undef);
-        _scanvspecs($r->{'build'}{'requires'}, \@mkdeps, \@cons);
-        _scanvspecs($r->{'build'}{'conflicts'}, \@cons, undef);
-        _scanvspecs($r->{'test'}{'requires'}, \@chdeps, \@cons);
-        _scanvspecs($r->{'test'}{'conflicts'}, \@cons, undef);
-        _scanvspecs($r->{'runtime'}{'requires'}, \@deps, \@cons);
-        _scanvspecs($r->{'runtime'}{'conflicts'}, \@cons, undef);
+        _scanstage($r->{'configure'}, \@mkdeps, \@cons);
+        _scanstage($r->{'build'}, \@mkdeps, \@cons);
+        _scanstage($r->{'test'}, \@chdeps, \@cons);
+        _scanstage($r->{'runtime'}, \@deps, \@cons);
     } else {
         my $reqs = $module->status->prereqs;
         while (my ($k, $v) = each %$reqs) {
@@ -1121,20 +1142,10 @@ sub _get_pkg_rels
     
     for my $a (\@deps, \@mkdeps, \@chdeps, \@cons) {
         _normspecs($a);
-   printf STDERR "PRE: %s\n", join ' ',
-     map {
-       join '', @{$_}[0,1], (defined $_->[2] ? $_->[2] : 'undef');
-     } @$a;
         _distspecs($module->parent, $a); # $module->parent is CPANPLUS::Backend
-   printf STDERR "AFT: %s\n", join ' ',
-     map {
-       join '', @{$_}[0,1], (defined $_->[2] ? $_->[2] : 'undef');
-     } @$a;
-    	_normspecs($a);
+        _normspecs($a);
         _pkgspecs($a);
     }
-# for my $r (\@deps, \@mkdeps, \@chdeps, \@cons) {
-# } 
     # ... version specs are in terms of packages now.
 
     # Merge in the XS package deps if they exist.
@@ -1143,12 +1154,12 @@ sub _get_pkg_rels
         push @deps, @$xsdeps;
         @deps = sort _vspecs @deps;
     }
-    
-    # Require perl unless we have a dependency on a module or perl itself.
-    unless (grep { $_->[0] =~ /^perl/ } @deps) {
+
+    _pruneperldep($_) for (\@deps, \@mkdeps, \@chdeps);
+    if (!grep { $_->[0] =~ /^perl/ } @deps) {
+        # Require perl unless we have a dependency on a module or perl itself.
         unshift @deps, [ 'perl', '>=', '0' ];
     }
-
     return {
         'depends' => \@deps,
         'makedepends' => \@mkdeps,
@@ -1452,7 +1463,7 @@ sub _metapath
             last;
         }
     }
-    return $metapath;	
+    return $metapath;
 }
 
 # Smooth over differences between incompatible META specs.
