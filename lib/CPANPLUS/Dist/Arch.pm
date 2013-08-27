@@ -860,16 +860,16 @@ sub _fallback_destdir
 #---HELPER FUNCTION--
 # Merge two version operators, if possible.
 #--------------------
-sub _mergevops
+sub _cmpvops
 {
     my ($op, $x, $y) = @_;
-    return $x if ($x eq $y);
+    return 0 if ($x eq $y); # specs are identical
 
     ($x, $y) = (version->new($x), version->new($y));
     if ($op =~ /^</) {
-        return ($x < $y ? $x : $y);
+        return ($x < $y ? -1 : 1);
     } elsif ( $op =~ /^>/ ) {
-        return ($x > $y ? $x : $y);
+        return ($x > $y ? -1 : 1);
     } else {
         # We cannot merge specs other than <, <=, >, and >=.
         return undef;
@@ -877,7 +877,11 @@ sub _mergevops
 }
 
 #---HELPER FUNCTION---
-# Perform very simple merging of version specs with identical names/operators.
+# Perform very simple comparison of version specs.
+# Returns undef if no merging is possible,
+# 0 if the specs are equal,
+# -1 if the first spec is dominant,
+# or 1 if the second specs is dominant.
 #
 # Checks for undefined versions which indicate a dependency on a module
 # which is not the main module of the distribution. Version specs which define
@@ -885,23 +889,23 @@ sub _mergevops
 #
 # We use the version module so this only works with perl/CPAN/numerical versions.
 #---------------------
-sub _mergespecs
+sub _cmpspecs
 {
     my ($a, $b) = @_;
-    my ($x, $y, $v);
+    my ($x, $y, $z);
 
     if ($a->[0] ne $b->[0] || $a->[1] ne $b->[1]) {
         # The most common case is that names won't even match.
         return undef;
     } elsif (defined ($x = $a->[2]) && defined ($y = $b->[2])) {
-        $v = _mergevops($a->[1], $x, $y);
-        return ($v ? [ $a->[0], $a->[1], $v ] : undef);
+        return _cmpvops($a->[1], $x, $y);
     } elsif (!defined $x && defined $y) {
-        return $b;
+        return 1;
     } elsif (defined $x && !defined $y) {
-        return $a;
+        return -1;
     } else {
-        return $a;
+        # Both specs are identical with undef versions.
+        return 0;
     }
 }
 
@@ -919,16 +923,17 @@ sub _normspecs
     @$a = sort _vspecs @$a;
     my $i = 0;
     my $x;
-    SPECLOOP:
     while ($i < $#$a) {
-        if ($x = _mergespecs($a->[$i], $a->[$i+1])) {
- no warnings;
- print STDERR "DBG: merging @{$a->[$i]}\n";
-            splice @$a, $i, 2, $x;
-        } else {
+        my $x = _cmpspecs($a->[$i], $a->[$i+1]);
+        if (!defined $x) {
             $i++;
+        } elsif ($x <= 0) {
+            splice @$a, $x, 1;
+        } else {
+            splice @$a, $x+1, 1;
         }
     }
+    return;
 }
 
 #---SORTING FUNCTION---
@@ -1111,6 +1116,12 @@ sub _pruneperldep
         # depended on.
         @$d = grep { $_->[0] ne 'perl' || $_->[2] } @$d;
     }
+}
+
+sub _prunedups
+{
+    my ($a, $b) = @_;
+    
 }
 
 #---PRIVATE METHOD---
