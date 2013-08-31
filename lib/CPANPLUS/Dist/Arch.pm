@@ -6,7 +6,7 @@ use strict;
 use CPANPLUS::Dist::Base   qw();
 use Exporter               qw(import);
 
-our $VERSION     = '1.25';
+our $VERSION     = '1.26';
 our @EXPORT      = qw();
 our @EXPORT_OK   = qw(dist_pkgname dist_pkgver);
 our %EXPORT_TAGS = ( 'all' => [ @EXPORT_OK ] );
@@ -678,27 +678,27 @@ sub get_pkgvars
     my $status = $self->status;
 
     croak 'prepare() must be called before get_pkgvars()'
-        unless ( $status->prepared );
+        unless ($status->prepared);
 
-    my $pkgrels = $self->_get_pkg_rels;
+    my $pkglinks = $self->_get_pkg_rels;
     my @shavars;
 
-    my %vars = ( pkgname  => $status->pkgname,
-                 pkgver   => $status->pkgver,
-                 pkgrel   => $status->pkgrel,
-                 arch     => $status->arch,
-                 pkgdesc  => $status->pkgdesc,
-                 url      => $self->_get_disturl,
-                 source   => $self->_get_srcurl,
-                 md5sums  => $self->_calc_tarballmd5,
-                 pkgrels  => $pkgrels,
+    my %vars = (pkgname  => $status->pkgname,
+                pkgver   => $status->pkgver,
+                pkgrel   => $status->pkgrel,
+                arch     => $status->arch,
+                pkgdesc  => $status->pkgdesc,
+                url      => $self->_get_disturl,
+                source   => $self->_get_srcurl,
+                md5sums  => $self->_calc_tarballmd5,
+                pkglinks => $pkglinks,
     );
-    if ( eval { require Digest::SHA } ) {
+    if (eval { require Digest::SHA }) {
         $vars{'sha512sums'} = $self->_calc_shasum(512);
     }
     for (qw/depends makedepends checkdepends conflicts/) {
-        if ($pkgrels->{$_}) {
-            $vars{$_} = _specstr($pkgrels->{$_});
+        if ($pkglinks->{$_}) {
+            $vars{$_} = _specstr($pkglinks->{$_});
         }
     }
     
@@ -955,8 +955,9 @@ sub _yankspecs (&$)
     my ($sub, $a) = @_;
     my @b;
     my $i = 0;
+    local $_;
     while ($i <= $#$a) {
-        local $_ = $a->[$i][0];
+        $_ = $a->[$i][0];
         if ($sub->(@{$a->[$i]})) {
             push @b, splice(@$a, $i, 1);
         } else {
