@@ -4,7 +4,6 @@ MANIFEST
 MANIFEST.SKIP
 README
 examples/cpanpkgbuild.pl
-examples/aurneeded.pl
 lib/CPANPLUS/Dist/Arch.pm
 lib/CPANPLUS/Dist/Arch.pod
 script/setupdistarch

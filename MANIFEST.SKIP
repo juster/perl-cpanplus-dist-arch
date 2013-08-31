@@ -8,3 +8,4 @@ blib/
 .tmp
 .bak
 PKGBUILD.git
+^MYMETA\.json$
