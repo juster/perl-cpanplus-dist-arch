@@ -278,13 +278,16 @@ included in the examples directory for an example.
   Returns : A hash containing all the PKGBUILD variables.
             Keys are the bash variable names in the PKGBUILD.
             Dependencies are converted to their pacman names.
+  Notes   : The keys are: pkgname, pkgver, pkgdesc, depends, url, source
+            md5sums, arch, pkgrels, and sha512sums if Digest::SHA is
+            installed.
  
-            The keys are: pkgname, pkgver, pkgdesc, depends, url, source
-            md5sums (despite this name only one is given), depshash, arch
- 
-            One new key is 'depshash' whose value is a hashref.
-            The hashref keys are packages and their values are
-            required versions, or 0 if there is no required version.
+            One key not named after a PKGBUILD field is 'pkglinks' whose
+            value is a hashref. If depends, makedepends, checkdepends,
+            or conflicts are present then they will have a key with the
+            same name in 'pkglinks'. The value of each key is an arrayref
+            of specifications, where each specification is an arrayref of
+            package name, a comparison operator, and a version number.
 
 =head3 get_pkgvars_ref
 
