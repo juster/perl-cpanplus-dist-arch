@@ -6,6 +6,22 @@
 :  \____|_| |_|\__,_|_| |_|\__, |\___||___/
 :                          |___/           
 
+* Release 1.26 [2013-08-31 Sat]
+
+** get_pkgvars return value modified.
+
+The key named "depshash" was renamed to "pkglinks". This stands for the
+less specific concept of packages linked by dependencies or conflicts.
+I did this because "pkglinks" might now contain conflicts as well as
+dependencies.
+
+** Improved dependency generation through META-file dependencies.
+
+Package relationships specified in depends, makedepends, checkdepends, and
+conflicts arrays are now more completely distinguished. The conversion from
+metadata in the META file into lists of dependencies or conflicts has been
+rewritten.
+
 * Release 1.25 [2013-04-11 Thu]                                       :BUGFIX:
 
 ** Bugfix to match pacman 4.1's new makepkg behavior.
