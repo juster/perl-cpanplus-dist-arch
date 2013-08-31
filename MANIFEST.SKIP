@@ -9,3 +9,4 @@ blib/
 .bak
 PKGBUILD.git
 ^MYMETA\.json$
+acme
