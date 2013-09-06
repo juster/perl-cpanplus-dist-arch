@@ -84,7 +84,7 @@ my %perlpkgver_of =
       '5.v8.0'   => '5.v8.0'
      );
 
-*_perl_ver = *CPANPLUS::Dist::Arch::_translate_perl_ver;
+*_perl_ver = *CPANPLUS::Dist::Arch::_transperlver;
 
 while ( my ($decimal, $dotdecimal) = each %perlpkgver_of ) {
     is( _perl_ver( $decimal ), $dotdecimal,
