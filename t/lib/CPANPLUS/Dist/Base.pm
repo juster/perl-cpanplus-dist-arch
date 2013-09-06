@@ -49,9 +49,7 @@ sub new {
     $opt{modname} ||= 'Fake::Package';
     $opt{name}    ||= 'Fake-Package';
     $opt{version} ||= '31337';
-    $opt{prereqs} ||= { 'perl'        => '5.010',
-                        'Foo-Package' => '0.01',
-                       };
+    $opt{prereqs} ||= { 'perl'        => '5.010' };
     $opt{desc}    ||= 'This is a "fake" package, for testing only.';
 
     # So that _translate_xs_deps does nothing...
