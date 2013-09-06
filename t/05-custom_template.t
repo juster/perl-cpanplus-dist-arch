@@ -12,15 +12,15 @@ sub process
 {
     my ($self, $templ_ref, $params_ref, $output_ref) = @_;
 
-    delete $params_ref->{ 'depshash' };
-    for my $key ( sort keys %$params_ref ) {
+    delete $params_ref->{'pkglinks'};
+    for my $key (sort keys %$params_ref) {
         $$output_ref .= "$key = $params_ref->{$key}\n";
     }
 
     return 1;
 }
 
-$INC{ 'Template/Fake.pm' } = $0;
+$INC{'Template/Fake.pm'} = $0;
 
 1;
 
