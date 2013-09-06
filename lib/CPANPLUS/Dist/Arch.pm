@@ -697,7 +697,7 @@ sub get_pkgvars
         $vars{'sha512sums'} = $self->_calc_shasum(512);
     }
     for (qw/depends makedepends checkdepends conflicts/) {
-        if ($pkglinks->{$_}) {
+        if (@{$pkglinks->{$_}}) {
             $vars{$_} = _specstr($pkglinks->{$_});
         }
     }
