@@ -6,6 +6,25 @@
 :  \____|_| |_|\__,_|_| |_|\__, |\___||___/
 :                          |___/           
 
+* Release 1.27 [2013-09-06 Fri]
+
+** Fix broken tests.
+
+Whoops I totally forgot to run tests last release! Turns out some
+changes like function renaming and better error checking were
+causing massive test failure. Who knew?
+
+** get_pkgvars always returns makedepends and depends.
+
+This is to preserve backwards compatibility. I wouldn't want to cause
+errors in custom PKGBUILD templates. If makedepends and depends suddenly
+disappeared when empty, this would also require cpan2aur's PKGBUILD.tt
+files to be updated... manually!
+
+The new checkdepends and conflicts keys are only returned when they
+contain one or more entries. These are rare so this shouldn't be a
+problem.
+
 * Release 1.26 [2013-08-31 Sat]
 
 ** get_pkgvars return value modified.
