@@ -2,7 +2,7 @@
 
 use warnings;
 use strict;
-use Test::More tests => 7;
+use Test::More;
 
 sub make_inc_hook
 {
@@ -31,21 +31,27 @@ BEGIN {
     use_ok( 'CPANPLUS::Dist::Arch::Test' );
 }
 
-my $cda_obj = CPANPLUS::Dist::Arch::Test->new( name    => 'CDA-Template',
-                                               version => '0.01' );
+my $cda_obj = CPANPLUS::Dist::Arch::Test->new( name => 'CDA-Template', version => '0.01' );
 
 # Test our builtin template engine.  Make sure [%- and -%] works...
 is $cda_obj->get_tt_module, 0,
     'We are using our internal template engine.';
 
-$cda_obj->set_pkgbuild_templ( '[%- pkgname -%]' );
-is $cda_obj->get_pkgbuild, 'perl-cda-template',
+sub istt
+{
+    my ($templ, $txt, $test) = @_;
+    $cda_obj->set_pkgbuild_templ($templ);
+    is $cda_obj->get_pkgbuild, $txt, $test;
+}
+
+istt '[%- pkgname -%]', 'perl-cda-template',
     q{[%-'s and -%]'s work with our internal template engine};
 
-$cda_obj->set_pkgbuild_templ( '[% pkgname %]' );
-is $cda_obj->get_pkgbuild, 'perl-cda-template',
+istt '[% pkgname %]', 'perl-cda-template',
     q{[%'s and %]'s work with our internal template engine};
 
+istt 'A[% foobar %]Z', 'AZ',
+    q{undefined template vars expand to empty strings};
 
 # TEST WHITESPACE
 ##############################################################################
@@ -73,3 +79,10 @@ while( my ($templ, $result) = splice @ws_tests, 0, 2 ) {
     $cda_obj->set_pkgbuild_templ( $templ );
     is $cda_obj->get_pkgbuild(), $result;
 }
+
+# TEST IF BLOCKS
+
+istt '[% IF undefined_var %]foobar[% END %]', q{},
+    'Undefined vars evaluate to false in if tests';
+
+done_testing;
