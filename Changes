@@ -6,6 +6,15 @@
 :  \____|_| |_|\__,_|_| |_|\__, |\___||___/
 :                          |___/           
 
+* Release 1.28 [2013-10-25 Fri]
+
+** Fix bug where packaging fails if checkdepends is empty.
+
+The built-in template engine for PKGBUILDs has been modified. If a
+template variable is used which has no assigned value, the empty
+string is used as a replacement. An undefined template variable
+used in an IF block also evaluates as false.
+
 * Release 1.27 [2013-09-06 Fri]
 
 ** Fix broken tests.
