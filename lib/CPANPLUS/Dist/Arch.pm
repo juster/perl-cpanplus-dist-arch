@@ -1059,7 +1059,7 @@ sub _transperlver
 # Translate a single CPAN dependency version specification.
 sub _scanvspec
 {
-    my ($vspec, $conflicts) = @_;
+    my ($vspec) = @_;
 
     # The simplest case is a version.
     return $vspec if ($vspec =~ /^[0-9a-zA-Z._-]+$/);
