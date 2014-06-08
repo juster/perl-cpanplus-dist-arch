@@ -1083,7 +1083,7 @@ sub _scanvspecs
 {
     my ($specs, $deps, $cons) = @_;
     while (my ($k, $v) = each %$specs) {
-        my $vs = _scanvspec($v);
+        my $vs = _scanvspec($v); # $vs is either a version string or an array-ref.
         unless (ref $vs) {
             push @$deps, [ $k, '>=', $vs ];
             next;
@@ -1091,6 +1091,8 @@ sub _scanvspecs
         for my $x (@$vs) {
             my ($op, $ver) = @$x;
             if ($op eq '!=') {
+                ## When $cons is elided, that means we are scanning conflict version specs.
+                ## The '!=' spec specifies a conflict. What is a conflict of a conflict?
                 unless (defined $cons) {
                     die qq{unable to process "$k != $ver" in a conficts list};
                 }
