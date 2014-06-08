@@ -1061,9 +1061,13 @@ sub _scanvspec
 {
     my ($vspec) = @_;
 
-    # The simplest case is a version.
+    ## The module author forgot to specify a version in the (one) dependency.
+    return 0 if (!defined $vspec);
+
+    ## The simplest case is a version string.
     return $vspec if ($vspec =~ /^[0-9a-zA-Z._-]+$/);
 
+    ## Combinations of complicated version specifications are also possible.
     my @specs;
     for my $opver (split /\s*,\s*/, $vspec) {
         if ($opver !~ /^([<>]=?|[!=]=) +([0-9a-zA-Z._-]+)$/) {
