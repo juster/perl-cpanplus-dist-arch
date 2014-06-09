@@ -126,7 +126,7 @@ engine. Template modules are searched for in this order:
 
 Run 'man CPANPLUS::Dist::Arch' after installing to view the manpage.
 
-** Arch Package(community): perl-cpanplus-dist-arch
+** Arch Package in [community] : perl-cpanplus-dist-arch
 
 https://www.archlinux.org/packages/community/any/perl-cpanplus-dist-arch/
 
