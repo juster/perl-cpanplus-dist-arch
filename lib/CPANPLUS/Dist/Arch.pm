@@ -476,7 +476,7 @@ Package type must be 'bin' or 'src'};
 }
 
 #---INTERFACE METHOD---
-# Purpose  : Installs the package file (.pkg.tar.gz) using sudo and
+# Purpose  : Installs the package file (.pkg.tar.xz) using sudo and
 #            pacman.
 # Comments : Called automatically on pre-requisite packages
 #----------------------
@@ -501,8 +501,11 @@ END_ERROR
 
     die "Package file $pkgfile_fqp was not found" if ( ! -f $pkgfile_fqp );
 
-    my @pacmancmd = ( 'pacman', '--noconfirm', '-U', $pkgfile_fqp,
-                      ( $Is_dependency ? '--asdeps' : '--asexplicit' ),
+    my @pacmancmd = ( 'pacman',
+                      ($opts{'force'} ? '--force' : ()),
+                      '--noconfirm',
+                      ($Is_dependency ? '--asdeps' : '--asexplicit'),
+                      '-U', $pkgfile_fqp,
                      );
 
     # Make sure the user has access to install a package...
