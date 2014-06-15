@@ -6,6 +6,27 @@
 :  \____|_| |_|\__,_|_| |_|\__, |\___||___/
 :                          |___/           
 
+* Release 1.29 [2014-06-15 Sun]
+
+** Force option to CPANPLUS will pass --force to pacman.
+
+If you specify --force to CPANPLUS this will add the --force
+flag to pacman, when installing the package file. Thanks for
+the idea Scott.
+
+** Update web link in README
+
+The package has not been on the AUR for many years. Thanks for 
+pointing that out Scott.
+
+** Fix bug caused by undefined dependency version.
+
+Text::LevenshteinXS forgot to specify a version for its own dep
+inside the META.yml file. This causes the META.yml to be parsed
+into a hash with an undefined value. Catastrophic failure ensues!
+
+Reported by Volker Schatz. Thanks!
+
 * Release 1.28 [2013-10-25 Fri]
 
 ** Fix bug where packaging fails if checkdepends is empty.
