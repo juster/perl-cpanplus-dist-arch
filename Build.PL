@@ -7,9 +7,8 @@ my $builder = Module::Build->new(
     license             => 'perl',
     dist_author         => 'Justin Davis < juster at cpan dot org >',
     dist_version_from   => 'lib/CPANPLUS/Dist/Arch.pm',
-    build_requires => {
+    test_requires => {
         'Test::More' => 0,
-        'Net::Ping'  => 0,
     },
     requires => {
         # 'perl'                  => '5.8.0', # thx to CPAN Testers
