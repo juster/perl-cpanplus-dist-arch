@@ -1499,7 +1499,14 @@ sub _prepare_pkgdesc
         $pkgdesc = $pkgdesc_src->( $module ) and last PKGDESC_LOOP;
     }
 
-    return $status->pkgdesc( $pkgdesc || q{} );
+    if ( $pkgdesc ) {
+        # Avoid CR chars because of CRLF line endings in sources.
+        $pkgdesc =~ tr/\r//d;
+    } else {
+        $pkgdesc = q{};
+    }
+    $status->pkgdesc( $pkgdesc );
+    return;
 }
 
 #----------------------------
