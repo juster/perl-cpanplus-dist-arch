@@ -50,6 +50,6 @@ pkgrel = 1
 pkgver = 1.342
 sha512sums = 12345SHA512SUM12345
 source = http://search.cpan.org/CPAN/J/JU/JUSTER/Template-Tester-1.342.tar.gz
-url = http://search.cpan.org/dist/Template-Tester
+url = https://metacpan.org/release/Template-Tester
 version = $CPANPLUS::Dist::Arch::VERSION
 END_OUTPUT
