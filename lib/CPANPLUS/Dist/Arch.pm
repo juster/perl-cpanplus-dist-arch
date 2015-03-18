@@ -1641,11 +1641,9 @@ sub _prepare_status
 sub _get_disturl
 {
     croak 'Invalid arguments to _get_disturl method' if @_ != 1;
-    my $self   = shift;
-    my $module = $self->parent;
-
-    my $distname  = $module->package_name;
-    return join '/', $CPANURL, 'dist', $distname;
+    my $self = shift;
+    my $dist = $self->parent->package_name;
+    return "https://metacpan.org/release/$dist";
 }
 
 #---INSTANCE METHOD---
