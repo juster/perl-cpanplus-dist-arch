@@ -1,4 +1,4 @@
-Build.PL
+Makefile.PL
 Changes
 MANIFEST
 MANIFEST.SKIP
@@ -17,10 +17,9 @@ t/03-pkgbuild.t
 t/04-int_template.t
 t/05-custom_template.t
 t/06-find_built_pkg.t
-META.yml
-Makefile.PL
 .gitignore
 .shipit
 PKGBUILD
 TODO
 META.json
+META.yml
