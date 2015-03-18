@@ -1,8 +1,9 @@
 *~
 META.yml
-Makefile.*
+Makefile
+Makefile.old
 Build
-MYMETA.yml
+MYMETA.*
 _build/*
 blib/*
 *.tmp
