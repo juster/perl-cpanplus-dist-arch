@@ -6,6 +6,12 @@
 :  \____|_| |_|\__,_|_| |_|\__, |\___||___/
 :                          |___/           
 
+* Release 1.30 [2015-03-17 Tue]
+
+** Change package homepage to use metacpan.org
+
+** Fix bug caused by CRLF newlines in files containing pkgdesc.
+
 * Release 1.29 [2014-06-15 Sun]
 
 ** Force option to CPANPLUS will pass --force to pacman.
