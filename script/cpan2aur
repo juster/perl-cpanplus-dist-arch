@@ -1123,11 +1123,15 @@ I hope you get the idea...
 
 =head1 AUTHOR
 
-Justin Davis C<< <juster at cpan dot org> >>
+Created by: Justin Davis C<< <juster at cpan dot org> >>
+
+Serendipitously maintained by: John D Jones III C<< <jnbek at cpan dot org> >>
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2011 Justin Davis, all rights reserved.
+Copyright 2010-2015 Justin Davis, all rights reserved.
+
+Copyright 2015 John D Jones III, all rights reserved
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.

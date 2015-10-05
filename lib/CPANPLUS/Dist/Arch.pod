@@ -102,7 +102,7 @@ Here is how you can use environment variables to put the package files
 in our I<~/pkgs> directory for the L<ALPM> module. (along with any
 modules we have to build and install to create it)
 
-  PACKAGER='Juster <juster at cpan dot org>' PKGDEST=~/pkgs cpanp -i ALPM
+  PACKAGER='jnbek1972 <jnbek at cpan dot org>' PKGDEST=~/pkgs cpanp -i ALPM
 
 =head1 COMMAND LINE OPTIONS
 
@@ -547,7 +547,7 @@ L<http://aur.archlinux.org/packages.php?ID=24971>
 
 =item * Git Repository
 
-L<http://github.com/juster/perl-cpanplus-dist-arch>
+L<http://github.com/jnbek/perl-cpanplus-dist-arch>
 
 =item * Archlinux Perl Package Guidelines
 
@@ -568,6 +568,16 @@ L<http://search.cpan.org/dist/CPANPLUS/>
 =back
 
 =head1 AUTHOR
+
+Created by: Justin Davis C<< <juster at cpan dot org> >>
+
+Serendipitously maintained by: John D Jones III C<< <jnbek at cpan dot org> >>
+
+=head1 COPYRIGHT & LICENSE
+
+Copyright 2010-2015 Justin Davis, all rights reserved.
+
+Copyright 2015 John D Jones III, all rights reserved
 
 Justin Davis C<< <juster at cpan dot org> >>
 
