@@ -6,7 +6,13 @@
 :  \____|_| |_|\__,_|_| |_|\__, |\___||___/
 :                          |___/           
 
-* Release 1.31 [2015-10-05 Mon]
+* Release 1.32 [2015-10-05 Mon] <jnbek@cpan.org>
+
+** Temporarily disable the upload feature
+
+** Fix documentation to change the contact infomation.
+
+* Release 1.31 [2015-10-05 Mon] <jnbek@cpan.org>
 
 ** Fix regex warning in cpan2aur
 
