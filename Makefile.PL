@@ -16,15 +16,15 @@ push @reqs, qw/File::Path 2.06_05/;
 my $meta =
     { 'resources' =>
         { 'repository' =>
-            'https://github.com/juster/perl-cpanplus-dist-arch' }};
+            'https://github.com/jnbek/perl-cpanplus-dist-arch' }};
 
 my @scripts = qw{script/cpan2aur script/setupdistarch};
 
 WriteMakefile(
     'NAME' => 'CPANPLUS::Dist::Arch',
     'ABSTRACT' => 'CPANPLUS backend for building ArchLinux pacman packages',
-    'AUTHOR' => 'Justin Davis <juster@cpan.org>',
-    'VERSION' => '1.30',
+    'AUTHOR' => 'John D Jones III <jnbek@cpan.org>',
+    'VERSION' => '1.32',
     'PREREQ_PM' => { @reqs },
     'META_ADD' => $meta,
     'EXE_FILES' => \@scripts,

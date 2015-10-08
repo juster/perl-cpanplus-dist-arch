@@ -23,7 +23,7 @@ CPANPLUS::Dist::Arch - CPANPLUS backend for building Archlinux pacman packages
   $ cpan2aur -d CPANPLUS::Dist::Arch
   ==> Creating new directory for CPANPLUS::Dist::Arch...
     -> Looking up module for CPANPLUS::Dist::Arch on CPAN...
-  Running [/usr/bin/perl /usr/bin/perlbin/core/cpanp-run-perl /home/juster/.cpanplus/5.10.1/build/CPANPLUS-Dist-Arch-0.16/Makefile.PL INSTALLDIRS=site]...
+  Running [/usr/bin/perl /usr/bin/perlbin/core/cpanp-run-perl /home/jnbek/.cpanplus/5.22.1/build/CPANPLUS-Dist-Arch-1.32/Makefile.PL INSTALLDIRS=site]...
   Writing Makefile for CPANPLUS::Dist::Arch
     -> Creating new PKGBUILD.tt template file...
   ==> Created perl-cpanplus-dist-arch source package directory.
@@ -102,7 +102,7 @@ Here is how you can use environment variables to put the package files
 in our I<~/pkgs> directory for the L<ALPM> module. (along with any
 modules we have to build and install to create it)
 
-  PACKAGER='Juster <juster at cpan dot org>' PKGDEST=~/pkgs cpanp -i ALPM
+  PACKAGER='jnbek1972 <jnbek at cpan dot org>' PKGDEST=~/pkgs cpanp -i ALPM
 
 =head1 COMMAND LINE OPTIONS
 
@@ -336,7 +336,7 @@ See L</PKGBUILD TEMPLATE>.
 
 =head3 set_tt_init_args
 
-  Usage   : $self->set_tt_init_args( INCLUDE_PATH => '/home/juster/aur/tt',
+  Usage   : $self->set_tt_init_args( INCLUDE_PATH => '/home/jnbek/aur4/tt',
                                      EVAL_PERL    => 1 );
   Purpose : Change arguments that are given to the template module's
             constructor when we create an object to process templates.
@@ -471,8 +471,8 @@ Please email me or report any bugs or feature requests to C<<
 <bug-cpanplus-dist-arch at rt.cpan.org> >>, or through the web
 interface at
 L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=CPANPLUS-Dist-Arch>.
-I will be notified, and then you'll automatically be notified of
-progress on your bug as I make changes.
+We will be notified, and then you'll automatically be notified of
+progress on your bug as we make changes.
 
 =head2 Known Bugs
 
@@ -488,8 +488,12 @@ to install the module, the install step will be aborted.  The package
 will still be created in the usual directory, so you can install it
 manually.
 
-I haven't been able to track this down yet... I think it has only happened
+We haven't been able to track this down yet... I think it has only happened
 with cpan2dist so far.  It happened when building L<PDL>, by the way.
+
+If you have any ideas or patches, feel free to create a pull request on GitHub
+
+L<https://github.com/jnbek/perl-cpanplus-dist-arch>
 
 =back
 
@@ -505,8 +509,11 @@ with cpan2dist so far.  It happened when building L<PDL>, by the way.
 
 =head1 SUPPORT
 
-Email me at C<< <juster at cpan dot org> >> or message me as I<juster> on the
-Archlinux BBS at L<http://bbs.archlinux.org>.
+Email me at C<< <jnbek at cpan dot org> >> or message me as I<jnbek> on IRC
+
+Freenode: #archlinux
+
+really anywhere you see I<jnbek> or I<jnbek1972> online, it's me.
 
 To check why the build process failed, read the build logs CPANPLUS
 keeps in C<~/.cpanplus/install_logs/>.  The problem may be specific to
@@ -547,7 +554,7 @@ L<http://aur.archlinux.org/packages.php?ID=24971>
 
 =item * Git Repository
 
-L<http://github.com/juster/perl-cpanplus-dist-arch>
+L<http://github.com/jnbek/perl-cpanplus-dist-arch>
 
 =item * Archlinux Perl Package Guidelines
 
@@ -568,6 +575,16 @@ L<http://search.cpan.org/dist/CPANPLUS/>
 =back
 
 =head1 AUTHOR
+
+Created by: Justin Davis C<< <juster at cpan dot org> >>
+
+Serendipitously maintained by: John D Jones III C<< <jnbek at cpan dot org> >>
+
+=head1 COPYRIGHT & LICENSE
+
+Copyright 2010-2015 Justin Davis, all rights reserved.
+
+Copyright 2015 John D Jones III, all rights reserved
 
 Justin Davis C<< <juster at cpan dot org> >>
 

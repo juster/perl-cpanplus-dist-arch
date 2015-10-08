@@ -132,7 +132,7 @@ https://www.archlinux.org/packages/community/any/perl-cpanplus-dist-arch/
 
 ** Git Repository
 
-http://github.com/juster/perl-cpanplus-dist-arch
+http://github.com/jnbek/perl-cpanplus-dist-arch
 
 ** Archlinux Perl Package Guidelines
 
@@ -152,7 +152,9 @@ http://search.cpan.org/dist/CPANPLUS/
 
 * Author
 
-Justin Davis <juster at cpan dot org>
+Created by: Justin Davis <juster at cpan dot org>
+
+Serendipitously maintained by: John D Jones III <jnbek at cpan dot org>
 
 * Support
 
@@ -162,6 +164,8 @@ run into any bugs please e-mail any information about them.
 * License and Copyright
 
 Copyright 2013 Justin Davis.
+
+Copyright 2015 John D Jones III
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of either: the GNU General Public License as published

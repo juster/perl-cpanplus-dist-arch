@@ -926,7 +926,10 @@ GetOptions( 'directory' => \$DIRECTORY,
 
 $VERBOSE ||= 0;
 
-pod2usage( -message => '-u[pload] and -d[irectory cannot be used together' )
+pod2usage( -message => '-u[pload] feature not implemented due to AUR 4.0 changes')
+    if ( $UPLOAD );
+
+pod2usage( -message => '-u[pload] and -d[irectory] cannot be used together' )
     if ( $UPLOAD && $DIRECTORY );
 
 pod2usage( -message => 'The -r[everse] flag must be used by itself.' )
@@ -1002,6 +1005,9 @@ cpan2aur - AUR maintainer utility for CPAN perl modules
                        PKGBUILD.tt template file.
  -r, --reverse         Convert a PKGBUILD in the current directory to a
                        template file (PKGBUILD.tt).
+
+ TODO: The upload feature is currently disabled due to AUR v4.0 changing
+ to a Git backend and HTTP Uploads removed.
  -u, --upload  [dir]   Upload the generated source package to the AUR.
               [file]   * If a dir is specified cd to that dir and
             [module]     convert PKGBUILD.tt to a PKGBUILD to a
@@ -1123,11 +1129,15 @@ I hope you get the idea...
 
 =head1 AUTHOR
 
-Justin Davis C<< <juster at cpan dot org> >>
+Created by: Justin Davis C<< <juster at cpan dot org> >>
+
+Serendipitously maintained by: John D Jones III C<< <jnbek at cpan dot org> >>
 
 =head1 COPYRIGHT & LICENSE
 
-Copyright 2011 Justin Davis, all rights reserved.
+Copyright 2010-2015 Justin Davis, all rights reserved.
+
+Copyright 2015 John D Jones III, all rights reserved
 
 This program is free software; you can redistribute it and/or modify it
 under the same terms as Perl itself.
